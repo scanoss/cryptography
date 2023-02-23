@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
-	myconfig "scanoss.com/dependencies/pkg/config"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	myconfig "scanoss.com/cryptography/pkg/config"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 

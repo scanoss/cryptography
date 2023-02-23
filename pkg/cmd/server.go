@@ -27,10 +27,10 @@ import (
 	_ "github.com/lib/pq"
 	"go.uber.org/zap/zapcore"
 	"os"
-	myconfig "scanoss.com/dependencies/pkg/config"
-	zlog "scanoss.com/dependencies/pkg/logger"
-	"scanoss.com/dependencies/pkg/protocol/grpc"
-	"scanoss.com/dependencies/pkg/service"
+	myconfig "scanoss.com/cryptography/pkg/config"
+	zlog "scanoss.com/cryptography/pkg/logger"
+	"scanoss.com/cryptography/pkg/protocol/grpc"
+	"scanoss.com/cryptography/pkg/service"
 	"strings"
 	"time"
 )
@@ -133,7 +133,7 @@ func RunServer() error {
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
 	defer closeDbConnection(db)
-	v2API := service.NewDependencyServer(db, cfg)
+	v2API := service.NewCryptoServer(db, cfg)
 	ctx := context.Background()
 	return grpc.RunServer(ctx, v2API, cfg.App.Port)
 }

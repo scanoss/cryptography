@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"reflect"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 
@@ -248,9 +248,9 @@ func TestCleanseLicenseName(t *testing.T) {
 			want:  "Apache 2.0",
 		},
 		{
-			name: "Apache/MIT",
+			name:  "Apache/MIT",
 			input: " Apache 2.0, 	MIT		",
-			want: "Apache 2.0; MIT",
+			want:  "Apache 2.0; MIT",
 		},
 		{
 			name:  "Empty String",

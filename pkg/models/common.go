@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"io/ioutil"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
 // loadSqlData Load the specified SQL files into the supplied DB

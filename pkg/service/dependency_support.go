@@ -19,39 +19,39 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	pb "github.com/scanoss/papi/api/dependenciesv2"
-	"scanoss.com/dependencies/pkg/dtos"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	pb "github.com/scanoss/papi/api/cryptov2"
+	"scanoss.com/cryptography/pkg/dtos"
+	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
-// convertDependencyInput converts a Dependency Request structure into an internal Dependency Input struct
-func convertDependencyInput(request *pb.DependencyRequest) (dtos.DependencyInput, error) {
+// convertDependencyInput converts a Crypto Request structure into an internal Crypto Input struct
+func convertCryptoInput(request *pb.CryptoRequest) (dtos.CryptoInput, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
 		zlog.S.Errorf("Problem marshalling dependency request input: %v", err)
-		return dtos.DependencyInput{}, errors.New("problem marshalling dependency input")
+		return dtos.CryptoInput{}, errors.New("problem marshalling dependency input")
 	}
-	dtoRequest, err := dtos.ParseDependencyInput(data)
+	dtoRequest, err := dtos.ParseCryptoInput(data)
 	if err != nil {
 		zlog.S.Errorf("Problem parsing dependency request input: %v", err)
-		return dtos.DependencyInput{}, errors.New("problem parsing dependency input")
+		return dtos.CryptoInput{}, errors.New("problem parsing dependency input")
 	}
 	return dtoRequest, nil
 }
 
-// convertDependencyOutput converts an internal Dependency Output structure into a Dependency Response struct
-func convertDependencyOutput(output dtos.DependencyOutput) (*pb.DependencyResponse, error) {
+// convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct
+func convertCryptoOutput(output dtos.CryptoOutput) (*pb.CryptoResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {
 		zlog.S.Errorf("Problem marshalling dependency request output: %v", err)
-		return &pb.DependencyResponse{}, errors.New("problem marshalling dependency output")
+		return &pb.CryptoResponse{}, errors.New("problem marshalling dependency output")
 	}
 	zlog.S.Debugf("Parsed data: %v", string(data))
-	var depResp pb.DependencyResponse
+	var depResp pb.CryptoResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {
 		zlog.S.Errorf("Problem unmarshalling dependency request output: %v", err)
-		return &pb.DependencyResponse{}, errors.New("problem unmarshalling dependency output")
+		return &pb.CryptoResponse{}, errors.New("problem unmarshalling dependency output")
 	}
 	return &depResp, nil
 }

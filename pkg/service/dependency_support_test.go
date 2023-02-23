@@ -18,9 +18,9 @@ package service
 
 import (
 	"fmt"
-	pb "github.com/scanoss/papi/api/dependenciesv2"
-	"scanoss.com/dependencies/pkg/dtos"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	pb "github.com/scanoss/papi/api/cryptov2"
+	"scanoss.com/cryptography/pkg/dtos"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 
@@ -31,9 +31,9 @@ func TestOutputConvert(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	var outputDto = dtos.DependencyOutput{}
+	var outputDto = dtos.CryptoOutput{}
 
-	output, err := convertDependencyOutput(outputDto)
+	output, err := convertCryptoOutput(outputDto)
 	if err != nil {
 		t.Errorf("TestOutputConvert failed: %v", err)
 	}
@@ -48,8 +48,8 @@ func TestInputConvert(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	var depIn = &pb.DependencyRequest{}
-	input, err := convertDependencyInput(depIn)
+	var cryptoIn = &pb.CryptoRequest{}
+	input, err := convertCryptoInput(cryptoIn)
 	if err != nil {
 		t.Errorf("TestInputConvert failed: %v", err)
 	}

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 

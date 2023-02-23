@@ -22,8 +22,8 @@ import (
 	"fmt"
 	semver "github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
-	zlog "scanoss.com/dependencies/pkg/logger"
-	"scanoss.com/dependencies/pkg/utils"
+	zlog "scanoss.com/cryptography/pkg/logger"
+	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 )
 

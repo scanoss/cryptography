@@ -19,74 +19,76 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jmoiron/sqlx"
-	myconfig "scanoss.com/dependencies/pkg/config"
-	"scanoss.com/dependencies/pkg/dtos"
-	zlog "scanoss.com/dependencies/pkg/logger"
-	"scanoss.com/dependencies/pkg/models"
+	"scanoss.com/cryptography/pkg/dtos"
+	zlog "scanoss.com/cryptography/pkg/logger"
+	"scanoss.com/cryptography/pkg/models"
 	"strings"
 )
 
-type DependencyUseCase struct {
+type CryptoUseCase struct {
 	ctx     context.Context
 	conn    *sqlx.Conn
 	allUrls *models.AllUrlsModel
 }
 
-// NewDependencies creates a new instance of the Dependency Use Case
-func NewDependencies(ctx context.Context, conn *sqlx.Conn, config *myconfig.ServerConfig) *DependencyUseCase {
-	return &DependencyUseCase{ctx: ctx, conn: conn,
-		allUrls: models.NewAllUrlModel(ctx, conn, models.NewProjectModel(ctx, conn),
-			models.NewGolangProjectModel(ctx, conn, config),
-		),
+func NewCrypto(ctx context.Context, conn *sqlx.Conn) *CryptoUseCase {
+	return &CryptoUseCase{ctx: ctx, conn: conn,
+		allUrls: models.NewAllUrlModel(ctx, conn, models.NewProjectModel(ctx, conn)),
 	}
 }
 
-// GetDependencies takes the Dependency Input request, searches for component details and returns a Dependency Output struct
-func (d DependencyUseCase) GetDependencies(request dtos.DependencyInput) (dtos.DependencyOutput, error) {
+// GetCrypto takes the Crypto Input request, searches for Crytporaphic usages and returns a CrytoOutput struct
+func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, error) {
 
-	var depFileOutputs []dtos.DependencyFileOutput
 	var problems = false
-	for _, file := range request.Files {
-		var fileOutput dtos.DependencyFileOutput
-		fileOutput.File = file.File
-		fileOutput.Id = "dependency"
-		fileOutput.Status = "pending"
-		var depOutputs []dtos.DependenciesOutput
-		for _, purl := range file.Purls {
-			if len(purl.Purl) == 0 {
-				zlog.S.Infof("Empty Purl string supplied for: %v. Skipping", file.File)
-				continue
-			}
-			var depOutput dtos.DependenciesOutput
-			depOutput.Purl = strings.Split(purl.Purl, "@")[0] // Remove any version specific info from the PURL
-			url, err := d.allUrls.GetUrlsByPurlString(purl.Purl, purl.Requirement)
-			if err != nil {
-				zlog.S.Errorf("Problem encountered extracting URLs for: %v - %v.", purl, err)
-				problems = true
-				continue
-				// TODO add a placeholder in the response?
-			}
-			depOutput.Component = url.Component
-			depOutput.Version = url.Version
-			depOutput.Url = url.Url
-			var licenses []dtos.DependencyLicense
-			var license dtos.DependencyLicense
-			license.Name = url.License // TODO split licenses if multiple returned?
-			license.SpdxId = url.LicenseId
-			license.IsSpdx = url.IsSpdx
-			licenses = append(licenses, license)
-			depOutput.Licenses = licenses
-			depOutputs = append(depOutputs, depOutput)
-		}
-		fileOutput.Dependencies = depOutputs
-		depFileOutputs = append(depFileOutputs, fileOutput)
+	if len(request.Purls) == 0 {
+		zlog.S.Info("Empty List of Purls supplied")
 	}
+	var retV dtos.CryptoOutput
+	for _, purl := range request.Purls {
+		var cryptoOutItem dtos.CryptoOutputItem
+		cryptoOutItem.Purl = strings.Split(purl.Purl, "@")[0] // Remove any version specific info from the PURL
+		url, err := d.allUrls.GetUrlsByPurlString(purl.Purl, purl.Requirement)
+		_ = url
+		if err != nil {
+			zlog.S.Errorf("Problem encountered extracting URLs for: %v - %v.", purl, err)
+			problems = true
+			continue
+			// TODO add a placeholder in the response?
+		}
+
+		fmt.Printf("URL DATA: %v\n", url)
+		/// DO MAGIC with LDB
+		/*type CryptoOutput struct {
+			Cryptography []CryptoUsage `json:"files"`
+		}
+
+		type CryptoOutputItem struct {
+			Purl       string             `json:"purl"`
+			Version    string             `json:"version"`
+			Algorithms []CryptoUsage `json:"algorithms"`
+		}
+
+		type CryptoUsageItem struct {
+			Algorithm string `json:"name"`
+			Strength  string `json:"strength"`
+			Usage     int32  `json:"usage"`
+		}
+		*/
+		// Add sme hardcoded value
+		cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: "MD5", Strength: "128", Usage: 32})
+		cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: "CRC32", Strength: "32", Usage: 32})
+		cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: "CRC8", Strength: "8", Usage: 32})
+		retV.Cryptography = append(retV.Cryptography, cryptoOutItem)
+	}
+
 	if problems {
 		zlog.S.Errorf("Encountered issues while processing dependencies: %v", request)
-		return dtos.DependencyOutput{}, errors.New("encountered issues while processing dependencies")
+		return dtos.CryptoOutput{}, errors.New("encountered issues while processing dependencies")
 	}
-	zlog.S.Debugf("Output dependencies: %v", depFileOutputs)
+	zlog.S.Debugf("Output dependencies: %v", retV)
 
-	return dtos.DependencyOutput{Files: depFileOutputs}, nil
+	return retV, nil
 }

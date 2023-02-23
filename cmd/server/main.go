@@ -20,7 +20,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"scanoss.com/dependencies/pkg/cmd"
+	"scanoss.com/cryptography/pkg/cmd"
 )
 
 // main starts the gRPC Dependency Service

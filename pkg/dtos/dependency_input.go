@@ -20,34 +20,28 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
-type DependencyInput struct {
-	Files []DependencyFileInput `json:"files"`
-	Depth int                   `json:"depth"`
+type CryptoInput struct {
+	Purls []CryptoInputItem `json:"purls"`
 }
 
-type DependencyFileInput struct {
-	File  string         `json:"file,omitempty"`
-	Purls []DepPurlInput `json:"purls"`
-}
-
-type DepPurlInput struct {
+type CryptoInputItem struct {
 	Purl        string `json:"purl"`
 	Requirement string `json:"requirement,omitempty"`
 }
 
-// ParseDependencyInput converts the input byte array to a DependencyInput structure
-func ParseDependencyInput(input []byte) (DependencyInput, error) {
+// ParseCryptoInput converts the input byte array to a CryptoInput structure
+func ParseCryptoInput(input []byte) (CryptoInput, error) {
 	if input == nil || len(input) == 0 {
-		return DependencyInput{}, errors.New("no input dependency data supplied to parse")
+		return CryptoInput{}, errors.New("no purl info data supplied to parse")
 	}
-	var data DependencyInput
+	var data CryptoInput
 	err := json.Unmarshal(input, &data)
 	if err != nil {
 		zlog.S.Errorf("Parse failure: %v", err)
-		return DependencyInput{}, errors.New(fmt.Sprintf("failed to parse dependency input data: %v", err))
+		return CryptoInput{}, errors.New(fmt.Sprintf("failed to parse cryptography input data: %v", err))
 	}
 	zlog.S.Debugf("Parsed data2: %v", data)
 	return data, nil

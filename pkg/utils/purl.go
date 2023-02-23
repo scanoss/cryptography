@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/package-url/packageurl-go"
 	"regexp"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"strings"
 )
 
