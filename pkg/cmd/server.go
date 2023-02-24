@@ -21,22 +21,25 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap/zapcore"
-	"os"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	zlog "scanoss.com/cryptography/pkg/logger"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
 	"scanoss.com/cryptography/pkg/service"
-	"strings"
-	"time"
 )
 
+/*
 //go:generate bash ../../get_version.sh
 //go:embed version.txt
+*/
 var version string
 
 // getConfig checks command line args for option to feed into the config parser
@@ -133,7 +136,7 @@ func RunServer() error {
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
 	defer closeDbConnection(db)
-	v2API := service.NewCryptoServer(db, cfg)
+	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()
 	return grpc.RunServer(ctx, v2API, cfg.App.Port)
 }

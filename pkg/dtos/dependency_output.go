@@ -20,11 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
 type CryptoOutput struct {
-	Cryptography []CryptoOutputItem `json:"cryptoUsage"`
+	Cryptography []CryptoOutputItem `json:"purls"`
 }
 
 type CryptoOutputItem struct {
@@ -34,9 +35,9 @@ type CryptoOutputItem struct {
 }
 
 type CryptoUsageItem struct {
-	Algorithm string `json:"algorithm_name"`
-	Strength  string `json:"algorithm_strength"`
-	Usage     int32  `json:"usage"`
+	Algorithm string `json:"algorithm"`
+	Strength  string `json:"strength"`
+	Usage     int32  `json:"count"`
 }
 
 // ExportCryptoOutput converts the CryptoOutput structure to a byte array

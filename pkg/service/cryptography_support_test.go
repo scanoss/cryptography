@@ -18,10 +18,11 @@ package service
 
 import (
 	"fmt"
-	pb "github.com/scanoss/papi/api/cryptov2"
+	"testing"
+
+	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/dtos"
 	zlog "scanoss.com/cryptography/pkg/logger"
-	"testing"
 )
 
 func TestOutputConvert(t *testing.T) {
@@ -48,7 +49,7 @@ func TestInputConvert(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	var cryptoIn = &pb.CryptoRequest{}
+	var cryptoIn = &pb.CryptographyRequest{}
 	input, err := convertCryptoInput(cryptoIn)
 	if err != nil {
 		t.Errorf("TestInputConvert failed: %v", err)

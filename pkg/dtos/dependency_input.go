@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
@@ -34,6 +35,7 @@ type CryptoInputItem struct {
 
 // ParseCryptoInput converts the input byte array to a CryptoInput structure
 func ParseCryptoInput(input []byte) (CryptoInput, error) {
+	fmt.Println(string(input))
 	if input == nil || len(input) == 0 {
 		return CryptoInput{}, errors.New("no purl info data supplied to parse")
 	}

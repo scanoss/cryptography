@@ -18,15 +18,16 @@ package service
 
 import (
 	"context"
+	"reflect"
+	"testing"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	common "github.com/scanoss/papi/api/commonv2"
-	pb "github.com/scanoss/papi/api/cryptov2"
-	"reflect"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	zlog "scanoss.com/cryptography/pkg/logger"
 	"scanoss.com/cryptography/pkg/models"
-	"testing"
 )
 
 func TestDependencyServer_Echo(t *testing.T) {
@@ -45,7 +46,7 @@ func TestDependencyServer_Echo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load Config: %v", err)
 	}
-	s := NewCryptoServer(db, myConfig)
+	s := NewCryptographyServer(db, myConfig)
 
 	type args struct {
 		ctx context.Context
@@ -53,7 +54,7 @@ func TestDependencyServer_Echo(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		s       pb.CryptoServer
+		s       pb.CryptographyServer
 		args    args
 		want    *common.EchoResponse
 		wantErr bool
