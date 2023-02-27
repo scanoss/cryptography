@@ -20,25 +20,26 @@ package grpc
 
 import (
 	"context"
-	pb "github.com/scanoss/papi/api/dependenciesv2"
-	"google.golang.org/grpc"
 	"net"
 	"os"
 	"os/signal"
-	zlog "scanoss.com/dependencies/pkg/logger"
+
+	pb "github.com/scanoss/papi/api/cryptographyv2"
+	"google.golang.org/grpc"
+	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
 // TODO Add proper service startup/shutdown here
 
 // RunServer runs gRPC service to publish
-func RunServer(ctx context.Context, v2API pb.DependenciesServer, port string) error {
+func RunServer(ctx context.Context, v2API pb.CryptographyServer, port string) error {
 	listen, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return err
 	}
 	// register service
 	server := grpc.NewServer()
-	pb.RegisterDependenciesServer(server, v2API)
+	pb.RegisterCryptographyServer(server, v2API)
 	// graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -18,7 +18,7 @@ package dtos
 
 import (
 	"fmt"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 
@@ -65,26 +65,26 @@ func TestDependencyOutput(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	output, err := ParseDependencyOutput([]byte(outputJson))
+	output, err := ParseCryptoOutput([]byte(outputJson))
 	if err != nil {
 		t.Errorf("dtos.ParseDependencyInput() error = %v", err)
 	}
 	fmt.Println("Parsed output object: ", output)
 
-	data, err := ExportDependencyOutput(output)
+	data, err := ExportCryptoOutput(output)
 	if err != nil {
 		t.Errorf("dtos.ParseDependencyInput() error = %v", err)
 	}
 	fmt.Println("Exported output data: ", data)
 
-	_, err = ParseDependencyOutput(nil)
+	_, err = ParseCryptoOutput(nil)
 	if err == nil {
 		t.Errorf("dtos.ParseDependencyOutput() did not fail")
 	}
 	fmt.Println("get expected error: ", err)
 
 	var badJson = `{ "files": [ `
-	_, err = ParseDependencyOutput([]byte(badJson))
+	_, err = ParseCryptoOutput([]byte(badJson))
 	if err == nil {
 		t.Errorf("dtos.ParseDependencyOutput() did not fail")
 	}

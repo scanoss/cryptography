@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
-	zlog "scanoss.com/dependencies/pkg/logger"
+	zlog "scanoss.com/cryptography/pkg/logger"
 	"testing"
 )
 

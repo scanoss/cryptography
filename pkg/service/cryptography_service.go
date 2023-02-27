@@ -20,70 +20,71 @@ package service
 import (
 	"context"
 	"errors"
+
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
-	pb "github.com/scanoss/papi/api/dependenciesv2"
-	myconfig "scanoss.com/dependencies/pkg/config"
-	zlog "scanoss.com/dependencies/pkg/logger"
-	"scanoss.com/dependencies/pkg/usecase"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
+	myconfig "scanoss.com/cryptography/pkg/config"
+	zlog "scanoss.com/cryptography/pkg/logger"
+	"scanoss.com/cryptography/pkg/usecase"
 )
 
-type dependencyServer struct {
-	pb.DependenciesServer
+type cryptographyServer struct {
+	pb.CryptographyServer
 	db     *sqlx.DB
 	config *myconfig.ServerConfig
 }
 
 // NewDependencyServer creates a new instance of Dependency Server
-func NewDependencyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.DependenciesServer {
-	return &dependencyServer{db: db, config: config}
+func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
+	return &cryptographyServer{db: db, config: config}
 }
 
 // Echo sends back the same message received
-func (d dependencyServer) Echo(ctx context.Context, request *common.EchoRequest) (*common.EchoResponse, error) {
+func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoRequest) (*common.EchoResponse, error) {
 	zlog.S.Infof("Received (%v): %v", ctx, request.GetMessage())
 	return &common.EchoResponse{Message: request.GetMessage()}, nil
 }
 
-// GetDependencies searches for information about the supplied dependencies
-func (d dependencyServer) GetDependencies(ctx context.Context, request *pb.DependencyRequest) (*pb.DependencyResponse, error) {
+func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *pb.CryptographyRequest) (*pb.CryptographyResponse, error) {
 	zlog.S.Infof("Processing dependency request: %v", request)
 	// Make sure we have dependency data to query
-	depRequest := request.GetFiles()
-	if depRequest == nil || len(depRequest) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No dependency request data supplied"}
-		return &pb.DependencyResponse{Status: &statusResp}, errors.New("no request data supplied")
+	reqPurls := request.GetPurls()
+	if reqPurls == nil || len(reqPurls) == 0 {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
+		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("no purl data supplied")
 	}
-	dtoRequest, err := convertDependencyInput(request) // Convert to internal DTO for processing
+	dtoRequest, err := convertCryptoInput(request) // Convert to internal DTO for processing
 	if err != nil {
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing dependency input data"}
-		return &pb.DependencyResponse{Status: &statusResp}, errors.New("problem parsing dependency input data")
+		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("problem parsing dependency input data")
 	}
-	conn, err := d.db.Connx(ctx) // Get a connection from the pool
+	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
 		zlog.S.Errorf("Failed to get a database connection from the pool: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.DependencyResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
 	}
 	defer closeDbConnection(conn)
 	// Search the KB for information about each dependency
-	depUc := usecase.NewDependencies(ctx, conn, d.config)
-	dtoDependencies, err := depUc.GetDependencies(dtoRequest)
+	cryptoUc := usecase.NewCrypto(ctx, conn)
+	dtoCrypto, err := cryptoUc.GetCrypto(dtoRequest)
+
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
-		return &pb.DependencyResponse{Status: &statusResp}, nil
+		return &pb.CryptographyResponse{Status: &statusResp}, nil
 	}
-	zlog.S.Debugf("Parsed Dependencies: %+v", dtoDependencies)
-	depResponse, err := convertDependencyOutput(dtoDependencies) // Convert the internal data into a response object
+	zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
+	cryptoResponse, err := convertCryptoOutput(dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
 		zlog.S.Errorf("Failed to covnert parsed dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
-		return &pb.DependencyResponse{Status: &statusResp}, nil
+		return &pb.CryptographyResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
 	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
-	return &pb.DependencyResponse{Files: depResponse.Files, Status: &statusResp}, nil
+	return &pb.CryptographyResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 
 // closeDbConnection closes the specified database connection

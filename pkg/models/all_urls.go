@@ -20,11 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+
 	semver "github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
-	zlog "scanoss.com/dependencies/pkg/logger"
-	"scanoss.com/dependencies/pkg/utils"
-	"sort"
+	zlog "scanoss.com/cryptography/pkg/logger"
+	"scanoss.com/cryptography/pkg/utils"
 )
 
 type AllUrlsModel struct {
