@@ -69,6 +69,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *pb.Crypt
 	// Search the KB for information about each dependency
 	cryptoUc := usecase.NewCrypto(ctx, conn)
 	dtoCrypto, err := cryptoUc.GetCrypto(dtoRequest)
+
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
