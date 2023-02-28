@@ -1,5 +1,5 @@
 # SCANOSS Platform 2.0 Dependencies
-Welcome to the dependency server for SCANOSS Platform 2.0
+Welcome to the Cryptography server for SCANOSS Platform 2.0
 
 **Warning** Work In Progress **Warning**
 
@@ -16,7 +16,7 @@ dot-env --> env.json -->  Actual Environment Variable
 These are the supported configuration arguments:
 
 ```
-APP_NAME="SCANOSS Dependency Server"
+APP_NAME="SCANOSS Cryptography Server"
 APP_PORT=50051
 APP_MODE=dev
 APP_DEBUG=false
@@ -33,14 +33,14 @@ DB_DSN=
 
 ## Docker Environment
 
-The dependency server can be deployed as a Docker container.
+The Cryptography server can be deployed as a Docker container.
 
 Adjust configurations by updating an .env file in the root of this repository.
 
 
 ### How to build
 
-You can build your own image of the SCANOSS Dependency Server with the ```docker build``` command as follows.
+You can build your own image of the SCANOSS Cryptography Server with the ```docker build``` command as follows.
 
 ```bash
 make ghcr_build
@@ -49,7 +49,7 @@ make ghcr_build
 
 ### How to run
 
-Run the SCANOSS Dependency Server Docker image by specifying the environmental file to be used with the ```--env-file``` argument. 
+Run the SCANOSS Cryptography Server Docker image by specifying the environmental file to be used with the ```--env-file``` argument. 
 
 You may also need to expose the ```APP_PORT``` on a given ```interface:port``` with the ```-p``` argument.
 
@@ -65,7 +65,7 @@ To run locally on your desktop, please use the following command:
 go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 ```
 
-After changing a dependency version, please run the following command:
+After changing a Cryptography version, please run the following command:
 ```shell
 go mod tidy -compat=1.17
 ```

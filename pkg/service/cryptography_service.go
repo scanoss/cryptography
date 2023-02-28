@@ -47,6 +47,7 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 }
 
 func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *pb.CryptographyRequest) (*pb.CryptographyResponse, error) {
+
 	zlog.S.Infof("Processing dependency request: %v", request)
 	// Make sure we have dependency data to query
 	reqPurls := request.GetPurls()

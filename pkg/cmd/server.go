@@ -30,8 +30,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap/zapcore"
+
 	myconfig "scanoss.com/cryptography/pkg/config"
 	zlog "scanoss.com/cryptography/pkg/logger"
+	m "scanoss.com/cryptography/pkg/models"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
 	"scanoss.com/cryptography/pkg/service"
 )
@@ -134,6 +136,19 @@ func RunServer() error {
 	if err != nil {
 		zlog.S.Errorf("Failed to ping database: %v", err)
 		return fmt.Errorf("failed to ping database: %v", err)
+	}
+	tables, errLDB := m.PingLDB("oss")
+	if errLDB != nil {
+		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
+		return fmt.Errorf("failed to ping LDB: %v", errLDB)
+	}
+	if !m.ContainsTable(tables, "pivot") {
+		zlog.S.Error("Pivot LDB table not found")
+		return fmt.Errorf("%s", "Pivot LDB table not found")
+	}
+	if !m.ContainsTable(tables, "cryptography") {
+		zlog.S.Error("Cryptography LDB table not found")
+		return fmt.Errorf("%s", "Cryptography LDB table not found")
 	}
 	defer closeDbConnection(db)
 	v2API := service.NewCryptographyServer(db, cfg)
