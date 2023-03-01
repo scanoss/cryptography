@@ -19,7 +19,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -66,17 +65,15 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 
 		url, err := d.allUrls.GetUrlsByPurlString(purl.Purl, purl.Requirement)
 		cryptoOutItem.Version = url.SemVer
-		fmt.Printf("Purl es %s,%s\n\n", url.PurlName, url.UrlHash)
+
 		_ = url
 		if err != nil || url.PurlName == "" || url.UrlHash == "" {
 			zlog.S.Errorf("Problem encountered extracting URLs for: %v - %v.", purl, err)
 			problems = true
-			fmt.Println("Sali")
-
 			continue
 			// TODO add a placeholder in the response?
 		} else {
-			fmt.Println("Hago appedn")
+
 			if url.UrlHash != "" {
 				r := CryptoWorkerStruct{URLMd5: url.UrlHash, Purl: purlReq, Version: url.SemVer}
 				if purlReq != "" && url.UrlHash != "" {
@@ -101,7 +98,6 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 
 	if len(request.Purls) > 0 {
 		for job := range toRequest {
-			fmt.Println("inside worker purl", toRequest[job].Purl)
 			if toRequest[job].Purl != "" {
 				jobs <- toRequest[job]
 				jobCount++
@@ -129,7 +125,6 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 func (d CryptoUseCase) workerPurl(id int, jobs <-chan CryptoWorkerStruct, resultsChan chan<- dtos.CryptoOutputItem) {
 
 	for jo := range jobs {
-		fmt.Println("Inside worker", jo)
 		var cryptoOutItem dtos.CryptoOutputItem
 		cryptoOutItem.Purl = jo.Purl // Remove any version specific info from the PURL
 

@@ -19,7 +19,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/dtos"
@@ -51,7 +50,6 @@ func convertCryptoOutput(output dtos.CryptoOutput) (*pb.CryptographyResponse, er
 	zlog.S.Debugf("Parsed data: %v", string(data))
 	var depResp pb.CryptographyResponse
 	err = json.Unmarshal(data, &depResp)
-	fmt.Println(depResp)
 	if err != nil {
 		zlog.S.Errorf("Problem unmarshalling dependency request output: %v", err)
 		return &pb.CryptographyResponse{}, errors.New("problem unmarshalling dependency output")

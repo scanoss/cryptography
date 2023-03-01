@@ -118,7 +118,6 @@ func queryPivotLDB(key string) []string {
 	//split results line by line
 	//each row contains 2 values: <UrlMD5>,<FileMD5>
 	lines := strings.Split(buf.String(), "\n")
-	//fmt.Println(lines)
 	for i := range lines {
 		fields := strings.Split(lines[i], ",")
 		if len(fields) == 3 {
