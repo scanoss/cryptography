@@ -131,7 +131,7 @@ func (d CryptoUseCase) workerPurl(id int, jobs <-chan CryptoWorkerStruct, result
 		cryptoOutItem.Version = jo.Version
 		algorithms := models.GetCryptoByURL(jo.URLMd5)
 		for a := range algorithms {
-			cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: algorithms[a].Algorithm, Strength: algorithms[a].Strenght, Usage: algorithms[a].Usage})
+			cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: algorithms[a].Algorithm, Strength: algorithms[a].Strenght})
 		}
 		resultsChan <- cryptoOutItem
 	}

@@ -20,13 +20,14 @@ import (
 	"encoding/json"
 	"errors"
 
+	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/dtos"
 	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
 // convertDependencyInput converts a Crypto Request structure into an internal Crypto Input struct
-func convertCryptoInput(request *pb.CryptographyRequest) (dtos.CryptoInput, error) {
+func convertCryptoInput(request *common.PurlRequest) (dtos.CryptoInput, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
 		zlog.S.Errorf("Problem marshalling dependency request input: %v", err)
@@ -41,18 +42,18 @@ func convertCryptoInput(request *pb.CryptographyRequest) (dtos.CryptoInput, erro
 }
 
 // convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct
-func convertCryptoOutput(output dtos.CryptoOutput) (*pb.CryptographyResponse, error) {
+func convertCryptoOutput(output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {
 		zlog.S.Errorf("Problem marshalling dependency request output: %v", err)
-		return &pb.CryptographyResponse{}, errors.New("problem marshalling dependency output")
+		return &pb.AlgorithmResponse{}, errors.New("problem marshalling dependency output")
 	}
 	zlog.S.Debugf("Parsed data: %v", string(data))
-	var depResp pb.CryptographyResponse
+	var depResp pb.AlgorithmResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {
 		zlog.S.Errorf("Problem unmarshalling dependency request output: %v", err)
-		return &pb.CryptographyResponse{}, errors.New("problem unmarshalling dependency output")
+		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling dependency output")
 	}
 	return &depResp, nil
 }

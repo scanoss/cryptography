@@ -46,25 +46,25 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 	return &common.EchoResponse{Message: request.GetMessage()}, nil
 }
 
-func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *pb.CryptographyRequest) (*pb.CryptographyResponse, error) {
+func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
 
 	zlog.S.Infof("Processing dependency request: %v", request)
 	// Make sure we have dependency data to query
 	reqPurls := request.GetPurls()
 	if reqPurls == nil || len(reqPurls) == 0 {
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("no purl data supplied")
+		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("no purl data supplied")
 	}
 	dtoRequest, err := convertCryptoInput(request) // Convert to internal DTO for processing
 	if err != nil {
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing dependency input data"}
-		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("problem parsing dependency input data")
+		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem parsing dependency input data")
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
 		zlog.S.Errorf("Failed to get a database connection from the pool: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.CryptographyResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
 	}
 	defer closeDbConnection(conn)
 	// Search the KB for information about each dependency
@@ -74,18 +74,18 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *pb.Crypt
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
-		return &pb.CryptographyResponse{Status: &statusResp}, nil
+		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
 	cryptoResponse, err := convertCryptoOutput(dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
 		zlog.S.Errorf("Failed to covnert parsed dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
-		return &pb.CryptographyResponse{Status: &statusResp}, nil
+		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
 	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
-	return &pb.CryptographyResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
+	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 
 // closeDbConnection closes the specified database connection
