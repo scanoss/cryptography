@@ -14,7 +14,7 @@ require (
 	google.golang.org/grpc v1.43.0
 )
 
-require github.com/google/go-cmp v0.5.8 // indirect
+//require github.com/google/go-cmp v0.5.8 // indirect
 
 replace github.com/scanoss/papi => ../papi
 
