@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	pb "github.com/scanoss/papi/api/cryptographyv2"
+	common "github.com/scanoss/papi/api/commonv2"
 	"scanoss.com/cryptography/pkg/dtos"
 	zlog "scanoss.com/cryptography/pkg/logger"
 )
@@ -49,7 +49,7 @@ func TestInputConvert(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	var cryptoIn = &pb.CryptographyRequest{}
+	var cryptoIn = &common.PurlRequest{}
 	input, err := convertCryptoInput(cryptoIn)
 	if err != nil {
 		t.Errorf("TestInputConvert failed: %v", err)

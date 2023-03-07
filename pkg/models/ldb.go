@@ -2,8 +2,10 @@ package models
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -25,8 +27,67 @@ type UrlItem struct {
 	Version  string
 }
 
+// Checks if the LBD exists and returns the list of available tables
+func PingLDB(ldbname string) ([]string, error) {
+	var ret []string
+	entry, err := os.ReadDir("/var/lib/ldb/" + ldbname)
+	if err != nil {
+		return []string{}, errors.New("Problems opening LDB " + ldbname)
+	}
+	for e := range entry {
+		if entry[e].IsDir() {
+			ret = append(ret, entry[e].Name())
+		}
+	}
+
+	return ret, nil
+}
+
+// Single item worker for Cryptography. From a MD5 of a file enqueues a list of CryptoItem
+func cryptoWorker(id int, jobs <-chan string, resultsChan chan<- []CryptoItem) {
+
+	for jo := range jobs {
+		aux := queryCryptoLDB(jo)
+		resultsChan <- aux
+	}
+}
+
+// Get Cryptographic usage from a URL encoded in MD5
+func GetCryptoByURL(md5Url string) []CryptoItem {
+	var ret []CryptoItem
+	res := queryPivotLDB(md5Url)
+	jobs := make(chan string)
+	results := make(chan []CryptoItem, len(res))
+
+	for w := 1; w <= 5; w++ {
+		go cryptoWorker(w, jobs, results)
+	}
+
+	for job := range res {
+		jobs <- res[job]
+	}
+
+	algorithms := make(map[string]CryptoItem)
+	for a := 1; a <= len(res); a++ {
+		result := <-results
+		for r2 := range result {
+			if v, exist := algorithms[result[r2].Algorithm]; !exist {
+				algorithms[result[r2].Algorithm] = CryptoItem{Algorithm: result[r2].Algorithm, Strenght: result[r2].Strenght, Usage: 1}
+			} else {
+				v.Usage++
+				algorithms[result[r2].Algorithm] = v
+			}
+		}
+	}
+	for _, v := range algorithms {
+		item := CryptoItem{Algorithm: v.Algorithm, Strenght: v.Strenght, Usage: v.Usage}
+		ret = append(ret, item)
+	}
+	return ret
+}
+
 // Returns the list of MD5s of files for the key URL
-func QueryPivotLDB(key string) []string {
+func queryPivotLDB(key string) []string {
 	ldb := fmt.Sprintf("select from oss/pivot key %s csv hex 32", key)
 	var files []string
 	echoCmd := exec.Command("echo", ldb)
@@ -57,7 +118,6 @@ func QueryPivotLDB(key string) []string {
 	//split results line by line
 	//each row contains 2 values: <UrlMD5>,<FileMD5>
 	lines := strings.Split(buf.String(), "\n")
-	//fmt.Println(lines)
 	for i := range lines {
 		fields := strings.Split(lines[i], ",")
 		if len(fields) == 3 {
@@ -70,7 +130,7 @@ func QueryPivotLDB(key string) []string {
 }
 
 // Returns the list of Cryptographic algorithms used in the <Key> file
-func QueryCryptoLDB(key string) []CryptoItem {
+func queryCryptoLDB(key string) []CryptoItem {
 	ldb := fmt.Sprintf("select from oss/cryptography key %s csv hex 16", key)
 
 	echoCmd := exec.Command("echo", ldb)
@@ -113,26 +173,13 @@ func QueryCryptoLDB(key string) []CryptoItem {
 	}
 	return algorithms
 }
-func GetCryptoByURL(md5Url string) []CryptoItem {
-	var ret []CryptoItem
-	res := QueryPivotLDB(md5Url)
 
-	algorithms := make(map[string]CryptoItem)
-	for r := range res {
-		_ = r
-		resCr := QueryCryptoLDB(res[r])
-		for r2 := range resCr {
-			if v, exist := algorithms[resCr[r2].Algorithm]; !exist {
-				algorithms[resCr[r2].Algorithm] = CryptoItem{Algorithm: resCr[r2].Algorithm, Strenght: resCr[r2].Strenght, Usage: 1}
-			} else {
-				v.Usage++
-				algorithms[resCr[r2].Algorithm] = v
-			}
+func ContainsTable(arr []string, value string) bool {
+	for r := range arr {
+		if arr[r] == value {
+			return true
 		}
 	}
-	for _, v := range algorithms {
-		item := CryptoItem{Algorithm: v.Algorithm, Strenght: v.Strenght, Usage: v.Usage}
-		ret = append(ret, item)
-	}
-	return ret
+	return false
+
 }
