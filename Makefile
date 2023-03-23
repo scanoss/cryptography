@@ -20,7 +20,7 @@ clean:  ## Clean all dev data
 	@echo "Removing dev data..."
 	@rm -f pkg/cmd/version.txt version.txt
 
-version:  ## Produce dependency version text file
+version:  ## Produce Cryptography version text file
 	@echo "Writing version file..."
 	echo $(VERSION) > pkg/cmd/version.txt
 

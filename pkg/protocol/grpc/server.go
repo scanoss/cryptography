@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package grpc handles all the gRPC communication for the Dependency Service
+// Package grpc handles all the gRPC communication for the Cryptography Service
 // It takes care of starting and stopping the listener, etc.
 package grpc
 

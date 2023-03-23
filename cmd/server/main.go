@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package main loads the gRPC Dependency Server Service
+// Package main loads the gRPC Cryptography Server Service
 package main
 
 import (
@@ -23,9 +23,9 @@ import (
 	"scanoss.com/cryptography/pkg/cmd"
 )
 
-// main starts the gRPC Dependency Service
+// main starts the gRPC Cryptography Service
 func main() {
-	// Launch the Dependency Server Service
+	// Launch the Cryptogaphy Server Service
 	if err := cmd.RunServer(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Server launch error: %v\n", err)
 		os.Exit(1)

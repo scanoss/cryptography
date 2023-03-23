@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package main load the Dependency CLI
+// Package main load the Cryptography CLI
 package main
 
 func main() {
