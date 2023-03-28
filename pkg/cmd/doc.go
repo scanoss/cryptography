@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package cmd handles any command line driven interfaces to the Dependency service
+// Package cmd handles any command line driven interfaces to the Cryptography service
 // It is currently made up of:
 // - Server Service
 // - Command line interface (CLI)

@@ -35,7 +35,7 @@ type cryptographyServer struct {
 	config *myconfig.ServerConfig
 }
 
-// NewDependencyServer creates a new instance of Dependency Server
+// NewCryptographyServer creates a new instance of Cryptography Server
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	return &cryptographyServer{db: db, config: config}
 }
@@ -48,8 +48,8 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 
 func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
 
-	zlog.S.Infof("Processing dependency request: %v", request)
-	// Make sure we have dependency data to query
+	zlog.S.Infof("Processing Cryptography request: %v", request)
+	// Make sure we have Cryptography data to query
 	reqPurls := request.GetPurls()
 	if reqPurls == nil || len(reqPurls) == 0 {
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
@@ -57,8 +57,8 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	}
 	dtoRequest, err := convertCryptoInput(request) // Convert to internal DTO for processing
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing dependency input data"}
-		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem parsing dependency input data")
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
+		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -67,20 +67,20 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
 	}
 	defer closeDbConnection(conn)
-	// Search the KB for information about each dependency
+	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, conn)
 	dtoCrypto, err := cryptoUc.GetCrypto(dtoRequest)
 
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
 	cryptoResponse, err := convertCryptoOutput(dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
 		zlog.S.Errorf("Failed to covnert parsed dependencies: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting dependency data"}
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data

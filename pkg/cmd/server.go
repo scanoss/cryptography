@@ -82,7 +82,7 @@ func closeDbConnection(db *sqlx.DB) {
 	}
 }
 
-// RunServer runs the gRPC Dependency Server
+// RunServer runs the gRPC Cryptography Server
 func RunServer() error {
 	// Load command line options and config
 	cfg, err := getConfig()
@@ -108,7 +108,7 @@ func RunServer() error {
 		}
 	}
 	defer zlog.SyncZap()
-	zlog.S.Infof("Starting SCANOSS Dependency Service: %v", strings.TrimSpace(version))
+	zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
 	// Setup database connection pool
 	var dsn string
 	if len(cfg.Database.Dsn) > 0 {
@@ -142,14 +142,11 @@ func RunServer() error {
 		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
 		return fmt.Errorf("failed to ping LDB: %v", errLDB)
 	}
-	if !m.ContainsTable(tables, "pivot") {
-		zlog.S.Error("Pivot LDB table not found")
-		return fmt.Errorf("%s", "Pivot LDB table not found")
+	if !m.ContainsTable(tables, "cryptocomponent") {
+		zlog.S.Error("cryptocomponent LDB table not found")
+		return fmt.Errorf("%s", "cryptocomponent LDB table not found")
 	}
-	if !m.ContainsTable(tables, "cryptography") {
-		zlog.S.Error("Cryptography LDB table not found")
-		return fmt.Errorf("%s", "Cryptography LDB table not found")
-	}
+	
 	defer closeDbConnection(db)
 	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()

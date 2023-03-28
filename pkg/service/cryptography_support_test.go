@@ -38,7 +38,7 @@ func TestOutputConvert(t *testing.T) {
 	if err != nil {
 		t.Errorf("TestOutputConvert failed: %v", err)
 	}
-	//assert.NotNilf(t, output, "Output dependency empty")
+	//assert.NotNilf(t, output, "Output Cryptography empty")
 	fmt.Printf("Output: %v\n", output)
 }
 

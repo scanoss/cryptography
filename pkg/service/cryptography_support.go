@@ -26,17 +26,17 @@ import (
 	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
-// convertDependencyInput converts a Crypto Request structure into an internal Crypto Input struct
+// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct
 func convertCryptoInput(request *common.PurlRequest) (dtos.CryptoInput, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
-		zlog.S.Errorf("Problem marshalling dependency request input: %v", err)
-		return dtos.CryptoInput{}, errors.New("problem marshalling dependency input")
+		zlog.S.Errorf("Problem marshalling Cryptography request input: %v", err)
+		return dtos.CryptoInput{}, errors.New("problem marshalling depenCryptographydency input")
 	}
 	dtoRequest, err := dtos.ParseCryptoInput(data)
 	if err != nil {
-		zlog.S.Errorf("Problem parsing dependency request input: %v", err)
-		return dtos.CryptoInput{}, errors.New("problem parsing dependency input")
+		zlog.S.Errorf("Problem parsing Cryptography request input: %v", err)
+		return dtos.CryptoInput{}, errors.New("problem parsing Cryptography input")
 	}
 	return dtoRequest, nil
 }
@@ -45,15 +45,15 @@ func convertCryptoInput(request *common.PurlRequest) (dtos.CryptoInput, error) {
 func convertCryptoOutput(output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {
-		zlog.S.Errorf("Problem marshalling dependency request output: %v", err)
-		return &pb.AlgorithmResponse{}, errors.New("problem marshalling dependency output")
+		zlog.S.Errorf("Problem marshalling Cryptography request output: %v", err)
+		return &pb.AlgorithmResponse{}, errors.New("problem marshalling Cryptography output")
 	}
 	zlog.S.Debugf("Parsed data: %v", string(data))
 	var depResp pb.AlgorithmResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {
-		zlog.S.Errorf("Problem unmarshalling dependency request output: %v", err)
-		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling dependency output")
+		zlog.S.Errorf("Problem unmarshalling Cryptography request output: %v", err)
+		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
 	return &depResp, nil
 }
