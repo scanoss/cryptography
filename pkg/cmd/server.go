@@ -142,11 +142,11 @@ func RunServer() error {
 		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
 		return fmt.Errorf("failed to ping LDB: %v", errLDB)
 	}
-	if !m.ContainsTable(tables, "cryptocomponent") {
-		zlog.S.Error("cryptocomponent LDB table not found")
+	if !m.ContainsTable(tables, "cryptography") {
+		zlog.S.Error("cryptography LDB table not found")
 		return fmt.Errorf("%s", "cryptocomponent LDB table not found")
 	}
-	
+
 	defer closeDbConnection(db)
 	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()

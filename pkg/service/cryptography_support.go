@@ -48,7 +48,7 @@ func convertCryptoOutput(output dtos.CryptoOutput) (*pb.AlgorithmResponse, error
 		zlog.S.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	zlog.S.Debugf("Parsed data: %v", string(data))
+	//zlog.S.Debugf("Parsed data: %v", string(data))
 	var depResp pb.AlgorithmResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {

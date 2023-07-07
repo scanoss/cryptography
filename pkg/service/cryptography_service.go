@@ -48,7 +48,7 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 
 func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
 
-	zlog.S.Infof("Processing Cryptography request: %v", request)
+	//zlog.S.Infof("Processing Cryptography request: %v", request)
 	// Make sure we have Cryptography data to query
 	reqPurls := request.GetPurls()
 	if reqPurls == nil || len(reqPurls) == 0 {
@@ -76,7 +76,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
-	zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
+	//zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
 	cryptoResponse, err := convertCryptoOutput(dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
 		zlog.S.Errorf("Failed to covnert parsed dependencies: %v", err)
