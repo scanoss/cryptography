@@ -41,7 +41,7 @@ func TestQueryPivotLDB(t *testing.T) {
 
 	//URL hashes for engine 4.1.8,minr 2.4.0
 	urlHashesForTesting := []string{"85fd290773dc4c859eabe63bc4b24e28", "d9c54ce52952bacf8b08dff6fdf7e577"}
-	res := QueryBulkPivotLDB(urlHashesForTesting)
+	res, err := QueryBulkPivotLDB(urlHashesForTesting)
 	if len(res["85fd290773dc4c859eabe63bc4b24e28"]) == 0 || len(res["d9c54ce52952bacf8b08dff6fdf7e577"]) == 0 {
 		t.Fatalf("Pivot table can not retrieve results")
 	}

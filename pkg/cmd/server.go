@@ -138,9 +138,9 @@ func RunServer() error {
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
 
-	m.LDBBinPath = "./ldb"
-	m.LDBCryptoTableName = "quique/ncrypto"
-	m.LDBPivotTableName = "oss/pivot"
+	m.LDBBinPath = cfg.LDB.BinPath
+	m.LDBCryptoTableName = cfg.LDB.CryptoName
+	m.LDBPivotTableName = cfg.LDB.PivotName
 
 	tables, errLDB := m.PingLDB("oss")
 	if errLDB != nil {

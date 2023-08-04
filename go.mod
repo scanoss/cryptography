@@ -1,6 +1,6 @@
 module scanoss.com/cryptography
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
@@ -11,10 +11,13 @@ require (
 	github.com/package-url/packageurl-go v0.1.0
 	github.com/scanoss/papi v0.0.7
 	go.uber.org/zap v1.20.0
-	google.golang.org/grpc v1.43.0
+	google.golang.org/grpc v1.53.0
 )
 
-require github.com/google/go-cmp v0.5.8 // indirect
+require (
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.6.0 // indirect
+)
 
 replace github.com/scanoss/papi => ../papi
 
@@ -24,14 +27,15 @@ require (
 	github.com/golobby/cast v1.3.0 // indirect
 	github.com/golobby/dotenv v1.3.1 // indirect
 	github.com/golobby/env/v2 v2.2.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/net v0.0.0-20211007125505-59d4e928ea9d // indirect
-	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/text v0.3.6 // indirect
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	google.golang.org/genproto v0.0.0-20230301171018-9ab4bdc49ad5 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

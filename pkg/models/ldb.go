@@ -121,7 +121,7 @@ func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 			algorithms[fields[0]] = append(algorithms[fields[0]], algorithm)
 		}
 	}
-	//os.Remove(name)
+	os.Remove(name)
 	return algorithms
 }
 

@@ -109,4 +109,32 @@ func TestCryptographyUseCase(t *testing.T) {
 
 	fmt.Printf("Got expected error: %+v\n", err)
 
+	var cryptoAmbiguousRequest = `{
+		"purls": [
+			{
+			  "purl":"pkg:maven/org.bouncycastle/bcutil-lts8on@2.73.2"
+
+			}
+	  ]
+	}
+	`
+
+	requestDto, err = dtos.ParseCryptoInput([]byte(cryptoAmbiguousRequest))
+
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+
+	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
+
+	if err != nil {
+		t.Fatalf("did not get an expected error: %v", algorithms)
+	}
+	if notFound > 0 {
+		t.Fatalf("Expected to retrieve at least one url")
+	}
+	if len(algorithms.Cryptography[0].Algorithms) == 0 {
+		t.Fatalf("Expected to disambiguate urls and retrieve at least one algorithm")
+	}
+
 }

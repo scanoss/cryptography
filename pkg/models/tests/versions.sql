@@ -5,8 +5,8 @@ CREATE TABLE versions
     version_name text    not null unique,
     semver       text default ''
 );
-
-INSERT INTO versions (id, version_name,semver) VALUES 	 (20311520,'5.2.4','5.2.4');
+INSERT INTO versions (id, version_name,semver) VALUES (11608468,'2.73.2','2.73.2');
+INSERT INTO versions (id, version_name,semver) VALUES  (20311520,'5.2.4','5.2.4');
 insert into versions (id, version_name, semver) values (99999999, '', '');
 insert into versions (id, version_name, semver) values (88888888, '02f411578-20211019', '02f411578-20211019');
 insert into versions (id, version_name, semver) values (13229156, '0.14.6', 'v0.14.6');
