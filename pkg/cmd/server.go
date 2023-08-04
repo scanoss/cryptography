@@ -137,6 +137,11 @@ func RunServer() error {
 		zlog.S.Errorf("Failed to ping database: %v", err)
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
+
+	m.LDBBinPath = "./ldb"
+	m.LDBCryptoTableName = "quique/ncrypto"
+	m.LDBPivotTableName = "oss/pivot"
+
 	tables, errLDB := m.PingLDB("oss")
 	if errLDB != nil {
 		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)

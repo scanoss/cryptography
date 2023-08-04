@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type CryptoItem struct {
@@ -28,6 +30,10 @@ type PivotItem struct {
 	FileHash string
 }
 
+var LDBCryptoTableName string
+var LDBPivotTableName string
+var LDBBinPath string
+
 // Checks if the LBD exists and returns the list of available tables
 func PingLDB(ldbname string) ([]string, error) {
 	var ret []string
@@ -46,23 +52,30 @@ func PingLDB(ldbname string) ([]string, error) {
 
 // Single item worker for Cryptography. From a MD5 of a file enqueues a list of CryptoItem
 
-func QueryBulkPivotLDB(keys []string) map[string][]string {
+func QueryBulkPivotLDB(keys []string) (map[string][]string, error) {
 	ret := make(map[string][]string)
-
-	f, err := os.Create("pivot.txt")
+	name := fmt.Sprintf("/tmp/%s-pivot.txt", uuid.New().String())
+	f, err := os.Create(name)
 	if err != nil {
-		return map[string][]string{}
+		return map[string][]string{}, err
 	}
 	for job := range keys {
 		if keys[job] != "" {
-			line := fmt.Sprintf("select from oss/pivot key %s csv hex 32\n", keys[job])
+			line := fmt.Sprintf("select from %s key %s csv hex 32\n", LDBPivotTableName, keys[job])
 			f.WriteString(line)
 		}
 	}
 	f.Close()
+	_, err = os.Stat(LDBBinPath)
+	if os.IsNotExist(err) {
 
-	ldbCmd := exec.Command("./ldb", "-f", "pivot.txt")
-	buffer, _ := ldbCmd.Output()
+		return map[string][]string{}, errors.New("LDB console not found")
+	}
+
+	ldbCmd := exec.Command(LDBBinPath, "-f", name)
+
+	buffer, errLDB := ldbCmd.Output()
+	fmt.Println(errLDB)
 
 	//split results line by line
 	//each row contains 3 values: <UrlMD5>,<FileMD5>,unknown
@@ -74,14 +87,14 @@ func QueryBulkPivotLDB(keys []string) map[string][]string {
 			ret[fields[0]] = append(ret[fields[0]], fields[1])
 		}
 	}
-	//os.Remove("pivot.txt")
-	return ret
+	os.Remove(name)
+	return ret, nil
 }
 
 func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 	algorithms := make(map[string][]CryptoItem)
-
-	f, err := os.OpenFile("crypto.txt", os.O_WRONLY|os.O_CREATE, 0600)
+	name := fmt.Sprintf("/tmp/%s-crypto.txt", uuid.New().String())
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return map[string][]CryptoItem{}
 	}
@@ -90,7 +103,7 @@ func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 		fileHashes := items[job]
 		for r := range fileHashes {
 			if _, exist := added[fileHashes[r]]; !exist {
-				line := fmt.Sprintf("select from quique/crypto key %s csv hex 16\n", fileHashes[r])
+				line := fmt.Sprintf("select from %s key %s csv hex 16\n", LDBCryptoTableName, fileHashes[r])
 				f.WriteString(line)
 				added[fileHashes[r]] = true
 			}
@@ -98,7 +111,7 @@ func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 	}
 	f.Close()
 
-	ldbCmd := exec.Command("./ldb", "-f", "crypto.txt")
+	ldbCmd := exec.Command(LDBBinPath, "-f", name)
 	buffer, _ := ldbCmd.Output()
 	lines := strings.Split(string(buffer), "\n")
 	for i := range lines {
@@ -108,7 +121,7 @@ func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 			algorithms[fields[0]] = append(algorithms[fields[0]], algorithm)
 		}
 	}
-	//os.Remove("crypto.txt")
+	//os.Remove(name)
 	return algorithms
 }
 

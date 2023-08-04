@@ -18,6 +18,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -52,14 +53,14 @@ func NewCrypto(ctx context.Context, conn *sqlx.Conn) *CryptoUseCase {
 }
 
 // GetCrypto takes the Crypto Input request, searches for Crytporaphic usages and returns a CrytoOutput struct
-func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, error) {
+func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
 
+	notFound := 0
 	if len(request.Purls) == 0 {
 		zlog.S.Info("Empty List of Purls supplied")
+		return dtos.CryptoOutput{}, 0, errors.New("empty list of purls")
 	}
-	if len(request.Purls) == 0 {
-		zlog.S.Info("Empty List of Purls supplied")
-	}
+
 	query := []InternalQuery{}
 	purlsToQuery := []utils.PurlReq{}
 
@@ -82,7 +83,9 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 	}
 
 	url, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
-	_ = err
+	if len(url) == 0 {
+		return dtos.CryptoOutput{}, 0, errors.New("Error Processing input")
+	}
 
 	purlMap := make(map[string][]models.AllUrl)
 
@@ -94,16 +97,25 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 	// For all the requested purls, choose the closest urls that match
 	for r := range query {
 		query[r].SelectedURLS, err = models.PickClosestUrls(purlMap[query[r].PurlName], query[r].PurlName, "", query[r].Requirement)
+		if err != nil {
+			return dtos.CryptoOutput{}, 0, err
+		}
 		if len(query[r].SelectedURLS) > 0 {
 			query[r].SelectedVersion = query[r].SelectedURLS[0].Version
 			for h := range query[r].SelectedURLS {
 				urlHashes = append(urlHashes, query[r].SelectedURLS[h].UrlHash)
+
 			}
+		} else {
+			// NO URL linked to that purl
+			notFound++
 		}
 	}
 	//Create a map containing the files for each url
-	files := models.QueryBulkPivotLDB(urlHashes)
-
+	files, errFiles := models.QueryBulkPivotLDB(urlHashes)
+	if errFiles != nil {
+		return dtos.CryptoOutput{}, 0, errFiles
+	}
 	//Create a map containing the crypto usage for each file
 	crypto := models.QueryBulkCryptoLDB(files)
 
@@ -139,5 +151,5 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, e
 		retV.Cryptography = append(retV.Cryptography, cryptoOutItem)
 
 	}
-	return retV, nil
+	return retV, notFound, nil
 }

@@ -20,6 +20,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -69,7 +70,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	defer closeDbConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, conn)
-	dtoCrypto, err := cryptoUc.GetCrypto(dtoRequest)
+	dtoCrypto, notFound, err := cryptoUc.GetCrypto(dtoRequest)
 
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
@@ -84,7 +85,12 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
+
 	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
+	if notFound > 0 {
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+		statusResp.Message = fmt.Sprintf("No information found for %d purl(s)", notFound)
+	}
 	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 

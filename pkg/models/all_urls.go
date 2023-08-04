@@ -172,6 +172,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 }
 
 // pickOneUrl takes the potential matching component/versions and selects the most appropriate one
+// obsolete in this application
 func pickOneUrl(projModel *projectModel, allUrls []AllUrl, purlName, purlType, purlReq string) (AllUrl, error) {
 
 	if len(allUrls) == 0 {
@@ -273,11 +274,20 @@ func PickClosestUrls(allUrls []AllUrl, purlName, purlType, purlReq string) ([]Al
 				v, err = semver.NewVersion("v0.0.0") // Semver failed, just use a standard version zero (for now)
 			}
 			if err == nil {
+
 				if c == nil || c.Check(v) {
-					_, ok := urlMap[v]
-					if !ok {
-						urlMap[v] = append(urlMap[v], url) // fits inside the constraint and hasn't already been stored
+					found := false
+					for k, _ := range urlMap {
+						if k.Equal(v) {
+							urlMap[k] = append(urlMap[k], url)
+							found = true
+							break
+						}
 					}
+					if !found {
+						urlMap[v] = append(urlMap[v], url)
+					}
+
 				}
 			}
 		} else {
@@ -304,8 +314,7 @@ func PickClosestUrls(allUrls []AllUrl, purlName, purlType, purlReq string) ([]Al
 		zlog.S.Errorf("Problem retrieving URL data for %v (%v, %v)", version, purlName, purlType)
 		return []AllUrl{}, fmt.Errorf("failed to retrieve specific URL version: %v", version)
 	}
-	///url.Url, _ = utils.ProjectUrl(purlName, purlType)
 
 	zlog.S.Debugf("Selected version: %#v", url)
-	return url, nil // Return the best component match
+	return url, nil // Return the closest URLs
 }
