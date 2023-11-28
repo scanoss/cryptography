@@ -24,3 +24,9 @@
 
 # Ingore the version text file. only used during build
 version.txt
+
+# Ignore package files
+*.tgz
+*.tar
+*.gz
+*.zip

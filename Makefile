@@ -24,6 +24,10 @@ version:  ## Produce Cryptography version text file
 	@echo "Writing version file..."
 	echo $(VERSION) > pkg/cmd/version.txt
 
+unit_test: version ## Run all unit tests in the pkg folder
+	@echo "Running unit test framework..."
+	go test -v ./pkg/...
+
 ghcr_build: version  ## Build GitHub container image
 	@echo "Building GHCR container image..."
 	docker build --no-cache -t $(GHCR_FULLNAME) --platform linux/amd64 .
@@ -38,3 +42,28 @@ ghcr_push:  ## Push the GH container image to GH Packages
 	docker push $(GHCR_FULLNAME):latest
 
 ghcr_all: ghcr_build ghcr_tag ghcr_push  ## Execute all GitHub Package container actions
+
+
+build_amd: version  ## Build an AMD 64 binary
+	@echo "Building AMD binary $(VERSION)..."
+	go generate ./pkg/cmd/server.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-cryptography-api-linux-amd64 ./cmd/server
+
+build_arm: version  ## Build an ARM 64 binary
+	@echo "Building ARM binary $(VERSION)..."
+	go generate ./pkg/cmd/server.go
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-cryptography-api-linux-arm64 ./cmd/server
+
+package: package_amd  ## Build & Package an AMD 64 binary
+
+package_amd: version  ## Build & Package an AMD 64 binary
+	@echo "Building AMD binary $(VERSION) and placing into scripts..."
+	go generate ./pkg/cmd/server.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scripts/scanoss-cryptography-api ./cmd/server
+	bash ./package-scripts.sh linux-amd64 $(VERSION)
+
+package_arm: version  ## Build & Package an ARM 64 binary
+	@echo "Building ARM binary $(VERSION) and placing into scripts..."
+	go generate ./pkg/cmd/server.go
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scripts/scanoss-cryptography-api ./cmd/server
+	bash ./package-scripts.sh linux-arm64 $(VERSION)
