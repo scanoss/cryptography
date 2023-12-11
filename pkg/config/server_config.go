@@ -35,6 +35,7 @@ type ServerConfig struct {
 	}
 	LDB struct {
 		BinPath    string `env:"LDB_BIN_PATH"`
+		EncBinPath string `env:"LDB_ENC_BIN_PATH"`
 		CryptoName string `env:"LDB_CRYPTO_TABLE"`
 		PivotName  string `env:"LDB_PIVOT_TABLE"`
 	}

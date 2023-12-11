@@ -138,6 +138,7 @@ func RunServer() error {
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
 
+	m.LDBEncBinPath = cfg.LDB.EncBinPath
 	m.LDBBinPath = cfg.LDB.BinPath
 	m.LDBCryptoTableName = cfg.LDB.CryptoName
 	m.LDBPivotTableName = cfg.LDB.PivotName

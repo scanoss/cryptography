@@ -33,6 +33,7 @@ type PivotItem struct {
 var LDBCryptoTableName string
 var LDBPivotTableName string
 var LDBBinPath string
+var LDBEncBinPath string
 
 // Checks if the LBD exists and returns the list of available tables
 func PingLDB(ldbname string) ([]string, error) {
@@ -111,7 +112,7 @@ func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
 	}
 	f.Close()
 
-	ldbCmd := exec.Command(LDBBinPath, "-f", name)
+	ldbCmd := exec.Command(LDBEncBinPath, "-f", name)
 	buffer, _ := ldbCmd.Output()
 	lines := strings.Split(string(buffer), "\n")
 	for i := range lines {
