@@ -21,10 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
 	zlog "scanoss.com/cryptography/pkg/logger"
+
 	"scanoss.com/cryptography/pkg/utils"
 )
 
@@ -40,6 +42,7 @@ type AllUrl struct {
 	Version   string `db:"version"`
 	SemVer    string `db:"semver"`
 	PurlName  string `db:"purl_name"`
+	PurlType  string `db:"purl_type"`
 	MineId    int32  `db:"mine_id"`
 	Url       string `db:"-"`
 }
@@ -47,6 +50,36 @@ type AllUrl struct {
 // NewAllUrlModel creates a new instance of the All URL Model
 func NewAllUrlModel(ctx context.Context, conn *sqlx.Conn, project *projectModel) *AllUrlsModel {
 	return &AllUrlsModel{ctx: ctx, conn: conn, project: project}
+}
+
+func (m *AllUrlsModel) GetUrlsByPurlList(list []utils.PurlReq) ([]AllUrl, error) {
+	if len(list) == 0 {
+		zlog.S.Errorf("Please specify a valid Purl list to query")
+		return []AllUrl{}, errors.New("please specify a valid Purl list to query")
+	}
+	purlNames := []string{}
+
+	for p := range list {
+		purlNames = append(purlNames, "'"+list[p].Purl+"'")
+	}
+	inStmt := strings.Join(purlNames, ",")
+	inStmt = "(" + inStmt + ")"
+	stmt := "SELECT package_hash AS url_hash, component, v.version_name AS version, v.semver AS semver, m.purl_type as purl_type, " +
+		"purl_name, mine_id FROM all_urls u " +
+		"LEFT JOIN mines m ON u.mine_id = m.id " +
+		"LEFT JOIN versions v ON u.version_id = v.id " +
+		"WHERE u.purl_name in " + inStmt +
+		" and package_hash!= '' ORDER BY date DESC;"
+
+	var allUrls []AllUrl
+	err := m.conn.SelectContext(m.ctx, &allUrls, stmt)
+	if err != nil {
+		zlog.S.Errorf("Failed to query a list of urls:  %v", err)
+		return []AllUrl{}, fmt.Errorf("failed to query the all urls table: %v", err)
+	}
+	//zlog.S.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
+	return allUrls, nil
+
 }
 
 // GetUrlsByPurlString searches for component details of the specified Purl string (and optional requirement)
@@ -139,6 +172,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 }
 
 // pickOneUrl takes the potential matching component/versions and selects the most appropriate one
+// obsolete in this application
 func pickOneUrl(projModel *projectModel, allUrls []AllUrl, purlName, purlType, purlReq string) (AllUrl, error) {
 
 	if len(allUrls) == 0 {
@@ -148,6 +182,7 @@ func pickOneUrl(projModel *projectModel, allUrls []AllUrl, purlName, purlType, p
 	zlog.S.Debugf("Potential Matches: %v", allUrls)
 	var c *semver.Constraints
 	var urlMap = make(map[*semver.Version]AllUrl)
+
 	if len(purlReq) > 0 {
 		zlog.S.Debugf("Building version constraint for %v: %v", purlName, purlReq)
 		var err error
@@ -156,6 +191,7 @@ func pickOneUrl(projModel *projectModel, allUrls []AllUrl, purlName, purlType, p
 			zlog.S.Warnf("Encountered an issue parsing version constraint string '%v' (%v,%v): %v", purlReq, purlName, purlType, err)
 		}
 	}
+
 	zlog.S.Debugf("Checking versions...")
 	for _, url := range allUrls {
 		if len(url.SemVer) > 0 || len(url.Version) > 0 {
@@ -204,4 +240,81 @@ func pickOneUrl(projModel *projectModel, allUrls []AllUrl, purlName, purlType, p
 
 	zlog.S.Debugf("Selected version: %#v", url)
 	return url, nil // Return the best component match
+}
+
+func PickClosestUrls(allUrls []AllUrl, purlName, purlType, purlReq string) ([]AllUrl, error) {
+
+	if len(allUrls) == 0 {
+		zlog.S.Infof("No component match (in urls) found for %v, %v", purlName, purlType)
+		return []AllUrl{}, nil
+	}
+	//zlog.S.Debugf("Potential Matches: %v", allUrls)
+	var c *semver.Constraints
+	var urlMap = make(map[*semver.Version][]AllUrl)
+
+	if len(purlReq) > 0 {
+		zlog.S.Debugf("Building version constraint for %v: %v", purlName, purlReq)
+		var err error
+		c, err = semver.NewConstraint(purlReq)
+		if err != nil {
+			zlog.S.Warnf("Encountered an issue parsing version constraint string '%v' (%v,%v): %v", purlReq, purlName, purlType, err)
+		}
+	}
+
+	zlog.S.Debugf("Checking versions...")
+	for _, url := range allUrls {
+		if len(url.SemVer) > 0 || len(url.Version) > 0 {
+			v, err := semver.NewVersion(url.Version)
+			if err != nil && len(url.SemVer) > 0 {
+				zlog.S.Debugf("Failed to parse SemVer: '%v'. Trying Version instead: %v (%v)", url.Version, url.SemVer, err)
+				v, err = semver.NewVersion(url.SemVer) // Semver failed, try the normal version
+			}
+			if err != nil {
+				zlog.S.Warnf("Encountered an issue parsing version string '%v' (%v) for %v: %v. Using v0.0.0", url.Version, url.SemVer, url, err)
+				v, err = semver.NewVersion("v0.0.0") // Semver failed, just use a standard version zero (for now)
+			}
+			if err == nil {
+
+				if c == nil || c.Check(v) {
+					found := false
+					for k, _ := range urlMap {
+						if k.Equal(v) {
+							urlMap[k] = append(urlMap[k], url)
+							found = true
+							break
+						}
+					}
+					if !found {
+						urlMap[v] = append(urlMap[v], url)
+					}
+
+				}
+			}
+		} else {
+			zlog.S.Warnf("Skipping match as it doesn't have a version: %#v", url)
+		}
+	}
+	if len(urlMap) == 0 { // TODO should we return the latest version anyway?
+		zlog.S.Warnf("No component match found for %v, %v after filter %v", purlName, purlType, purlReq)
+		return []AllUrl{}, nil
+	}
+	var versions = make([]*semver.Version, len(urlMap))
+	var vi = 0
+	for version := range urlMap { // Save the list of versions so they can be sorted
+		versions[vi] = version
+		vi++
+	}
+	//zlog.S.Debugf("Version List: %v", versions)
+	sort.Sort(semver.Collection(versions))
+	version := versions[len(versions)-1] // Get the latest (acceptable) URL version
+	//zlog.S.Debugf("Sorted versions: %v. Highest: %v", versions, version)
+
+	url, ok := urlMap[version] // Retrieve the latest accepted URL version
+	if !ok {
+		zlog.S.Errorf("Problem retrieving URL data for %v (%v, %v)", version, purlName, purlType)
+		return []AllUrl{}, fmt.Errorf("failed to retrieve specific URL version: %v", version)
+	}
+
+	zlog.S.Debugf("Selected version: %#v", url)
+	return url, nil // Return the closest URLs
 }

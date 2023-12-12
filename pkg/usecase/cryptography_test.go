@@ -52,6 +52,9 @@ func TestCryptographyUseCase(t *testing.T) {
 	}
 	defer models.CloseConn(conn)
 	err = models.LoadTestSqlData(db, ctx, conn)
+	models.LDBPivotTableName = "oss/pivot"
+	models.LDBCryptoTableName = "quique/ncrypto"
+	models.LDBBinPath = "/home/scanoss/Quique/cryptography/./ldb"
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when loading test data", err)
 	}
@@ -73,11 +76,15 @@ func TestCryptographyUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, err := cryptoUc.GetCrypto(requestDto)
+	algorithms, notFound, err := cryptoUc.GetCrypto(requestDto)
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when getting cryptography", err)
 	}
-	fmt.Printf("Cryptography response: %+v\n", algorithms)
+	if len(algorithms.Cryptography[0].Algorithms) == 0 {
+		t.Fatalf("Expected to get at least 1 algorithm")
+
+	}
+	fmt.Printf("Cryptography response: %+v, %d\n", algorithms, notFound)
 	var cryptoBadRequest = `{
 	   		    "purls": [
 	   		        {
@@ -94,12 +101,40 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
 
-	algorithms, err = cryptoUc.GetCrypto(requestDto)
+	algorithms, _, err = cryptoUc.GetCrypto(requestDto)
 
 	if err == nil {
 		t.Fatalf("did not get an expected error: %v", algorithms)
 	}
 
 	fmt.Printf("Got expected error: %+v\n", err)
+
+	var cryptoAmbiguousRequest = `{
+		"purls": [
+			{
+			  "purl":"pkg:maven/org.bouncycastle/bcutil-lts8on@2.73.2"
+
+			}
+	  ]
+	}
+	`
+
+	requestDto, err = dtos.ParseCryptoInput([]byte(cryptoAmbiguousRequest))
+
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+
+	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
+
+	if err != nil {
+		t.Fatalf("did not get an expected error: %v", algorithms)
+	}
+	if notFound > 0 {
+		t.Fatalf("Expected to retrieve at least one url")
+	}
+	if len(algorithms.Cryptography[0].Algorithms) == 0 {
+		t.Fatalf("Expected to disambiguate urls and retrieve at least one algorithm")
+	}
 
 }

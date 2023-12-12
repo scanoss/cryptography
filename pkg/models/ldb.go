@@ -1,19 +1,18 @@
 package models
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type CryptoItem struct {
 	Algorithm string
 	Strenght  string
-	Usage     int32
 }
 type CryptoResult struct {
 	Crypto  []CryptoItem
@@ -26,6 +25,15 @@ type UrlItem struct {
 	PurlName string
 	Version  string
 }
+type PivotItem struct {
+	UrlHash  string
+	FileHash string
+}
+
+var LDBCryptoTableName string
+var LDBPivotTableName string
+var LDBBinPath string
+var LDBEncBinPath string
 
 // Checks if the LBD exists and returns the list of available tables
 func PingLDB(ldbname string) ([]string, error) {
@@ -43,55 +51,79 @@ func PingLDB(ldbname string) ([]string, error) {
 	return ret, nil
 }
 
-func GetCryptoByURL(md5Url string) []CryptoItem {
+// Single item worker for Cryptography. From a MD5 of a file enqueues a list of CryptoItem
 
-	ret := queryCLCryptoLDB(md5Url)
-	return ret
-}
+func QueryBulkPivotLDB(keys []string) (map[string][]string, error) {
+	ret := make(map[string][]string)
+	name := fmt.Sprintf("/tmp/%s-pivot.txt", uuid.New().String())
+	f, err := os.Create(name)
+	if err != nil {
+		return map[string][]string{}, err
+	}
+	for job := range keys {
+		if keys[job] != "" {
+			line := fmt.Sprintf("select from %s key %s csv hex 32\n", LDBPivotTableName, keys[job])
+			f.WriteString(line)
+		}
+	}
+	f.Close()
+	_, err = os.Stat(LDBBinPath)
+	if os.IsNotExist(err) {
 
-// Returns the list of MD5s of files for the key URL
-func queryCLCryptoLDB(key string) []CryptoItem {
-	ldb := fmt.Sprintf("select from oss/cryptocomponent key %s csv hex 16", key)
-	var res []CryptoItem
-	echoCmd := exec.Command("echo", ldb)
-	ldbCmd := exec.Command("ldb")
-	reader, writer := io.Pipe()
-	var buf bytes.Buffer
+		return map[string][]string{}, errors.New("LDB console not found")
+	}
 
-	//set the output of "echo" command to pipe writer
-	//set the input of the "ldb" command pipe reader
-	echoCmd.Stdout = writer
-	ldbCmd.Stdin = reader
+	ldbCmd := exec.Command(LDBBinPath, "-f", name)
 
-	//cache the output of "ldb" to memory
-	ldbCmd.Stdout = &buf
-
-	//start executions
-	echoCmd.Start()
-	ldbCmd.Start()
-
-	//waiting for "echo" command complete and close the writer
-	echoCmd.Wait()
-	writer.Close()
-
-	//waiting for the "ldb" command complete and close the reader
-	ldbCmd.Wait()
-	reader.Close()
+	buffer, errLDB := ldbCmd.Output()
+	fmt.Println(errLDB)
 
 	//split results line by line
-	//each row contains 2 values: <UrlMD5>,<FileMD5>
-	lines := strings.Split(buf.String(), "\n")
+	//each row contains 3 values: <UrlMD5>,<FileMD5>,unknown
+	lines := strings.Split(string(buffer), "\n")
+
 	for i := range lines {
 		fields := strings.Split(lines[i], ",")
 		if len(fields) == 3 {
-			item := CryptoItem{Algorithm: fields[1], Strenght: fields[2]}
-
-			res = append(res, item)
+			ret[fields[0]] = append(ret[fields[0]], fields[1])
 		}
 	}
+	os.Remove(name)
+	return ret, nil
+}
 
-	return res
+func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
+	algorithms := make(map[string][]CryptoItem)
+	name := fmt.Sprintf("/tmp/%s-crypto.txt", uuid.New().String())
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return map[string][]CryptoItem{}
+	}
+	added := make(map[string]bool)
+	for job := range items {
+		fileHashes := items[job]
+		for r := range fileHashes {
+			if _, exist := added[fileHashes[r]]; !exist {
+				line := fmt.Sprintf("select from %s key %s csv hex 16\n", LDBCryptoTableName, fileHashes[r])
+				f.WriteString(line)
+				added[fileHashes[r]] = true
+			}
+		}
+	}
+	f.Close()
 
+	ldbCmd := exec.Command(LDBEncBinPath, "-f", name)
+	buffer, _ := ldbCmd.Output()
+	lines := strings.Split(string(buffer), "\n")
+	for i := range lines {
+		fields := strings.Split(lines[i], ",")
+		if len(fields) == 3 {
+			algorithm := CryptoItem{Algorithm: fields[1], Strenght: fields[2]}
+			algorithms[fields[0]] = append(algorithms[fields[0]], algorithm)
+		}
+	}
+	os.Remove(name)
+	return algorithms
 }
 
 func ContainsTable(arr []string, value string) bool {
