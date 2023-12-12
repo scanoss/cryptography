@@ -137,16 +137,22 @@ func RunServer() error {
 		zlog.S.Errorf("Failed to ping database: %v", err)
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
+
+	m.LDBEncBinPath = cfg.LDB.EncBinPath
+	m.LDBBinPath = cfg.LDB.BinPath
+	m.LDBCryptoTableName = cfg.LDB.CryptoName
+	m.LDBPivotTableName = cfg.LDB.PivotName
+
 	tables, errLDB := m.PingLDB("oss")
 	if errLDB != nil {
 		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
 		return fmt.Errorf("failed to ping LDB: %v", errLDB)
 	}
-	if !m.ContainsTable(tables, "cryptocomponent") {
-		zlog.S.Error("cryptocomponent LDB table not found")
+	if !m.ContainsTable(tables, "cryptography") {
+		zlog.S.Error("cryptography LDB table not found")
 		return fmt.Errorf("%s", "cryptocomponent LDB table not found")
 	}
-	
+
 	defer closeDbConnection(db)
 	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()

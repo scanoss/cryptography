@@ -33,6 +33,12 @@ type ServerConfig struct {
 		Debug bool   `env:"APP_DEBUG"`
 		Mode  string `env:"APP_MODE"` // dev or prod
 	}
+	LDB struct {
+		BinPath    string `env:"LDB_BIN_PATH"`
+		EncBinPath string `env:"LDB_ENC_BIN_PATH"`
+		CryptoName string `env:"LDB_CRYPTO_TABLE"`
+		PivotName  string `env:"LDB_PIVOT_TABLE"`
+	}
 	Database struct {
 		Driver  string `env:"DB_DRIVER"`
 		Host    string `env:"DB_HOST"`

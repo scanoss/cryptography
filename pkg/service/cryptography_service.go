@@ -20,6 +20,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -48,7 +49,7 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 
 func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
 
-	zlog.S.Infof("Processing Cryptography request: %v", request)
+	//zlog.S.Infof("Processing Cryptography request: %v", request)
 	// Make sure we have Cryptography data to query
 	reqPurls := request.GetPurls()
 	if reqPurls == nil || len(reqPurls) == 0 {
@@ -69,14 +70,14 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	defer closeDbConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, conn)
-	dtoCrypto, err := cryptoUc.GetCrypto(dtoRequest)
+	dtoCrypto, notFound, err := cryptoUc.GetCrypto(dtoRequest)
 
 	if err != nil {
 		zlog.S.Errorf("Failed to get dependencies: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
-	zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
+	//zlog.S.Debugf("Parsed Crypto: %+v", dtoCrypto)
 	cryptoResponse, err := convertCryptoOutput(dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
 		zlog.S.Errorf("Failed to covnert parsed dependencies: %v", err)
@@ -84,7 +85,12 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
+
 	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
+	if notFound > 0 {
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+		statusResp.Message = fmt.Sprintf("No information found for %d purl(s)", notFound)
+	}
 	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 
