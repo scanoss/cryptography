@@ -67,6 +67,6 @@ go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 
 After changing a Cryptography version, please run the following command:
 ```shell
-go mod tidy -compat=1.17
+go mod tidy -compat=1.19
 ```
 https://mholt.github.io/json-to-go/
