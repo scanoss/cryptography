@@ -20,6 +20,10 @@ clean:  ## Clean all dev data
 	@echo "Removing dev data..."
 	@rm -f pkg/cmd/version.txt version.txt
 
+clean_testcache:  ## Expire all Go test caches
+	@echo "Cleaning test caches..."
+	go clean -testcache ./...
+
 version:  ## Produce Cryptography version text file
 	@echo "Writing version file..."
 	echo $(VERSION) > pkg/cmd/version.txt
@@ -27,6 +31,23 @@ version:  ## Produce Cryptography version text file
 unit_test: version ## Run all unit tests in the pkg folder
 	@echo "Running unit test framework..."
 	go test -v ./pkg/...
+
+lint_local: ## Run local instance of linting across the code base
+	golangci-lint run ./...
+
+lint_local_fix: ## Run local instance of linting across the code base including auto-fixing
+	golangci-lint run --fix ./...
+
+lint_docker: ## Run docker instance of linting across the code base
+	docker run --rm -v $(pwd):/app -v ~/.cache/golangci-lint/v1.50.1:/root/.cache -w /app golangci/golangci-lint:v1.50.1 golangci-lint run ./...
+
+run_local:  ## Launch the API locally for test
+	@echo "Launching API locally..."
+	go run cmd/server/main.go -json-config config/app-config-dev.json -debug
+
+run_local_env:  ## Launch the API locally using .env for test
+	@echo "Launching API locally using .env ..."
+	go run cmd/server/main.go -env-config .env -debug
 
 ghcr_build: version  ## Build GitHub container image
 	@echo "Building GHCR container image..."
