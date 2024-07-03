@@ -22,16 +22,28 @@ import (
 )
 
 const (
-	defaultGrpcPort = "50051"
+	defaultGrpcPort = "50054"
+	defaultRestPort = "40054"
 )
 
 // ServerConfig is configuration for Server
 type ServerConfig struct {
 	App struct {
-		Name  string `env:"APP_NAME"`
-		Port  string `env:"APP_PORT"`
-		Debug bool   `env:"APP_DEBUG"`
-		Mode  string `env:"APP_MODE"` // dev or prod
+		Name     string `env:"APP_NAME"`
+		GRPCPort string `env:"APP_PORT"`
+		RESTPort string `env:"REST_PORT"`
+		Debug    bool   `env:"APP_DEBUG"` // true/false
+		Trace    bool   `env:"APP_TRACE"` // true/false
+		Mode     string `env:"APP_MODE"`  // dev or prod
+	}
+	Logging struct {
+		DynamicLogging bool   `env:"LOG_DYNAMIC"`      // true/false
+		DynamicPort    string `env:"LOG_DYNAMIC_PORT"` // host:port
+		ConfigFile     string `env:"LOG_JSON_CONFIG"`
+	}
+	Telemetry struct {
+		Enabled      bool   `env:"OTEL_ENABLED"`       // true/false
+		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	LDB struct {
 		BinPath    string `env:"LDB_BIN_PATH"`
@@ -47,7 +59,19 @@ type ServerConfig struct {
 		Schema  string `env:"DB_SCHEMA"`
 		SslMode string `env:"DB_SSL_MODE"` // enable/disable
 		Dsn     string `env:"DB_DSN"`
+		Trace   bool   `env:"DB_TRACE"` // true/false
 	}
+	TLS struct {
+		CertFile string `env:"CRYPTO_TLS_CERT"` // TLS Certificate
+		KeyFile  string `env:"CRYPTO_TLS_KEY"`  // Private TLS Key
+	}
+	Filtering struct {
+		AllowListFile  string `env:"CRYPTO_ALLOW_LIST"`       // Allow list file for incoming connections
+		DenyListFile   string `env:"CRYPTO_DENY_LIST"`        // Deny list file for incoming connections
+		BlockByDefault bool   `env:"CRYPTO_BLOCK_BY_DEFAULT"` // Block request by default if they are not in the allow list
+		TrustProxy     bool   `env:"CRYPTO_TRUST_PROXY"`      // Trust the interim proxy or not (causes the source IP to be validated instead of the proxy)
+	}
+	// TODO remove Components. Don't think it's required in Crypto
 	Components struct {
 		CommitMissing bool `env:"COMP_COMMIT_MISSING"` // Write component details to the DB if they are looked up live
 	}
@@ -72,8 +96,9 @@ func NewServerConfig(feeders []config.Feeder) (*ServerConfig, error) {
 
 // setServerConfigDefaults attempts to set reasonable defaults for the server config
 func setServerConfigDefaults(cfg *ServerConfig) {
-	cfg.App.Name = "SCANOSS Dependency Server"
-	cfg.App.Port = defaultGrpcPort
+	cfg.App.Name = "SCANOSS Cryptography Server"
+	cfg.App.GRPCPort = defaultGrpcPort
+	cfg.App.RESTPort = defaultRestPort
 	cfg.App.Mode = "dev"
 	cfg.App.Debug = false
 	cfg.Database.Driver = "postgres"
@@ -81,5 +106,9 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Database.User = "scanoss"
 	cfg.Database.Schema = "scanoss"
 	cfg.Database.SslMode = "disable"
-	cfg.Components.CommitMissing = false
+	cfg.Database.Trace = false
+	cfg.Logging.DynamicLogging = true
+	cfg.Logging.DynamicPort = "localhost:60054"
+	cfg.Telemetry.Enabled = false
+	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
 }
