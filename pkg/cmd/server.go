@@ -21,20 +21,22 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"go.uber.org/zap/zapcore"
-
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/scanoss/go-grpc-helper/pkg/files"
+	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
+	gs "github.com/scanoss/go-grpc-helper/pkg/grpc/server"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"net/http"
+	"os"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	zlog "scanoss.com/cryptography/pkg/logger"
+	"strings"
+
 	m "scanoss.com/cryptography/pkg/models"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
+	"scanoss.com/cryptography/pkg/protocol/rest"
 	"scanoss.com/cryptography/pkg/service"
 )
 
@@ -73,14 +75,6 @@ func getConfig() (*myconfig.ServerConfig, error) {
 	return myConfig, err
 }
 
-// closeDbConnection closes the specified DB connection
-func closeDbConnection(db *sqlx.DB) {
-	err := db.Close()
-	if err != nil {
-		zlog.S.Warnf("Problem closing DB: %v", err)
-	}
-}
-
 // RunServer runs the gRPC Cryptography Server
 func RunServer() error {
 	// Load command line options and config
@@ -88,61 +82,45 @@ func RunServer() error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %v", err)
 	}
-	// Check mode to determine which logger to load
-	switch strings.ToLower(cfg.App.Mode) {
-	case "prod":
-		var err error
-		if cfg.App.Debug {
-			err = zlog.NewSugaredProdLoggerLevel(zapcore.DebugLevel)
-		} else {
-			err = zlog.NewSugaredProdLogger()
-		}
-		if err != nil {
-			return fmt.Errorf("failed to load logger: %v", err)
-		}
-		zlog.L.Debug("Running with debug enabled")
-	default:
-		if err := zlog.NewSugaredDevLogger(); err != nil {
-			return fmt.Errorf("failed to load logger: %v", err)
-		}
+
+	err = zlog.SetupAppLogger(cfg.App.Mode, cfg.Logging.ConfigFile, cfg.App.Debug)
+	if err != nil {
+		return err
 	}
 	defer zlog.SyncZap()
-	zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
-	// Setup database connection pool
-	var dsn string
-	if len(cfg.Database.Dsn) > 0 {
-		dsn = cfg.Database.Dsn
-	} else {
-		dsn = fmt.Sprintf("%s://%s:%s@%s/%s?sslmode=%s",
-			cfg.Database.Driver,
-			cfg.Database.User,
-			cfg.Database.Passwd,
-			cfg.Database.Host,
-			cfg.Database.Schema,
-			cfg.Database.SslMode)
-	}
-	zlog.S.Debug("Connecting to Database...")
-	db, err := sqlx.Open(cfg.Database.Driver, dsn)
+	// Check if TLS/SSL should be enabled
+	startTLS, err := files.CheckTLS(cfg.TLS.CertFile, cfg.TLS.KeyFile)
 	if err != nil {
-		zlog.S.Errorf("Failed to open database: %v", err)
-		return fmt.Errorf("failed to open database: %v", err)
+		return err
 	}
-	db.SetConnMaxIdleTime(30 * time.Minute) // TODO add to app config
-	db.SetConnMaxLifetime(time.Hour)
-	db.SetMaxIdleConns(20)
-	db.SetMaxOpenConns(100)
-	err = db.Ping()
+	// Check if IP filtering should be enabled
+	allowedIPs, deniedIPs, err := files.LoadFiltering(cfg.Filtering.AllowListFile, cfg.Filtering.DenyListFile)
 	if err != nil {
-		zlog.S.Errorf("Failed to ping database: %v", err)
-		return fmt.Errorf("failed to ping database: %v", err)
+		return err
 	}
 
+	zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
+
+	// Setup database connection pool
+	db, err := gd.OpenDBConnection(cfg.Database.Dsn, cfg.Database.Driver, cfg.Database.User, cfg.Database.Passwd,
+		cfg.Database.Host, cfg.Database.Schema, cfg.Database.SslMode)
+	if err != nil {
+		return err
+	}
+	if err = gd.SetDBOptionsAndPing(db); err != nil {
+		return err
+	}
+	defer gd.CloseDBConnection(db)
+	// Setup dynamic logging (if necessary)
+	zlog.SetupAppDynamicLogging(cfg.Logging.DynamicPort, cfg.Logging.DynamicLogging)
+
+	// TODO these should be configured when instantiating a new LDB instance instead
 	m.LDBEncBinPath = cfg.LDB.EncBinPath
 	m.LDBBinPath = cfg.LDB.BinPath
 	m.LDBCryptoTableName = cfg.LDB.CryptoName
 	m.LDBPivotTableName = cfg.LDB.PivotName
 
-	tables, errLDB := m.PingLDB("oss")
+	tables, errLDB := m.PingLDB("oss") // TODO this value should externalised?
 	if errLDB != nil {
 		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
 		return fmt.Errorf("failed to ping LDB: %v", errLDB)
@@ -151,9 +129,21 @@ func RunServer() error {
 		zlog.S.Error("cryptography LDB table not found")
 		return fmt.Errorf("%s", "cryptocomponent LDB table not found")
 	}
-
-	defer closeDbConnection(db)
+	// Register the cryptography service
 	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()
-	return grpc.RunServer(ctx, v2API, cfg.App.Port)
+	// Start the REST grpc-gateway if requested
+	var srv *http.Server
+	if len(cfg.App.RESTPort) > 0 {
+		if srv, err = rest.RunServer(cfg, ctx, cfg.App.GRPCPort, cfg.App.RESTPort, allowedIPs, deniedIPs, startTLS); err != nil {
+			return err
+		}
+	}
+	// Start the gRPC service
+	server, err := grpc.RunServer(cfg, v2API, cfg.App.GRPCPort, allowedIPs, deniedIPs, startTLS, version)
+	if err != nil {
+		return err
+	}
+	// graceful shutdown
+	return gs.WaitServerComplete(srv, server)
 }
