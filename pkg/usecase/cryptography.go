@@ -93,8 +93,10 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 				purl.Version = ver // Switch to exact version search (faster)
 			}
 		}
+		d.s.Debugf("Purl to query: %v, Name: %s, Version: %s", purl, purlName, purl.Version)
+
 		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: purl.Version})
-		query = append(query, InternalQuery{CompletePurl: reqPurl.Purl, Requirement: reqPurl.Requirement, PurlName: purlName})
+		query = append(query, InternalQuery{CompletePurl: reqPurl.Purl, Requirement: purl.Version, PurlName: purlName})
 	}
 	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
 	if err != nil {
