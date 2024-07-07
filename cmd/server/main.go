@@ -20,10 +20,11 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"scanoss.com/cryptography/pkg/cmd"
 )
 
-// main starts the gRPC Cryptography Service
+// main starts the gRPC Cryptography Service.
 func main() {
 	// Launch the Cryptography Server Service
 	if err := cmd.RunServer(); err != nil {

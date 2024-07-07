@@ -21,9 +21,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -38,13 +39,13 @@ type cryptographyServer struct {
 	config *myconfig.ServerConfig
 }
 
-// NewCryptographyServer creates a new instance of Cryptography Server
+// NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	setupMetrics()
 	return &cryptographyServer{db: db, config: config}
 }
 
-// Echo sends back the same message received
+// Echo sends back the same message received.
 func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoRequest) (*common.EchoResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Infof("Received (%v): %v", ctx, request.GetMessage())
@@ -57,7 +58,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	s.Info("Processing crypto algorithms request...")
 	// Make sure we have Cryptography data to query
 	reqPurls := request.GetPurls()
-	if reqPurls == nil || len(reqPurls) == 0 {
+	if len(reqPurls) == 0 {
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("no purl data supplied")
 	}

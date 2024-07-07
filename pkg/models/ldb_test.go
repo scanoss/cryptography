@@ -19,15 +19,17 @@ package models
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	"testing"
 )
 
 const (
-	ldbPath   = "../../test-support/ldb"
-	ldbBinary = "../../test-support/ldb.sh"
+	ldbPath      = "../../test-support/ldb"
+	ldbBinary    = "../../test-support/ldb.sh"
+	doesNotExist = "does-not-exist"
 )
 
 func TestPingLDB_Pass(t *testing.T) {
@@ -65,8 +67,8 @@ func TestPingLDB_Fail(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.LDB.Debug = true
-	myConfig.LDB.LdbPath = "does-not-exist"
-	myConfig.LDB.Binary = "does-not-exist"
+	myConfig.LDB.LdbPath = doesNotExist
+	myConfig.LDB.Binary = doesNotExist
 	ldbModel := NewLdbModel(context.Background(), s, myConfig)
 	err = ldbModel.PingLDB([]string{myConfig.LDB.CryptoTable, myConfig.LDB.PivotTable})
 	if err == nil {
@@ -74,7 +76,7 @@ func TestPingLDB_Fail(t *testing.T) {
 	}
 	myConfig.LDB.LdbPath = ldbPath
 	myConfig.LDB.Binary = ldbBinary
-	err = ldbModel.PingLDB([]string{"does-not-exist"})
+	err = ldbModel.PingLDB([]string{doesNotExist})
 	if err == nil {
 		t.Fatalf("LDB exists when it shouldn't have")
 	}
@@ -121,8 +123,8 @@ func TestQueryPivotLDB_Fail(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.LDB.Debug = true
-	myConfig.LDB.LdbPath = "does-not-exist"
-	myConfig.LDB.Binary = "does-not-exist"
+	myConfig.LDB.LdbPath = doesNotExist
+	myConfig.LDB.Binary = doesNotExist
 	ldbModel := NewLdbModel(context.Background(), s, myConfig)
 
 	urlHashesForTesting := []string{"7c110b4501c727f42f13fd616e2af522"}
@@ -176,8 +178,8 @@ func TestQueryCryptoLDB_Fail(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.LDB.Debug = true
-	myConfig.LDB.LdbPath = "does-not-exist"
-	myConfig.LDB.Binary = "does-not-exist"
+	myConfig.LDB.LdbPath = doesNotExist
+	myConfig.LDB.Binary = doesNotExist
 	ldbModel := NewLdbModel(context.Background(), s, myConfig)
 
 	fileHashesForTesting := []string{"b9e4d7a54ff7267c285e266b5701de3a", "c0cc0cbd95f0f20cb95115b46e923482", "264a6f968bff7af75cd740eb6b646208"}

@@ -19,11 +19,12 @@ package models
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	"testing"
 )
 
 func TestAllUrlsSearchVersion(t *testing.T) {
@@ -47,7 +48,7 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllUrlModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
 	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeVersion("tablestyle", "gem", "0.0.12")
 	if err != nil {
@@ -86,14 +87,14 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 	allUrls, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "22.22.22") // Shouldn't exist
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = failed to find purl by version string")
-	}
-	if len(allUrls.PurlName) > 0 {
-		t.Errorf("all_urls.GetUrlsByPurlString() error = Found match, when we shouldn't: %v", allUrls)
+	} else {
+		if len(allUrls.PurlName) > 0 {
+			t.Errorf("all_urls.GetUrlsByPurlString() error = Found match, when we shouldn't: %v", allUrls)
+		}
 	}
 }
 
 func TestAllUrlsSearchVersionRequirement(t *testing.T) {
-
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -114,7 +115,7 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllUrlModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
 	allUrls, err := allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", ">0.0.4")
 	if err != nil {
@@ -132,7 +133,6 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 	if len(allUrls.PurlName) == 0 {
 		t.Errorf("all_urls.GetUrlsByPurlString() No URLs returned from query")
 	}
-
 }
 
 func TestAllUrlsSearchNoProject(t *testing.T) {
@@ -156,7 +156,7 @@ func TestAllUrlsSearchNoProject(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllUrlModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
 	allUrls, err := allUrlsModel.GetUrlsByPurlNameType("tablestyle", "gem", "0.0.8")
 	if err != nil {
@@ -189,7 +189,7 @@ func TestAllUrlsSearchNoLicense(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllUrlModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
 	allUrls, err := allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle@0.0.8", "")
 	if err != nil {
@@ -218,7 +218,7 @@ func TestAllUrlsSearchBadSql(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllUrlModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
 	_, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "")
 	if err == nil {

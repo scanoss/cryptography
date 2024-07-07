@@ -21,6 +21,10 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 	_ "github.com/lib/pq"
@@ -29,10 +33,7 @@ import (
 	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	gs "github.com/scanoss/go-grpc-helper/pkg/grpc/server"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"net/http"
-	"os"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	"strings"
 
 	m "scanoss.com/cryptography/pkg/models"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
@@ -45,7 +46,7 @@ import (
 
 var version string
 
-// getConfig checks command line args for option to feed into the config parser
+// getConfig checks command line args for option to feed into the config parser.
 func getConfig() (*myconfig.ServerConfig, error) {
 	var jsonConfig, envConfig string
 	flag.StringVar(&jsonConfig, "json-config", "", "Application JSON config")
@@ -75,7 +76,7 @@ func getConfig() (*myconfig.ServerConfig, error) {
 	return myConfig, err
 }
 
-// RunServer runs the gRPC Cryptography Server
+// RunServer runs the gRPC Cryptography Server.
 func RunServer() error {
 	// Load command line options and config
 	cfg, err := getConfig()

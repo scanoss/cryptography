@@ -21,14 +21,15 @@ package models
 import (
 	"context"
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/jmoiron/sqlx"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
-	"os"
-	"testing"
 )
 
-// loadSQLData Load the specified SQL files into the supplied DB
+// loadSQLData Load the specified SQL files into the supplied DB.
 func loadSQLData(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, filename string) error {
 	fmt.Printf("Loading test data file: %v\n", filename)
 	file, err := os.ReadFile(filename)
@@ -81,7 +82,7 @@ func sqliteConn(t *testing.T, ctx context.Context, db *sqlx.DB) *sqlx.Conn {
 	return conn
 }
 
-// CloseDB closes the specified DB and logs any errors
+// CloseDB closes the specified DB and logs any errors.
 func CloseDB(db *sqlx.DB) {
 	if db != nil {
 		err := db.Close()
@@ -91,7 +92,7 @@ func CloseDB(db *sqlx.DB) {
 	}
 }
 
-// CloseConn closes the specified DB connection and logs any errors
+// CloseConn closes the specified DB connection and logs any errors.
 func CloseConn(conn *sqlx.Conn) {
 	if conn != nil {
 		err := conn.Close()
