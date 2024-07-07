@@ -1,137 +1,181 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2018-2024 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package models
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"os/exec"
+	"path/filepath"
+	myconfig "scanoss.com/cryptography/pkg/config"
 	"strings"
-
-	"github.com/google/uuid"
+	"time"
 )
 
 type CryptoItem struct {
 	Algorithm string
-	Strenght  string
-}
-type CryptoResult struct {
-	Crypto  []CryptoItem
-	Purl    string
-	Version string
+	Strength  string
 }
 
-type UrlItem struct {
-	UrlHash  string
-	PurlName string
-	Version  string
-}
-type PivotItem struct {
-	UrlHash  string
-	FileHash string
+type LdbModel struct {
+	ctx    context.Context
+	s      *zap.SugaredLogger
+	config *myconfig.ServerConfig
 }
 
-var LDBCryptoTableName string
-var LDBPivotTableName string
-var LDBBinPath string
-var LDBEncBinPath string
+// NewLdbModel creates a new instance of LDB Model
+func NewLdbModel(ctx context.Context, s *zap.SugaredLogger, config *myconfig.ServerConfig) *LdbModel {
+	return &LdbModel{ctx: ctx, s: s, config: config}
+}
 
-// Checks if the LBD exists and returns the list of available tables
-func PingLDB(ldbname string) ([]string, error) {
-	var ret []string
-	entry, err := os.ReadDir("/var/lib/ldb/" + ldbname)
+// PingLDB checks if the LBD and minimum tables.
+func (m LdbModel) PingLDB(tables []string) error {
+	ldbPath := filepath.Join(m.config.LDB.LdbPath, m.config.LDB.LdbName)
+	entries, err := os.ReadDir(ldbPath)
 	if err != nil {
-		return []string{}, errors.New("Problems opening LDB " + ldbname)
+		m.s.Errorf("Problem reading LDB path %s: %v", ldbPath, err)
+		return errors.New("Problem opening LDB path " + ldbPath)
 	}
-	for e := range entry {
-		if entry[e].IsDir() {
-			ret = append(ret, entry[e].Name())
+	// Get existing table names
+	var existingTables = make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() {
+			existingTables[e.Name()] = true
 		}
 	}
-
-	return ret, nil
-}
-
-// Single item worker for Cryptography. From a MD5 of a file enqueues a list of CryptoItem
-
-func QueryBulkPivotLDB(keys []string) (map[string][]string, error) {
-	ret := make(map[string][]string)
-	name := fmt.Sprintf("/tmp/%s-pivot.txt", uuid.New().String())
-	f, err := os.Create(name)
-	if err != nil {
-		return map[string][]string{}, err
-	}
-	for job := range keys {
-		if keys[job] != "" {
-			line := fmt.Sprintf("select from %s key %s csv hex 32\n", LDBPivotTableName, keys[job])
-			f.WriteString(line)
+	// Check if the requested tables exist or not
+	for _, table := range tables {
+		if !existingTables[table] {
+			return fmt.Errorf("LDB table %s does not exist", table)
 		}
 	}
-	f.Close()
-	_, err = os.Stat(LDBBinPath)
-	if os.IsNotExist(err) {
-
-		return map[string][]string{}, errors.New("LDB console not found")
-	}
-
-	ldbCmd := exec.Command(LDBBinPath, "-f", name)
-
-	buffer, errLDB := ldbCmd.Output()
-	fmt.Println(errLDB)
-
-	//split results line by line
-	//each row contains 3 values: <UrlMD5>,<FileMD5>,unknown
-	lines := strings.Split(string(buffer), "\n")
-
-	for i := range lines {
-		fields := strings.Split(lines[i], ",")
-		if len(fields) == 3 {
-			ret[fields[0]] = append(ret[fields[0]], fields[1])
-		}
-	}
-	os.Remove(name)
-	return ret, nil
+	m.s.Debugf("LDB %s and tables %v exists", ldbPath, tables)
+	return nil
 }
 
-func QueryBulkCryptoLDB(items map[string][]string) map[string][]CryptoItem {
-	algorithms := make(map[string][]CryptoItem)
-	name := fmt.Sprintf("/tmp/%s-crypto.txt", uuid.New().String())
-	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE, 0600)
+// runLdbCommandFile runs the specified query file against the LDB
+func (m LdbModel) runLdbCommandFile(queryFile string) ([]byte, error) {
+	var args []string
+	args = append(args, "-f", queryFile)
+	m.s.Debugf("Executing %v %v", m.config.LDB.Binary, strings.Join(args, " "))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.config.LDB.Timeout)*time.Second) // put a timeout on the scan execution
+	defer cancel()
+	output, err := exec.CommandContext(ctx, m.config.LDB.Binary, args...).Output()
 	if err != nil {
-		return map[string][]CryptoItem{}
+		m.s.Errorf("LDB command (%v %v) failed: %v", m.config.LDB.Binary, args, err)
+		m.s.Errorf("Command output: %s", bytes.TrimSpace(output))
+		return nil, fmt.Errorf("failed to run ldb: %v", err)
 	}
-	added := make(map[string]bool)
-	for job := range items {
-		fileHashes := items[job]
-		for r := range fileHashes {
-			if _, exist := added[fileHashes[r]]; !exist {
-				line := fmt.Sprintf("select from %s key %s csv hex 16\n", LDBCryptoTableName, fileHashes[r])
-				f.WriteString(line)
-				added[fileHashes[r]] = true
+	if m.config.LDB.Debug {
+		m.s.Debugf("LDB command output: %s", bytes.TrimSpace(output))
+	}
+	return output, nil
+}
+
+// QueryBulkPivotLDB queries the LDB Pivot table checking for the requested keys.
+// It will return a map of the related MD5 files related to the URL.
+func (m LdbModel) QueryBulkPivotLDB(keys []string) (map[string][]string, error) {
+	tempFile, err := os.CreateTemp("", "*pivot.txt")
+	if err != nil {
+		m.s.Errorf("Failed to create temporary SBOM file: %v", err)
+		return nil, err
+	}
+	defer removeFile(tempFile, m.s)
+	for _, key := range keys {
+		if key != "" {
+			query := fmt.Sprintf("select from %s/%s key %s csv hex 32\n", m.config.LDB.LdbName, m.config.LDB.PivotTable, key)
+			_, err := tempFile.WriteString(query)
+			if err != nil {
+				m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), err)
+				closeFile(tempFile, m.s)
+				return nil, fmt.Errorf("failed to write to temporary pivot LDB file")
 			}
 		}
 	}
-	f.Close()
-
-	ldbCmd := exec.Command(LDBEncBinPath, "-f", name)
-	buffer, _ := ldbCmd.Output()
-	lines := strings.Split(string(buffer), "\n")
-	for i := range lines {
-		fields := strings.Split(lines[i], ",")
-		if len(fields) == 3 {
-			algorithm := CryptoItem{Algorithm: fields[1], Strenght: fields[2]}
-			algorithms[fields[0]] = append(algorithms[fields[0]], algorithm)
+	closeFile(tempFile, m.s)
+	output, err := m.runLdbCommandFile(tempFile.Name())
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string][]string)
+	if len(output) > 0 {
+		// split results line by line. each row contains 3 values: <UrlMD5>,<FileMD5>,unknown
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if len(line) > 0 {
+				fields := strings.Split(line, ",")
+				if len(fields) >= 2 {
+					ret[fields[0]] = append(ret[fields[0]], fields[1])
+				}
+			}
 		}
 	}
-	os.Remove(name)
-	return algorithms
+	return ret, nil
 }
 
-func ContainsTable(arr []string, value string) bool {
-	for r := range arr {
-		if arr[r] == value {
-			return true
+// QueryBulkCryptoLDB runs a bulk query of the crypto table for MD5 files
+func (m LdbModel) QueryBulkCryptoLDB(items map[string][]string) (map[string][]CryptoItem, error) {
+	tempFile, err := os.CreateTemp("", "*crypto.txt")
+	if err != nil {
+		m.s.Errorf("Failed to create temporary SBOM file: %v", err)
+		return nil, err
+	}
+	defer removeFile(tempFile, m.s)
+	// Produce a query for the unique list of MD5 files to check for crypto
+	added := make(map[string]bool)
+	for _, fileHashes := range items {
+		for _, fileHash := range fileHashes {
+			// Only add a query once
+			if _, exist := added[fileHash]; !exist {
+				query := fmt.Sprintf("select from %s/%s key %s csv hex 16\n", m.config.LDB.LdbName, m.config.LDB.CryptoTable, fileHash)
+				_, err := tempFile.WriteString(query)
+				if err != nil {
+					m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), err)
+					closeFile(tempFile, m.s)
+					return nil, fmt.Errorf("failed to write to temporary crypto LDB file")
+				}
+				added[fileHash] = true
+			}
 		}
 	}
-	return false
-
+	closeFile(tempFile, m.s)
+	output, err := m.runLdbCommandFile(tempFile.Name())
+	if err != nil {
+		return nil, err
+	}
+	algorithms := make(map[string][]CryptoItem)
+	if len(output) > 0 {
+		// Extract crypto algorithms for each entry
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if len(line) > 0 {
+				fields := strings.Split(line, ",")
+				if len(fields) == 3 {
+					algorithm := CryptoItem{Algorithm: fields[1], Strength: fields[2]}
+					algorithms[fields[0]] = append(algorithms[fields[0]], algorithm)
+				} else {
+					m.s.Warnf("Unexpected line in crypto reponse: %s", line)
+				}
+			}
+		}
+	}
+	return algorithms, nil
 }

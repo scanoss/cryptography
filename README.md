@@ -1,4 +1,4 @@
-# SCANOSS Platform 2.0 Dependencies
+# SCANOSS Platform 2.0 Cryptography
 Welcome to the Cryptography server for SCANOSS Platform 2.0
 
 **Warning** Work In Progress **Warning**
@@ -17,17 +17,10 @@ These are the supported configuration arguments:
 
 ```
 APP_NAME="SCANOSS Cryptography Server"
-APP_PORT=50051
+APP_PORT=50054
 APP_MODE=dev
 APP_DEBUG=false
-
-DB_DRIVER=postgres
-DB_HOST=localhost
-DB_USER=scanoss
-DB_PASSWD=
-DB_SCHEMA=scanoss
-DB_SSL_MODE=disable
-DB_DSN=
+DB_DSN="./test-support/sqlite/scanoss.db?cache=shared&mode=memory"
 ```
 
 
@@ -54,7 +47,7 @@ Run the SCANOSS Cryptography Server Docker image by specifying the environmental
 You may also need to expose the ```APP_PORT``` on a given ```interface:port``` with the ```-p``` argument.
 
 ```bash
-docker run -it -v "$(pwd)":"$(pwd)" -p 50051:50051 ghcr.io/scanoss/scanoss-dependencies -json-config $(pwd)/config/app-config-docker-local-dev.json -debug
+docker run -it -v "$(pwd)":"$(pwd)" -p 50054:50054 ghcr.io/scanoss/scanoss-cryptography-api -json-config $(pwd)/config/app-config-docker-local-dev.json -debug
 ```
 
 ## Development
@@ -67,6 +60,6 @@ go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 
 After changing a Cryptography version, please run the following command:
 ```shell
-go mod tidy -compat=1.19
+go mod tidy -compat=1.20
 ```
 https://mholt.github.io/json-to-go/
