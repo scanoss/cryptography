@@ -25,7 +25,7 @@ import (
 
 // main starts the gRPC Cryptography Service
 func main() {
-	// Launch the Cryptogaphy Server Service
+	// Launch the Cryptography Server Service
 	if err := cmd.RunServer(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Server launch error: %v\n", err)
 		os.Exit(1)

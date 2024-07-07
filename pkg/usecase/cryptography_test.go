@@ -24,23 +24,20 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
-	zlog "scanoss.com/cryptography/pkg/logger"
 	"scanoss.com/cryptography/pkg/models"
 )
 
 func TestCryptographyUseCase(t *testing.T) {
-
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	ctx := context.Background()
-	ctx = ctxzap.ToContext(ctx, zlog.L)
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
 	s := ctxzap.Extract(ctx).Sugar()
-	_ = s
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -51,28 +48,29 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseConn(conn)
-	err = models.LoadTestSqlData(db, ctx, conn)
-	models.LDBPivotTableName = "oss/pivot"
-	models.LDBCryptoTableName = "quique/ncrypto"
-	models.LDBBinPath = "/home/scanoss/Quique/cryptography/./ldb"
+	err = models.LoadTestSQLData(db, ctx, conn)
 	if err != nil {
-		t.Fatalf("an error '%s' was not expected when loading test data", err)
+		t.Fatalf("failed to load SQL test data: %v", err)
 	}
-	var cryptoRequest = `{
-		      "purls": [
-		        {
-		          "purl": "pkg:github/scanoss/engine",
-		          "requirement": "5.2.4"
-		        }
-		      ]
-		  	}`
 	myConfig, err := myconfig.NewServerConfig(nil)
-	_ = myConfig
 	if err != nil {
 		t.Fatalf("failed to load Config: %v", err)
 	}
-	cryptoUc := NewCrypto(ctx, conn)
-	requestDto, err := dtos.ParseCryptoInput([]byte(cryptoRequest))
+	myConfig.Database.Trace = true
+	myConfig.LDB.LdbPath = "../../test-support/ldb"
+	myConfig.LDB.Binary = "../../test-support/ldb.sh"
+	myConfig.LDB.Debug = true
+	var cryptoRequest = `{
+		      "purls": [
+		        {
+		          "purl": "pkg:maven/org.bouncycastle/bcutil-lts8on",
+		          "requirement": "2.73.2"
+		        }
+		      ]
+		  	}`
+	cryptoUc := NewCrypto(ctx, s, conn, myConfig)
+
+	requestDto, err := dtos.ParseCryptoInput(s, []byte(cryptoRequest))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
@@ -80,53 +78,43 @@ func TestCryptographyUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when getting cryptography", err)
 	}
+	fmt.Printf("Algorithms: %v", algorithms)
+
 	if len(algorithms.Cryptography[0].Algorithms) == 0 {
 		t.Fatalf("Expected to get at least 1 algorithm")
-
 	}
 	fmt.Printf("Cryptography response: %+v, %d\n", algorithms, notFound)
 	var cryptoBadRequest = `{
 	   		    "purls": [
 	   		        {
 	   		          "purl": "pkg:npm/"
-
 	   		        }
 	   		  ]
 	   		}
 	   		`
-
-	requestDto, err = dtos.ParseCryptoInput([]byte(cryptoBadRequest))
-
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoBadRequest))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-
 	algorithms, _, err = cryptoUc.GetCrypto(requestDto)
-
 	if err == nil {
 		t.Fatalf("did not get an expected error: %v", algorithms)
 	}
-
 	fmt.Printf("Got expected error: %+v\n", err)
 
 	var cryptoAmbiguousRequest = `{
 		"purls": [
 			{
 			  "purl":"pkg:maven/org.bouncycastle/bcutil-lts8on@2.73.2"
-
 			}
 	  ]
 	}
 	`
-
-	requestDto, err = dtos.ParseCryptoInput([]byte(cryptoAmbiguousRequest))
-
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoAmbiguousRequest))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-
 	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
-
 	if err != nil {
 		t.Fatalf("did not get an expected error: %v", algorithms)
 	}
@@ -136,5 +124,4 @@ func TestCryptographyUseCase(t *testing.T) {
 	if len(algorithms.Cryptography[0].Algorithms) == 0 {
 		t.Fatalf("Expected to disambiguate urls and retrieve at least one algorithm")
 	}
-
 }

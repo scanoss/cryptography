@@ -2,3 +2,5 @@
 *.json
 scanoss-cryptography-api
 scanoss
+ldb
+ldb_enc

@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"reflect"
 	"testing"
 
@@ -25,28 +26,42 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	zlog "scanoss.com/cryptography/pkg/logger"
 	"scanoss.com/cryptography/pkg/models"
 )
 
 func TestCryptographyServer_Echo(t *testing.T) {
-	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
+	conn, err := db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseConn(conn)
+	err = models.LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
 	myConfig, err := myconfig.NewServerConfig(nil)
 	if err != nil {
 		t.Fatalf("failed to load Config: %v", err)
 	}
-	s := NewCryptographyServer(db, myConfig)
+	myConfig.Database.Trace = true
+	myConfig.LDB.LdbPath = "../../test-support/ldb"
+	myConfig.LDB.Binary = "../../test-support/ldb.sh"
+	myConfig.LDB.Debug = true
+
+	server := NewCryptographyServer(db, myConfig)
 
 	type args struct {
 		ctx context.Context
@@ -61,7 +76,7 @@ func TestCryptographyServer_Echo(t *testing.T) {
 	}{
 		{
 			name: "Echo",
-			s:    s,
+			s:    server,
 			args: args{
 				ctx: ctx,
 				req: &common.EchoRequest{Message: "Hello there!"},

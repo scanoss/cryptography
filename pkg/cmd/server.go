@@ -100,7 +100,6 @@ func RunServer() error {
 	}
 
 	zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
-
 	// Setup database connection pool
 	db, err := gd.OpenDBConnection(cfg.Database.Dsn, cfg.Database.Driver, cfg.Database.User, cfg.Database.Passwd,
 		cfg.Database.Host, cfg.Database.Schema, cfg.Database.SslMode)
@@ -113,21 +112,12 @@ func RunServer() error {
 	defer gd.CloseDBConnection(db)
 	// Setup dynamic logging (if necessary)
 	zlog.SetupAppDynamicLogging(cfg.Logging.DynamicPort, cfg.Logging.DynamicLogging)
-
-	// TODO these should be configured when instantiating a new LDB instance instead
-	m.LDBEncBinPath = cfg.LDB.EncBinPath
-	m.LDBBinPath = cfg.LDB.BinPath
-	m.LDBCryptoTableName = cfg.LDB.CryptoName
-	m.LDBPivotTableName = cfg.LDB.PivotName
-
-	tables, errLDB := m.PingLDB("oss") // TODO this value should externalised?
-	if errLDB != nil {
-		zlog.S.Errorf("Failed to ping LDB: %v", errLDB)
-		return fmt.Errorf("failed to ping LDB: %v", errLDB)
-	}
-	if !m.ContainsTable(tables, "cryptography") {
-		zlog.S.Error("cryptography LDB table not found")
-		return fmt.Errorf("%s", "cryptocomponent LDB table not found")
+	// Check if the LDB is valid
+	ldbModel := m.NewLdbModel(context.Background(), zlog.S, cfg)
+	err = ldbModel.PingLDB([]string{cfg.LDB.CryptoTable, cfg.LDB.PivotTable})
+	if err != nil {
+		zlog.S.Errorf("Failed to ping LDB: %v", err)
+		return fmt.Errorf("failed to ping LDB: %v", err)
 	}
 	// Register the cryptography service
 	v2API := service.NewCryptographyServer(db, cfg)

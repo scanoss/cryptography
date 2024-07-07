@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	common "github.com/scanoss/papi/api/commonv2"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"scanoss.com/cryptography/pkg/dtos"
-	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
 func TestOutputConvert(t *testing.T) {
@@ -31,14 +31,11 @@ func TestOutputConvert(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-
 	var outputDto = dtos.CryptoOutput{}
-
-	output, err := convertCryptoOutput(outputDto)
+	output, err := convertCryptoOutput(zlog.S, outputDto)
 	if err != nil {
 		t.Errorf("TestOutputConvert failed: %v", err)
 	}
-	//assert.NotNilf(t, output, "Output Cryptography empty")
 	fmt.Printf("Output: %v\n", output)
 }
 
@@ -48,9 +45,8 @@ func TestInputConvert(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-
 	var cryptoIn = &common.PurlRequest{}
-	input, err := convertCryptoInput(cryptoIn)
+	input, err := convertCryptoInput(zlog.S, cryptoIn)
 	if err != nil {
 		t.Errorf("TestInputConvert failed: %v", err)
 	}

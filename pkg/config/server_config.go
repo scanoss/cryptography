@@ -46,10 +46,13 @@ type ServerConfig struct {
 		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	LDB struct {
-		BinPath    string `env:"LDB_BIN_PATH"`
-		EncBinPath string `env:"LDB_ENC_BIN_PATH"`
-		CryptoName string `env:"LDB_CRYPTO_TABLE"`
-		PivotName  string `env:"LDB_PIVOT_TABLE"`
+		Debug       bool   `env:"LDB_DEBUG"`
+		Timeout     int    `env:"LDB_TIMEOUT"` // timeout for waiting for the ldb command to respond
+		Binary      string `env:"LDB_BIN_PATH"`
+		LdbPath     string `env:"LDB_PATH"`
+		LdbName     string `env:"LDB_NAME"`
+		CryptoTable string `env:"LDB_CRYPTO_TABLE"`
+		PivotTable  string `env:"LDB_PIVOT_TABLE"`
 	}
 	Database struct {
 		Driver  string `env:"DB_DRIVER"`
@@ -70,10 +73,6 @@ type ServerConfig struct {
 		DenyListFile   string `env:"CRYPTO_DENY_LIST"`        // Deny list file for incoming connections
 		BlockByDefault bool   `env:"CRYPTO_BLOCK_BY_DEFAULT"` // Block request by default if they are not in the allow list
 		TrustProxy     bool   `env:"CRYPTO_TRUST_PROXY"`      // Trust the interim proxy or not (causes the source IP to be validated instead of the proxy)
-	}
-	// TODO remove Components. Don't think it's required in Crypto
-	Components struct {
-		CommitMissing bool `env:"COMP_COMMIT_MISSING"` // Write component details to the DB if they are looked up live
 	}
 }
 
@@ -111,4 +110,11 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Logging.DynamicPort = "localhost:60054"
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
+	cfg.LDB.Debug = false
+	cfg.LDB.Timeout = 300
+	cfg.LDB.Binary = "/usr/bin/ldb_enc"
+	cfg.LDB.LdbPath = "/var/lib/ldb"
+	cfg.LDB.LdbName = "oss"
+	cfg.LDB.CryptoTable = "cryptography"
+	cfg.LDB.PivotTable = "pivot"
 }

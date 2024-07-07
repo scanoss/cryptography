@@ -1,14 +1,12 @@
 {
   "App": {
-    "Name": "Cryptogaphy Service",
+    "Name": "Cryptography Service",
     "Debug": true,
     "Mode":  "dev"
   },
   "Database": {
-    "Driver": "postgres",
-    "Host":   "localhost",
-    "User":   "scanoss",
-    "Passwd": "secret123!",
-    "Schema": "scanoss"
+    "Dsn": "./test-support/sqlite/scanoss.db?cache=shared&mode=memory",
+    "Driver": "sqlite3",
+    "Trace": true
   }
 }

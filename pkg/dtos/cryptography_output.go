@@ -16,14 +16,6 @@
 
 package dtos
 
-import (
-	"encoding/json"
-	"errors"
-	"fmt"
-
-	zlog "scanoss.com/cryptography/pkg/logger"
-)
-
 type CryptoOutput struct {
 	Cryptography []CryptoOutputItem `json:"purls"`
 }
@@ -37,29 +29,4 @@ type CryptoOutputItem struct {
 type CryptoUsageItem struct {
 	Algorithm string `json:"algorithm"`
 	Strength  string `json:"strength"`
-}
-
-// ExportCryptoOutput converts the CryptoOutput structure to a byte array
-func ExportCryptoOutput(output CryptoOutput) ([]byte, error) {
-	data, err := json.Marshal(output)
-	if err != nil {
-		zlog.S.Errorf("Parse failure: %v", err)
-		return nil, errors.New("failed to produce JSON from crypto output data")
-	}
-	return data, nil
-}
-
-// ParseCryptoOutput converts the input byte array to a CryptoOutput structure
-func ParseCryptoOutput(input []byte) (CryptoOutput, error) {
-	if input == nil || len(input) == 0 {
-		return CryptoOutput{}, errors.New("no output Cryptography data supplied to parse")
-	}
-	var data CryptoOutput
-	err := json.Unmarshal(input, &data)
-	if err != nil {
-		zlog.S.Errorf("Parse failure: %v", err)
-		return CryptoOutput{}, errors.New(fmt.Sprintf("failed to parse Cryptography output data: %v", err))
-	}
-	zlog.S.Debugf("Parsed data2: %v", data)
-	return data, nil
 }

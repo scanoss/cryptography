@@ -20,8 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	zlog "scanoss.com/cryptography/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type CryptoInput struct {
@@ -34,7 +33,7 @@ type CryptoInputItem struct {
 }
 
 // ParseCryptoInput converts the input byte array to a CryptoInput structure
-func ParseCryptoInput(input []byte) (CryptoInput, error) {
+func ParseCryptoInput(s *zap.SugaredLogger, input []byte) (CryptoInput, error) {
 	fmt.Println(string(input))
 	if input == nil || len(input) == 0 {
 		return CryptoInput{}, errors.New("no purl info data supplied to parse")
@@ -42,9 +41,9 @@ func ParseCryptoInput(input []byte) (CryptoInput, error) {
 	var data CryptoInput
 	err := json.Unmarshal(input, &data)
 	if err != nil {
-		zlog.S.Errorf("Parse failure: %v", err)
+		s.Errorf("Parse failure: %v", err)
 		return CryptoInput{}, errors.New(fmt.Sprintf("failed to parse cryptography input data: %v", err))
 	}
-	zlog.S.Debugf("Parsed data2: %v", data)
+	s.Debugf("Parsed data2: %v", data)
 	return data, nil
 }

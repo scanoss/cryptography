@@ -19,40 +19,54 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	"go.uber.org/zap"
 
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/dtos"
-	zlog "scanoss.com/cryptography/pkg/logger"
 )
 
+// Structure for storing OTEL metrics.
+type metricsCounters struct {
+	cryptoAlgorithmsHistogram metric.Int64Histogram // milliseconds
+}
+
+var oltpMetrics = metricsCounters{}
+
+// setupMetrics configures all the metrics recorders for the platform.
+func setupMetrics() {
+	meter := otel.Meter("scanoss.com/cryptography")
+	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
+}
+
 // convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct
-func convertCryptoInput(request *common.PurlRequest) (dtos.CryptoInput, error) {
+func convertCryptoInput(s *zap.SugaredLogger, request *common.PurlRequest) (dtos.CryptoInput, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
-		zlog.S.Errorf("Problem marshalling Cryptography request input: %v", err)
-		return dtos.CryptoInput{}, errors.New("problem marshalling depenCryptographydency input")
+		s.Errorf("Problem marshalling Cryptography request input: %v", err)
+		return dtos.CryptoInput{}, errors.New("problem marshalling Cryptography input")
 	}
-	dtoRequest, err := dtos.ParseCryptoInput(data)
+	dtoRequest, err := dtos.ParseCryptoInput(s, data)
 	if err != nil {
-		zlog.S.Errorf("Problem parsing Cryptography request input: %v", err)
+		s.Errorf("Problem parsing Cryptography request input: %v", err)
 		return dtos.CryptoInput{}, errors.New("problem parsing Cryptography input")
 	}
 	return dtoRequest, nil
 }
 
 // convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct
-func convertCryptoOutput(output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
+func convertCryptoOutput(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {
-		zlog.S.Errorf("Problem marshalling Cryptography request output: %v", err)
+		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	//zlog.S.Debugf("Parsed data: %v", string(data))
 	var depResp pb.AlgorithmResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {
-		zlog.S.Errorf("Problem unmarshalling Cryptography request output: %v", err)
+		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
 	return &depResp, nil

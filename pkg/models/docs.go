@@ -17,10 +17,6 @@
 // Package models contains all the logic required to interact with the SCANOSS database.
 // It provides data structures to represent the data retrieved from the system.
 // Current models/tables supported are:
-// - Mines
-// - Licenses
-// - Versions
-// - Projects
-// - All URLs
-// - Golang Projects
+// - All URLs (leveraging mines and versions)
+// - LDB (cryptography and pivot)
 package models

@@ -1,6 +1,6 @@
 {
   "App": {
-    "Name": "Cryptogaphy Service",
+    "Name": "Cryptography Service",
     "Debug": true,
     "Mode":  "dev"
   },
