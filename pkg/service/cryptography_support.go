@@ -19,6 +19,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
@@ -41,7 +42,7 @@ func setupMetrics() {
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
 }
 
-// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct
+// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct.
 func convertCryptoInput(s *zap.SugaredLogger, request *common.PurlRequest) (dtos.CryptoInput, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -56,7 +57,7 @@ func convertCryptoInput(s *zap.SugaredLogger, request *common.PurlRequest) (dtos
 	return dtoRequest, nil
 }
 
-// convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct
+// convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct.
 func convertCryptoOutput(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {

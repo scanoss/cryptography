@@ -21,13 +21,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"path/filepath"
-	myconfig "scanoss.com/cryptography/pkg/config"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
+	myconfig "scanoss.com/cryptography/pkg/config"
 )
 
 type CryptoItem struct {
@@ -41,7 +42,7 @@ type LdbModel struct {
 	config *myconfig.ServerConfig
 }
 
-// NewLdbModel creates a new instance of LDB Model
+// NewLdbModel creates a new instance of LDB Model.
 func NewLdbModel(ctx context.Context, s *zap.SugaredLogger, config *myconfig.ServerConfig) *LdbModel {
 	return &LdbModel{ctx: ctx, s: s, config: config}
 }
@@ -71,7 +72,7 @@ func (m LdbModel) PingLDB(tables []string) error {
 	return nil
 }
 
-// runLdbCommandFile runs the specified query file against the LDB
+// runLdbCommandFile runs the specified query file against the LDB.
 func (m LdbModel) runLdbCommandFile(queryFile string) ([]byte, error) {
 	var args []string
 	args = append(args, "-f", queryFile)
@@ -102,9 +103,9 @@ func (m LdbModel) QueryBulkPivotLDB(keys []string) (map[string][]string, error) 
 	for _, key := range keys {
 		if key != "" {
 			query := fmt.Sprintf("select from %s/%s key %s csv hex 32\n", m.config.LDB.LdbName, m.config.LDB.PivotTable, key)
-			_, err := tempFile.WriteString(query)
-			if err != nil {
-				m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), err)
+			_, tmfErr := tempFile.WriteString(query)
+			if tmfErr != nil {
+				m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), tmfErr)
 				closeFile(tempFile, m.s)
 				return nil, fmt.Errorf("failed to write to temporary pivot LDB file")
 			}
@@ -131,7 +132,7 @@ func (m LdbModel) QueryBulkPivotLDB(keys []string) (map[string][]string, error) 
 	return ret, nil
 }
 
-// QueryBulkCryptoLDB runs a bulk query of the crypto table for MD5 files
+// QueryBulkCryptoLDB runs a bulk query of the crypto table for MD5 files.
 func (m LdbModel) QueryBulkCryptoLDB(items map[string][]string) (map[string][]CryptoItem, error) {
 	tempFile, err := os.CreateTemp("", "*crypto.txt")
 	if err != nil {
@@ -146,9 +147,9 @@ func (m LdbModel) QueryBulkCryptoLDB(items map[string][]string) (map[string][]Cr
 			// Only add a query once
 			if _, exist := added[fileHash]; !exist {
 				query := fmt.Sprintf("select from %s/%s key %s csv hex 16\n", m.config.LDB.LdbName, m.config.LDB.CryptoTable, fileHash)
-				_, err := tempFile.WriteString(query)
-				if err != nil {
-					m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), err)
+				_, tmfErr := tempFile.WriteString(query)
+				if tmfErr != nil {
+					m.s.Errorf("Problem writing to %s: %v", tempFile.Name(), tmfErr)
 					closeFile(tempFile, m.s)
 					return nil, fmt.Errorf("failed to write to temporary crypto LDB file")
 				}

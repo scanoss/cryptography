@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"go.uber.org/zap"
 )
 
@@ -32,17 +33,17 @@ type CryptoInputItem struct {
 	Requirement string `json:"requirement,omitempty"`
 }
 
-// ParseCryptoInput converts the input byte array to a CryptoInput structure
+// ParseCryptoInput converts the input byte array to a CryptoInput structure.
 func ParseCryptoInput(s *zap.SugaredLogger, input []byte) (CryptoInput, error) {
 	fmt.Println(string(input))
-	if input == nil || len(input) == 0 {
+	if len(input) == 0 {
 		return CryptoInput{}, errors.New("no purl info data supplied to parse")
 	}
 	var data CryptoInput
 	err := json.Unmarshal(input, &data)
 	if err != nil {
 		s.Errorf("Parse failure: %v", err)
-		return CryptoInput{}, errors.New(fmt.Sprintf("failed to parse cryptography input data: %v", err))
+		return CryptoInput{}, fmt.Errorf("failed to parse cryptography input data: %v", err)
 	}
 	s.Debugf("Parsed data2: %v", data)
 	return data, nil
