@@ -45,15 +45,7 @@ type ServerConfig struct {
 		Enabled      bool   `env:"OTEL_ENABLED"`       // true/false
 		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
-	LDB struct {
-		Debug       bool   `env:"LDB_DEBUG"`
-		Timeout     int    `env:"LDB_TIMEOUT"` // timeout for waiting for the ldb command to respond
-		Binary      string `env:"LDB_BIN_PATH"`
-		LdbPath     string `env:"LDB_PATH"`
-		LdbName     string `env:"LDB_NAME"`
-		CryptoTable string `env:"LDB_CRYPTO_TABLE"`
-		PivotTable  string `env:"LDB_PIVOT_TABLE"`
-	}
+
 	Database struct {
 		Driver  string `env:"DB_DRIVER"`
 		Host    string `env:"DB_HOST"`
@@ -110,11 +102,5 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Logging.DynamicPort = "localhost:60054"
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
-	cfg.LDB.Debug = false
-	cfg.LDB.Timeout = 300
-	cfg.LDB.Binary = "/usr/bin/ldb_enc"
-	cfg.LDB.LdbPath = "/var/lib/ldb"
-	cfg.LDB.LdbName = "oss"
-	cfg.LDB.CryptoTable = "cryptography"
-	cfg.LDB.PivotTable = "pivot"
+
 }
