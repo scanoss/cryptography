@@ -33,11 +33,11 @@ import (
 )
 
 type CryptoUseCase struct {
-	ctx     context.Context
-	s       *zap.SugaredLogger
-	conn    *sqlx.Conn
-	allUrls *models.AllUrlsModel
-	ldb     *models.LdbModel
+	ctx         context.Context
+	s           *zap.SugaredLogger
+	conn        *sqlx.Conn
+	allUrls     *models.AllUrlsModel
+	cryptoUsage *models.CryptoUsageModel
 }
 type CryptoWorkerStruct struct {
 	URLMd5  string
@@ -54,13 +54,14 @@ type InternalQuery struct {
 
 func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoUseCase {
 	return &CryptoUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls: models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		ldb:     models.NewLdbModel(ctx, s, config),
+		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
 	}
 }
 
 // GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
 func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
+
 	notFound := 0
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
@@ -103,7 +104,7 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 		d.s.Warnf("Failed to get list of urls from (%v): %s", purlsToQuery, err)
 	}
 	if len(urls) == 0 {
-		return dtos.CryptoOutput{}, 0, errors.New("error Processing input")
+		return dtos.CryptoOutput{}, len(request.Purls), nil
 	}
 
 	purlMap := make(map[string][]models.AllURL)
@@ -112,7 +113,7 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 		purlMap[urls[r].PurlName] = append(purlMap[urls[r].PurlName], urls[r])
 	}
 	var urlHashes []string
-	// For all the requested purls, choose the closest urls that match
+	// For all the requested purls, choose the closest urls that matches the version. If not found, pick the latest one
 	for r := range query {
 		query[r].SelectedURLS, err = models.PickClosestUrls(d.s, purlMap[query[r].PurlName], query[r].PurlName, "", query[r].Requirement)
 		if err != nil {
@@ -128,23 +129,19 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 			notFound++
 		}
 	}
-	// Create a map containing the files for each urls
-	files, err := d.ldb.QueryBulkPivotLDB(urlHashes)
-	if err != nil {
-		return dtos.CryptoOutput{}, 0, err
-	}
-	// Create a map containing the crypto usage for each file
-	crypto, err := d.ldb.QueryBulkCryptoLDB(files)
-	if err != nil {
-		return dtos.CryptoOutput{}, 0, err
+
+	usage, errGetUrl := d.cryptoUsage.GetusageByUrlHashes(urlHashes)
+	if errGetUrl != nil {
+		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
+
 	}
 	mapCrypto := make(map[string][]models.CryptoItem)
-	// Remove duplicate algorithms for the same file
-	for k, v := range files {
-		for f := range v {
-			mapCrypto[k] = append(mapCrypto[k], crypto[v[f]]...)
-		}
+
+	// group algorithms for a urlhash
+	for _, v := range usage {
+		mapCrypto[v.URLHash] = append(mapCrypto[v.URLHash], models.CryptoItem{Algorithm: v.Algorithm, Strength: v.Strength})
 	}
+
 	retV := dtos.CryptoOutput{}
 	// Create the response
 	for r := range query {
@@ -156,14 +153,95 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 		for u := range relatedURLs {
 			hash := relatedURLs[u].URLHash
 			items := mapCrypto[hash]
-			// remove duplicates for the same URL
+			// remove duplicates for the same URL (if any)
 			for i := range items {
-				if _, exist := algorithms[items[i].Algorithm]; !exist {
-					cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: items[i].Algorithm, Strength: items[i].Strength})
-					algorithms[items[i].Algorithm] = true
+				if _, exist := algorithms[strings.ToLower(items[i].Algorithm)]; !exist {
+					cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: strings.ToLower(items[i].Algorithm), Strength: items[i].Strength})
+					algorithms[strings.ToLower(items[i].Algorithm)] = true
 				}
 			}
 		}
+		retV.Cryptography = append(retV.Cryptography, cryptoOutItem)
+	}
+	return retV, notFound, nil
+}
+
+// Get cryptography for all versions of the given purls
+// TODO: Needs a use case to be exposed
+func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
+	notFound := 0
+	if len(request.Purls) == 0 {
+		d.s.Info("Empty List of Purls supplied")
+		return dtos.CryptoOutput{}, 0, errors.New("empty list of purls")
+	}
+
+	var purlsToQuery []utils.PurlReq // Purls to search the database for
+	// Prepare purls to query
+	for _, reqPurl := range request.Purls {
+		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+		if err != nil {
+			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			notFound++
+			continue
+		}
+		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
+		if err != nil {
+			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			notFound++
+			continue
+		}
+		purlReq := reqPurl.Requirement
+		if len(purlReq) > 0 && strings.HasPrefix(purlReq, "file:") { // internal dependency requirement. Assume latest
+			d.s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", reqPurl.Purl, purlReq)
+			purlReq = ""
+		}
+
+		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: purl.Version})
+
+	}
+	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
+	if err != nil {
+		d.s.Warnf("Failed to get list of urls from (%v): %s", purlsToQuery, err)
+	}
+	if len(urls) == 0 {
+		return dtos.CryptoOutput{}, 0, errors.New("error Processing input")
+	}
+
+	purlMap := make(map[utils.PurlReq][]models.AllURL)
+	///Order Urls in a map for fast access by purlname
+	var urlHashes []string
+	for r := range urls {
+		req := utils.PurlReq{Purl: urls[r].PurlName, Version: urls[r].Version}
+		purlMap[req] = append(purlMap[req], urls[r])
+		urlHashes = append(urlHashes, urls[r].URLHash)
+	}
+
+	//retrieve crypto usage for that array of hashes
+	usage, errGetUrl := d.cryptoUsage.GetusageByUrlHashes(urlHashes)
+	if errGetUrl != nil {
+		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
+	}
+
+	mapCrypto := make(map[string][]models.CryptoItem)
+
+	// group algorithms for a urlhash
+	for _, v := range usage {
+
+		mapCrypto[v.URLHash] = append(mapCrypto[v.URLHash], models.CryptoItem{Algorithm: v.Algorithm, Strength: v.Strength})
+
+	}
+
+	retV := dtos.CryptoOutput{}
+	// Create the response
+	for k, v := range purlMap {
+		var cryptoOutItem dtos.CryptoOutputItem
+		cryptoOutItem.Version = k.Version
+		cryptoOutItem.Purl = k.Purl
+		items := mapCrypto[v[0].URLHash]
+		for i := range items {
+			cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{Algorithm: strings.ToLower(items[i].Algorithm), Strength: items[i].Strength})
+		}
+
 		retV.Cryptography = append(retV.Cryptography, cryptoOutItem)
 	}
 	return retV, notFound, nil

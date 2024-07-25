@@ -35,7 +35,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 
-	m "scanoss.com/cryptography/pkg/models"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
 	"scanoss.com/cryptography/pkg/protocol/rest"
 	"scanoss.com/cryptography/pkg/service"
@@ -114,12 +113,7 @@ func RunServer() error {
 	// Setup dynamic logging (if necessary)
 	zlog.SetupAppDynamicLogging(cfg.Logging.DynamicPort, cfg.Logging.DynamicLogging)
 	// Check if the LDB is valid
-	ldbModel := m.NewLdbModel(context.Background(), zlog.S, cfg)
-	err = ldbModel.PingLDB([]string{cfg.LDB.CryptoTable, cfg.LDB.PivotTable})
-	if err != nil {
-		zlog.S.Errorf("Failed to ping LDB: %v", err)
-		return fmt.Errorf("failed to ping LDB: %v", err)
-	}
+
 	// Register the cryptography service
 	v2API := service.NewCryptographyServer(db, cfg)
 	ctx := context.Background()

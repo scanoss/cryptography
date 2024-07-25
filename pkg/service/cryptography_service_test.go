@@ -58,9 +58,6 @@ func TestCryptographyServer_Echo(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	myConfig.LDB.LdbPath = "../../test-support/ldb"
-	myConfig.LDB.Binary = "../../test-support/ldb.sh"
-	myConfig.LDB.Debug = true
 
 	server := NewCryptographyServer(db, myConfig)
 
