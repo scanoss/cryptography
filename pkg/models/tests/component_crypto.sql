@@ -1,0 +1,68 @@
+DROP TABLE IF EXISTS component_crypto;
+CREATE TABLE component_crypto (
+    url_hash TEXT  NOT NULL,
+    algorithm_name TEXT NOT NULL,
+    strength text,
+    algorithm_id INTEGER
+);
+
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'MD5', '128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'CRC64', '64');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'CRC32', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('4d66775f503b1e76582e7e5b2ea54d92', 'SHA256', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('bfada11fd2b2b8fa23943b8b6fe5cb3f', 'SHA256', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('f586d603a9cb2460c4517cffad6ad5e4', 'SHA256', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('b1cd1444c2f76e7564f57b0e047994a4', 'SHA256', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('4d66775f503b1e76582e7e5b2ea54d92', 'RSA', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('bfada11fd2b2b8fa23943b8b6fe5cb3f', 'RSA', '32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('f586d603a9cb2460c4517cffad6ad5e4', 'RSA', '32');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000000caafef38b4df4663171b1dba7', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000003c909fdc3c02a7fb340486fb40', 'pbe', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000005d63516e777c7ad40dadd30994', 'SRP', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000005d63516e777c7ad40dadd30994', 'fortuna', '64');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000005d63516e777c7ad40dadd30994', 'srp', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000005d63516e777c7ad40dadd30994', 'ssha', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000000cc67e657827b72cf2c190ba567', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000000cc67e657827b72cf2c190ba567', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000001621374570c6ca54d217ee75581', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000001621374570c6ca54d217ee75581', 'rc4', '2048');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000025da3b0fcc3a874d25c44c33dde', 'rc4', '2048');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('00000263aa2b3be6c85af569ca28ad43', 'SHAx', '512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('00000263aa2b3be6c85af569ca28ad43', 'chacha(salsa)', '256');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('00000263aa2b3be6c85af569ca28ad43', 'shax', '512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000002fd9d31962ef87ee76a3f77b709', 'ice', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000002fd9d31962ef87ee76a3f77b709', 'ssha', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000030143e813acd8da5d512aa9717f', 'fortuna', '64');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000030143e813acd8da5d512aa9717f', 'ssha', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000035dbfd8edbb0cdc0ae039306915', 'fortuna', '64');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000035dbfd8edbb0cdc0ae039306915', 'pbe', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000035dbfd8edbb0cdc0ae039306915', 'srp', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003981613cfefa38c8a53df12fdf5', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003981613cfefa38c8a53df12fdf5', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003981613cfefa38c8a53df12fdf5', 'ssha', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003c0a4f8d7301844ce4b653214c6', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003c0a4f8d7301844ce4b653214c6', 'SHAx', '512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003c0a4f8d7301844ce4b653214c6', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003c0a4f8d7301844ce4b653214c6', 'shax', '128-512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003e36a85bb886f76466c616b0a82', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003e36a85bb886f76466c616b0a82', 'fortuna', '64');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003e36a85bb886f76466c616b0a82', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'MDC2', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'SHA1', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'SHAx', '512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'SRP', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'SSHA', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'blowfish', '320');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'elgamal', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'fortuna', '64');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'md5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'mdc2', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'pbe', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'rsa-oaep', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'sha1', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'shax', '512');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'srp', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('000003fd86c88389555041342793d402', 'ssha', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000043735f2206c58600b9947ced660', 'MD5', '128');
+INSERT INTO component_crypto (url_hash, algorithm_name, strength) VALUES ('0000043735f2206c58600b9947ced660', 'SHA1', '128');

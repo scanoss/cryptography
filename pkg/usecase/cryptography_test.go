@@ -57,14 +57,11 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	myConfig.LDB.LdbPath = "../../test-support/ldb"
-	myConfig.LDB.Binary = "../../test-support/ldb.sh"
-	myConfig.LDB.Debug = true
 	var cryptoRequest = `{
 		      "purls": [
 		        {
-		          "purl": "pkg:maven/org.bouncycastle/bcutil-lts8on",
-		          "requirement": "2.73.2"
+		          "purl": "pkg:github/scanoss/engine"
+		          
 		        }
 		      ]
 		  	}`
@@ -76,14 +73,14 @@ func TestCryptographyUseCase(t *testing.T) {
 	}
 	algorithms, notFound, err := cryptoUc.GetCrypto(requestDto)
 	if err != nil {
-		t.Fatalf("an error '%s' was not expected when getting cryptography", err)
+		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
 	fmt.Printf("Algorithms: %v", algorithms)
 
-	if len(algorithms.Cryptography[0].Algorithms) == 0 {
+	if len(algorithms.Cryptography[0].Algorithms) == 0 || notFound > 0 {
 		t.Fatalf("Expected to get at least 1 algorithm")
 	}
-	fmt.Printf("Cryptography response: %+v, %d\n", algorithms, notFound)
+
 	var cryptoBadRequest = `{
 	   		    "purls": [
 	   		        {
@@ -96,32 +93,34 @@ func TestCryptographyUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, _, err = cryptoUc.GetCrypto(requestDto)
-	if err == nil {
+	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
+	if notFound == 0 && err == nil {
 		t.Fatalf("did not get an expected error: %v", algorithms)
 	}
-	fmt.Printf("Got expected error: %+v\n", err)
+	t.Logf("Got expected error: %+v\n", err)
 
-	var cryptoAmbiguousRequest = `{
-		"purls": [
-			{
-			  "purl":"pkg:maven/org.bouncycastle/bcutil-lts8on@2.73.2"
-			}
-	  ]
-	}
-	`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoAmbiguousRequest))
+	var unExistentPurlRequest = `{
+	   		"purls": [
+	   			{
+	   			  "purl":"pkg:github/scanoss/engines"
+	   			}
+	   	  ]
+	   	}
+	   `
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentPurlRequest))
+
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
+
 	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
+	t.Logf("%d - %v\n", notFound, err)
 	if err != nil {
-		t.Fatalf("did not get an expected error: %v", algorithms)
+		t.Fatalf("Got an unexpected error: %v", err)
 	}
-	if notFound > 0 {
-		t.Fatalf("Expected to retrieve at least one url")
+
+	if notFound == 0 {
+		t.Fatalf("Expected to not found a url")
 	}
-	if len(algorithms.Cryptography[0].Algorithms) == 0 {
-		t.Fatalf("Expected to disambiguate urls and retrieve at least one algorithm")
-	}
+
 }
