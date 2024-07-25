@@ -48,7 +48,7 @@ func NewCryptoUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.
 	return &CryptoUsageModel{ctx: ctx, s: s, q: q}
 }
 
-func (m *CryptoUsageModel) GetusageByUrlHash(url_hash string) ([]CryptoUsage, error) {
+func (m *CryptoUsageModel) GetUsageByURLHash(url_hash string) ([]CryptoUsage, error) {
 	if url_hash == "" {
 		m.s.Errorf("Please specify a valid url_hash")
 		return []CryptoUsage{}, errors.New("please specify a valid url hash to query")
@@ -66,7 +66,7 @@ func (m *CryptoUsageModel) GetusageByUrlHash(url_hash string) ([]CryptoUsage, er
 	return usages, nil
 }
 
-func (m *CryptoUsageModel) GetusageByUrlHashes(url_hashes []string) ([]CryptoUsage, error) {
+func (m *CryptoUsageModel) GetUsageByURLHashes(url_hashes []string) ([]CryptoUsage, error) {
 	if len(url_hashes) == 0 {
 		m.s.Errorf("Please specify a valid Purl list to query")
 		return []CryptoUsage{}, errors.New("please specify a valid Purl list to query")

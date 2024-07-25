@@ -51,7 +51,7 @@ func TestCryptoSearchUsage(t *testing.T) {
 
 	cum := NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	usage, err := cum.GetusageByUrlHash("7774ed78584b719f076bb92aa42fbc7f")
+	usage, err := cum.GetUsageByURLHash("7774ed78584b719f076bb92aa42fbc7f")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
