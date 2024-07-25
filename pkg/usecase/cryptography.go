@@ -130,8 +130,8 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 		}
 	}
 
-	usage, errGetUrl := d.cryptoUsage.GetusageByUrlHashes(urlHashes)
-	if errGetUrl != nil {
+	usage, errGetURL := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
+	if errGetURL != nil {
 		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
 
 	}
@@ -217,7 +217,7 @@ func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.C
 	}
 
 	//retrieve crypto usage for that array of hashes
-	usage, errGetUrl := d.cryptoUsage.GetusageByUrlHashes(urlHashes)
+	usage, errGetUrl := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
 	if errGetUrl != nil {
 		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
 	}
