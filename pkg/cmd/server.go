@@ -112,7 +112,6 @@ func RunServer() error {
 	defer gd.CloseDBConnection(db)
 	// Setup dynamic logging (if necessary)
 	zlog.SetupAppDynamicLogging(cfg.Logging.DynamicPort, cfg.Logging.DynamicLogging)
-	// Check if the LDB is valid
 
 	// Register the cryptography service
 	v2API := service.NewCryptographyServer(db, cfg)
