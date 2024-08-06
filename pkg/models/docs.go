@@ -18,5 +18,4 @@
 // It provides data structures to represent the data retrieved from the system.
 // Current models/tables supported are:
 // - All URLs (leveraging mines and versions)
-// - LDB (cryptography and pivot)
 package models
