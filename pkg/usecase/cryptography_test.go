@@ -122,5 +122,4 @@ func TestCryptographyUseCase(t *testing.T) {
 	if notFound == 0 {
 		t.Fatalf("Expected to not found a url")
 	}
-
 }

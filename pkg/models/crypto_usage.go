@@ -48,8 +48,8 @@ func NewCryptoUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.
 	return &CryptoUsageModel{ctx: ctx, s: s, q: q}
 }
 
-func (m *CryptoUsageModel) GetUsageByURLHash(url_hash string) ([]CryptoUsage, error) {
-	if url_hash == "" {
+func (m *CryptoUsageModel) GetUsageByURLHash(urlHash string) ([]CryptoUsage, error) {
+	if urlHash == "" {
 		m.s.Errorf("Please specify a valid url_hash")
 		return []CryptoUsage{}, errors.New("please specify a valid url hash to query")
 	}
@@ -58,7 +58,7 @@ func (m *CryptoUsageModel) GetUsageByURLHash(url_hash string) ([]CryptoUsage, er
 		"WHERE url_hash = $1;"
 
 	var usages []CryptoUsage
-	err := m.q.SelectContext(m.ctx, &usages, stmt, url_hash)
+	err := m.q.SelectContext(m.ctx, &usages, stmt, urlHash)
 	if err != nil {
 		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
 		return []CryptoUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
@@ -66,14 +66,14 @@ func (m *CryptoUsageModel) GetUsageByURLHash(url_hash string) ([]CryptoUsage, er
 	return usages, nil
 }
 
-func (m *CryptoUsageModel) GetUsageByURLHashes(url_hashes []string) ([]CryptoUsage, error) {
-	if len(url_hashes) == 0 {
+func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsage, error) {
+	if len(urlHashes) == 0 {
 		m.s.Errorf("Please specify a valid Purl list to query")
 		return []CryptoUsage{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
-	for p := range url_hashes {
-		purlNames = append(purlNames, "'"+url_hashes[p]+"'")
+	for p := range urlHashes {
+		purlNames = append(purlNames, "'"+urlHashes[p]+"'")
 	}
 	inStmt := strings.Join(purlNames, ",")
 	inStmt = "(" + inStmt + ")"

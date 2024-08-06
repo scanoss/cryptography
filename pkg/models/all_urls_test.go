@@ -87,13 +87,10 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 	allUrls, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "22.22.22") // Shouldn't exist
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = failed to find purl by version string")
-	} else {
-		if len(allUrls.PurlName) > 0 {
-			t.Errorf("all_urls.GetUrlsByPurlString() error = Found match, when we shouldn't: %v", allUrls)
-		}
+	} else if len(allUrls.PurlName) > 0 {
+		t.Errorf("all_urls.GetUrlsByPurlString() error = Found match, when we shouldn't: %v", allUrls)
 	}
 }
-
 func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

@@ -102,5 +102,4 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Logging.DynamicPort = "localhost:60054"
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
-
 }

@@ -61,7 +61,6 @@ func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, confi
 
 // GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
 func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
-
 	notFound := 0
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
@@ -133,7 +132,6 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 	usage, errGetURL := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
 	if errGetURL != nil {
 		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
-
 	}
 	mapCrypto := make(map[string][]models.CryptoItem)
 
@@ -167,7 +165,7 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 }
 
 // Get cryptography for all versions of the given purls
-// TODO: Needs a use case to be exposed
+// TODO: Needs a use case to be exposed.
 func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
 	notFound := 0
 	if len(request.Purls) == 0 {
@@ -193,11 +191,8 @@ func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.C
 		purlReq := reqPurl.Requirement
 		if len(purlReq) > 0 && strings.HasPrefix(purlReq, "file:") { // internal dependency requirement. Assume latest
 			d.s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", reqPurl.Purl, purlReq)
-			purlReq = ""
 		}
-
 		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: purl.Version})
-
 	}
 	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
 	if err != nil {
@@ -208,7 +203,7 @@ func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.C
 	}
 
 	purlMap := make(map[utils.PurlReq][]models.AllURL)
-	///Order Urls in a map for fast access by purlname
+	// Order Urls in a map for fast access by purlname
 	var urlHashes []string
 	for r := range urls {
 		req := utils.PurlReq{Purl: urls[r].PurlName, Version: urls[r].Version}
@@ -216,19 +211,17 @@ func (d CryptoUseCase) GetCryptoForAllVersions(request dtos.CryptoInput) (dtos.C
 		urlHashes = append(urlHashes, urls[r].URLHash)
 	}
 
-	//retrieve crypto usage for that array of hashes
-	usage, errGetUrl := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
-	if errGetUrl != nil {
+	// Retrieve crypto usage for that array of hashes
+	usage, errGetURL := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
+	if errGetURL != nil {
 		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
 	}
 
 	mapCrypto := make(map[string][]models.CryptoItem)
 
-	// group algorithms for a urlhash
+	// Group algorithms for a urlhash
 	for _, v := range usage {
-
 		mapCrypto[v.URLHash] = append(mapCrypto[v.URLHash], models.CryptoItem{Algorithm: v.Algorithm, Strength: v.Strength})
-
 	}
 
 	retV := dtos.CryptoOutput{}
