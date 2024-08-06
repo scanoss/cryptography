@@ -26,7 +26,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // loadSQLData Load the specified SQL files into the supplied DB.
@@ -98,28 +97,6 @@ func CloseConn(conn *sqlx.Conn) {
 		err := conn.Close()
 		if err != nil {
 			zlog.S.Warnf("Problem closing DB connection: %v", err)
-		}
-	}
-}
-
-// closeFile closes the given file.
-func closeFile(f *os.File, zs *zap.SugaredLogger) {
-	if f != nil {
-		err := f.Close()
-		if err != nil {
-			zs.Warnf("Problem closing file: %v - %v", f.Name(), err)
-		}
-	}
-}
-
-// removeFile removes the given file and warns if anything went wrong.
-func removeFile(f *os.File, zs *zap.SugaredLogger) {
-	if f != nil {
-		err := os.Remove(f.Name())
-		if err != nil {
-			zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
-		} else {
-			zs.Debugf("Removed temporary file: %v", f.Name())
 		}
 	}
 }

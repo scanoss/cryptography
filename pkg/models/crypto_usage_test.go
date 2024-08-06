@@ -59,5 +59,4 @@ func TestCryptoSearchUsage(t *testing.T) {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
 	}
 	fmt.Printf("All Urls Version: %#v\n", usage)
-
 }
