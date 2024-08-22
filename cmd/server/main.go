@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 
+	_ "modernc.org/sqlite"
 	"scanoss.com/cryptography/pkg/cmd"
 )
 

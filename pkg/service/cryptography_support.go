@@ -19,6 +19,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -69,6 +70,24 @@ func convertCryptoOutput(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.Al
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
+	}
+	return &depResp, nil
+}
+
+// convertCryptoOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
+func convertCryptoMajorOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.AlgorithmsInRangeResponse, error) {
+	data, err := json.Marshal(output)
+	fmt.Println("AQUI", string(data))
+
+	if err != nil {
+		s.Errorf("Problem marshalling Cryptography request output: %v", err)
+		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem marshalling Cryptography output")
+	}
+	var depResp pb.AlgorithmsInRangeResponse
+	err = json.Unmarshal(data, &depResp)
+	if err != nil {
+		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
+		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
 	return &depResp, nil
 }

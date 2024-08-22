@@ -1663,3 +1663,6 @@ insert into versions (id, version_name, semver) values (9012828, '0.4.0a13', 'v0
 insert into versions (id, version_name, semver) values (3226499, '18.0.0-alpha-e4e8226c6-20210812', 'v18.0.0-alpha-e4e8226c6-20210812');
 insert into versions (id, version_name, semver) values (9256705, '3.0.0b2.post1', 'v3.0.0-b2.post1');
 insert into versions (id, version_name, semver) values (11901716, 'v0.0.1', 'v0.0.1');
+insert into versions (id, version_name, semver) values (1047187,'v5.4.7','5.4.7');
+insert into versions (id, version_name, semver) values(10649589,'v5.4.5','5.4.5');
+insert into versions (id, version_name, semver) values(14079346,'v5.4.6','5.4.6');
