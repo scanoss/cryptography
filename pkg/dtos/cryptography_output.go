@@ -30,3 +30,13 @@ type CryptoUsageItem struct {
 	Algorithm string `json:"algorithm"`
 	Strength  string `json:"strength"`
 }
+
+type CryptoInRangeOutput struct {
+	Cryptography []CryptoInRangeOutputItem `json:"purls"`
+}
+
+type CryptoInRangeOutputItem struct {
+	Purl       string            `json:"purl"`
+	Versions   []string          `json:"versions"`
+	Algorithms []CryptoUsageItem `json:"algorithms"`
+}

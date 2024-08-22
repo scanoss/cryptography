@@ -176,6 +176,62 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 	return pickOneUrl(m.s, allUrls, purlName, purlType, "")
 }
 
+func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string) ([]AllURL, error) {
+	// TODO remove?
+	if len(purlName) == 0 {
+		m.s.Errorf("Please specify a valid Purl Name to query")
+		return []AllURL{}, errors.New("please specify a valid Purl Name to query")
+	}
+	if len(purlType) == 0 {
+		m.s.Errorf("Please specify a valid Purl Type to query")
+		return []AllURL{}, errors.New("please specify a valid Purl Type to query")
+	}
+	if len(purlRange) == 0 {
+		m.s.Errorf("Please specify a valid Purl Version range to query")
+		return []AllURL{}, errors.New("please specify a valid Purl Version to query")
+	}
+	var allUrls []AllURL
+	var filteredUrls []AllURL
+	err := m.q.SelectContext(m.ctx, &allUrls,
+		"SELECT package_hash AS url_hash, component, v.version_name AS version, v.semver AS semver, "+
+			"purl_name, mine_id FROM all_urls u "+
+			"LEFT JOIN mines m ON u.mine_id = m.id "+
+			"LEFT JOIN versions v ON u.version_id = v.id "+
+			"WHERE m.purl_type = $1 AND u.purl_name = $2 "+
+			"ORDER BY date DESC;",
+		purlType, purlName)
+	if err != nil {
+		m.s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
+		return []AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
+	}
+	rangeSpec, err := semver.NewConstraint(purlRange)
+	if err != nil {
+		fmt.Printf("Error al analizar el rango: %s\n", err)
+		return []AllURL{}, fmt.Errorf("failed to analyze range: %v", err)
+	}
+
+	for _, u := range allUrls {
+
+		// Analiza la versión
+		version, err := semver.NewVersion(u.SemVer)
+		if err != nil {
+			fmt.Printf("Error al analizar la versión: %s\n", err)
+			continue
+		}
+
+		// Verifica si la versión está dentro del rango
+		if rangeSpec.Check(version) {
+			filteredUrls = append(filteredUrls, u)
+		}
+
+	}
+
+	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
+	// Pick one URL to return (checking for license details also)
+	return filteredUrls, nil
+	//return pickOneUrl(m.s, allUrls, purlName, purlType, "")
+}
+
 // pickOneUrl takes the potential matching component/versions and selects the most appropriate one
 // obsolete in this application.
 func pickOneUrl(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType, purlReq string) (AllURL, error) {

@@ -5,7 +5,18 @@ CREATE TABLE component_crypto (
     strength text,
     algorithm_id INTEGER
 );
-
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('2c2ae45c192df28dcfd1caab7e2b12db','crc32','32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('2c2ae45c192df28dcfd1caab7e2b12db','des','168');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('2c2ae45c192df28dcfd1caab7e2b12db','md5','128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('2c2ae45c192df28dcfd1caab7e2b12db','rsa','128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('541bae26cbf8e2d2f33d20cd22d435dd','crc32','32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('541bae26cbf8e2d2f33d20cd22d435dd','des','168');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('541bae26cbf8e2d2f33d20cd22d435dd','md5','128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('541bae26cbf8e2d2f33d20cd22d435dd','rsa','128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('57031cd9434a17cfc3a5b93af112592a','crc32','32');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('57031cd9434a17cfc3a5b93af112592a','des','168');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('57031cd9434a17cfc3a5b93af112592a','md5','128');
+INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('57031cd9434a17cfc3a5b93af112592a','rsa','128');
 INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'MD5', '128');
 INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'CRC64', '64');
 INSERT INTO component_crypto (url_hash,algorithm_name,strength) VALUES ('7774ed78584b719f076bb92aa42fbc7f', 'CRC32', '32');

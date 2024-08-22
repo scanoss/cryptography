@@ -38,6 +38,12 @@ type CryptoUsage struct {
 	Strength  string `db:"strength"`
 }
 
+type CryptoUsageOnVersion struct {
+	PurlName  string `db:"purl_name"`
+	Version   string `db:"version"`
+	Algorithm string `db:"algorithm_name"`
+	Strength  string `db:"strength"`
+}
 type CryptoItem struct {
 	Algorithm string
 	Strength  string
@@ -91,6 +97,22 @@ func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsag
 	if err != nil {
 		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
 		return []CryptoUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
+	}
+	return usages, nil
+}
+
+func (m *CryptoUsageModel) GetUsageByPurlMajor(purlname string, major string) ([]CryptoUsageOnVersion, error) {
+
+	major = strings.ReplaceAll(major, "*", "%")
+
+	stmt := "select au.purl_name as purl_name, au.version as version, cc.algorithm_name as algorithm_name,cc.strength as strength from all_urls au,component_crypto cc where cc.url_hash = au.package_hash and au.purl_name =$1 and au.version like $2;"
+	fmt.Println(purlname, major)
+	var usages []CryptoUsageOnVersion
+	err := m.q.SelectContext(m.ctx, &usages, stmt, purlname, major)
+
+	if err != nil {
+		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
+		return []CryptoUsageOnVersion{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	return usages, nil
 }

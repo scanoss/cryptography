@@ -6,7 +6,7 @@
   },
   "Database": {
     "Dsn": "./test-support/sqlite/scanoss.db?cache=shared&mode=memory",
-    "Driver": "sqlite3",
+    "Driver": "sqlite",
     "Trace": true
   }
 }

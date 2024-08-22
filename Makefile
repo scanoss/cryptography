@@ -45,7 +45,7 @@ run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
 	go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 
-run_local_env:  ## Launch the API locally using .env for test
+run_local_env:  ## Launch the API locally for test
 	@echo "Launching API locally using .env ..."
 	go run cmd/server/main.go -env-config .env -debug
 
