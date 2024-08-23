@@ -91,7 +91,6 @@ func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsag
 	stmt := "SELECT url_hash AS url_hash, algorithm_name, strength " +
 		"FROM component_crypto c " +
 		"WHERE url_hash in " + inStmt
-
 	var usages []CryptoUsage
 	err := m.q.SelectContext(m.ctx, &usages, stmt)
 	if err != nil {
@@ -102,14 +101,13 @@ func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsag
 }
 
 func (m *CryptoUsageModel) GetUsageByPurlMajor(purlname string, major string) ([]CryptoUsageOnVersion, error) {
-
 	major = strings.ReplaceAll(major, "*", "%")
-
-	stmt := "select au.purl_name as purl_name, au.version as version, cc.algorithm_name as algorithm_name,cc.strength as strength from all_urls au,component_crypto cc where cc.url_hash = au.package_hash and au.purl_name =$1 and au.version like $2;"
+	stmt := "select au.purl_name as purl_name, au.version as version, cc.algorithm_name as algorithm_name,cc.strength as strength " +
+		"from all_urls au,component_crypto cc " +
+		"where cc.url_hash = au.package_hash and au.purl_name =$1 and au.version like $2;"
 	fmt.Println(purlname, major)
 	var usages []CryptoUsageOnVersion
 	err := m.q.SelectContext(m.ctx, &usages, stmt, purlname, major)
-
 	if err != nil {
 		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
 		return []CryptoUsageOnVersion{}, fmt.Errorf("failed to query the all urls table: %v", err)
