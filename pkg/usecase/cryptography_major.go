@@ -94,7 +94,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		if err1 != nil {
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}
-		//avoid duplicate algorithms
+		// avoid duplicate algorithms
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
 		for _, alg := range uses {
 

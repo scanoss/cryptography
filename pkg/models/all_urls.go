@@ -211,25 +211,22 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	}
 
 	for _, u := range allUrls {
-
-		// Analiza la versión
+		// Analize versión
 		version, err := semver.NewVersion(u.SemVer)
 		if err != nil {
 			fmt.Printf("Error al analizar la versión: %s\n", err)
 			continue
 		}
-
-		// Verifica si la versión está dentro del rango
+		// Check if version is inside the range
 		if rangeSpec.Check(version) {
 			filteredUrls = append(filteredUrls, u)
 		}
 
 	}
-
 	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
-	// Pick one URL to return (checking for license details also)
+	// Pick one URL to return
 	return filteredUrls, nil
-	//return pickOneUrl(m.s, allUrls, purlName, purlType, "")
+
 }
 
 // pickOneUrl takes the potential matching component/versions and selects the most appropriate one
