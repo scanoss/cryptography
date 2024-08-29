@@ -66,7 +66,7 @@ require (
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )
-
+replace github.com/scanoss/papi => ../papi
 // Details of how to use the "replace" command for local development
 // https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
 // ie. replace github.com/scanoss/papi => ../papi
