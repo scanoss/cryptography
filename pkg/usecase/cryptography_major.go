@@ -47,34 +47,34 @@ func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, 
 }
 
 // GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.CryptoInRangeOutput, int, error) {
-	notFound := 0
+func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoInRangeOutput{}, 0, errors.New("empty list of purls")
+		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
 	out := dtos.CryptoInRangeOutput{}
-
+	summary := models.QuerySummary{}
 	// Prepare purls to query
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			notFound++
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
 		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
-			return dtos.CryptoInRangeOutput{}, 0, errors.New("requirement should include version range or major and wildcard")
+			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			notFound++
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
 		if len(res) == 0 {
-			notFound++
+			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
 		}
 		_ = errQ
@@ -103,9 +103,12 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 				item.Algorithms = append(item.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
+		if len(uses) == 0 {
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+		}
 
 		out.Cryptography = append(out.Cryptography, item)
 
 	}
-	return out, notFound, nil
+	return out, summary, nil
 }

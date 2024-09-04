@@ -18,7 +18,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -71,13 +70,16 @@ func TestCryptographyUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, notFound, err := cryptoUc.GetCrypto(requestDto)
+	algorithms, summary, err := cryptoUc.GetCrypto(requestDto)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
-	fmt.Printf("Algorithms: %v", algorithms)
+	t.Logf("Algorithms: %v", algorithms)
 
-	if len(algorithms.Cryptography[0].Algorithms) == 0 || notFound > 0 {
+	if len(algorithms.Cryptography[0].Algorithms) == 0 ||
+		len(summary.PurlsFailedToParse) > 0 ||
+		len(summary.PurlsWOInfo) > 0 ||
+		len(summary.PurlsNotFound) > 0 {
 		t.Fatalf("Expected to get at least 1 algorithm")
 	}
 
@@ -93,9 +95,9 @@ func TestCryptographyUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
-	if notFound == 0 && err == nil {
-		t.Fatalf("did not get an expected error: %v", algorithms)
+	algorithms, summary, err = cryptoUc.GetCrypto(requestDto)
+	if len(summary.PurlsFailedToParse) == 0 {
+		t.Fatalf("did not get an expected purl failed to parse")
 	}
 	t.Logf("Got expected error: %+v\n", err)
 
@@ -113,14 +115,14 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
 
-	algorithms, notFound, err = cryptoUc.GetCrypto(requestDto)
-	t.Logf("%d - %v\n", notFound, err)
+	algorithms, summary, err = cryptoUc.GetCrypto(requestDto)
+	t.Logf("%+v - %v\n", summary, err)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 
-	if notFound == 0 {
-		t.Fatalf("Expected to not found a url")
+	if len(summary.PurlsNotFound) == 0 {
+		t.Fatalf("Expected to not found a purl")
 	}
 }
 
@@ -166,7 +168,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, notFound, err := cryptoUc.GetCryptoInRange(requestDto)
+	algorithms, summary, err := cryptoUc.GetCryptoInRange(requestDto)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -177,15 +179,15 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("Expected to receive  3 versions")
 	}
 
-	if len(algorithms.Cryptography[0].Algorithms) == 0 || notFound > 0 {
+	if len(algorithms.Cryptography[0].Algorithms) == 0 || len(summary.PurlsNotFound) > 0 {
 		t.Fatalf("Expected to get at least 1 algorithm")
 	}
 
-	algorithms, notFound, err = cryptoUc.GetCryptoInRange(requestDto)
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	if notFound > 0 {
+	if len(summary.PurlsFailedToParse) > 0 {
 		t.Fatal("Expected to get All purls")
 	}
 
@@ -207,11 +209,11 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
 
-	algorithms, notFound, err = cryptoUc.GetCryptoInRange(requestDto)
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	if notFound > 0 {
+	if len(summary.PurlsNotFound) > 0 {
 		t.Fatal("Expected to get All purls")
 	}
 

@@ -35,7 +35,6 @@ type CryptoInputItem struct {
 
 // ParseCryptoInput converts the input byte array to a CryptoInput structure.
 func ParseCryptoInput(s *zap.SugaredLogger, input []byte) (CryptoInput, error) {
-	fmt.Println(string(input))
 	if len(input) == 0 {
 		return CryptoInput{}, errors.New("no purl info data supplied to parse")
 	}
