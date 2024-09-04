@@ -60,26 +60,32 @@ func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, confi
 }
 
 // GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
-func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, int, error) {
-	notFound := 0
+func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, models.QuerySummary, error) {
+
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoOutput{}, 0, errors.New("empty list of purls")
+		return dtos.CryptoOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
+	summary := models.QuerySummary{}
+
 	var query []InternalQuery
 	var purlsToQuery []utils.PurlReq // Purls to search the database for
+	mapPurls := make(map[string]bool)
+	mapInfo := make(map[string]bool)
 	// Prepare purls to query
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			notFound++
+			// Append purl to the list of malformed purls
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
 			continue
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			notFound++
+			// Append purl to the list of malformed purls
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
 			continue
 		}
 		purlReq := reqPurl.Requirement
@@ -96,14 +102,26 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 		d.s.Debugf("Purl to query: %v, Name: %s, Version: %s", purl, purlName, purl.Version)
 
 		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: purl.Version})
+		mapPurls[purlName] = false
 		query = append(query, InternalQuery{CompletePurl: reqPurl.Purl, Requirement: purl.Version, PurlName: purlName})
 	}
 	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
 	if err != nil {
 		d.s.Warnf("Failed to get list of urls from (%v): %s", purlsToQuery, err)
 	}
+	for _, u := range urls {
+		mapPurls[u.PurlName] = true
+	}
+
+	// Create a list of purls not found on db
+	for k, v := range mapPurls {
+		if !v {
+			summary.PurlsNotFound = append(summary.PurlsNotFound, k)
+		}
+	}
+
 	if len(urls) == 0 {
-		return dtos.CryptoOutput{}, len(request.Purls), nil
+		return dtos.CryptoOutput{}, summary, nil
 	}
 
 	purlMap := make(map[string][]models.AllURL)
@@ -116,22 +134,24 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 	for r := range query {
 		query[r].SelectedURLS, err = models.PickClosestUrls(d.s, purlMap[query[r].PurlName], query[r].PurlName, "", query[r].Requirement)
 		if err != nil {
-			return dtos.CryptoOutput{}, 0, err
+			return dtos.CryptoOutput{}, models.QuerySummary{}, nil
 		}
 		if len(query[r].SelectedURLS) > 0 {
 			query[r].SelectedVersion = query[r].SelectedURLS[0].Version
 			for h := range query[r].SelectedURLS {
 				urlHashes = append(urlHashes, query[r].SelectedURLS[h].URLHash)
+
 			}
 		} else {
 			// NO URL linked to that reqPurl
-			notFound++
+			//purlMap[urls[r].PurlName] = append(purlMap[urls[r].PurlName], urls[r])
 		}
+		mapInfo[query[r].PurlName] = false
 	}
 
 	usage, errGetURL := d.cryptoUsage.GetUsageByURLHashes(urlHashes)
 	if errGetURL != nil {
-		return dtos.CryptoOutput{}, 0, errors.New("error retrieving url hashes")
+		return dtos.CryptoOutput{}, models.QuerySummary{}, errors.New("error retrieving url hashes")
 	}
 	mapCrypto := make(map[string][]models.CryptoItem)
 
@@ -158,8 +178,20 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, i
 					algorithms[strings.ToLower(items[i].Algorithm)] = true
 				}
 			}
+			// This purl contains information
+			if len(items) > 0 {
+				mapInfo[query[r].PurlName] = true
+			}
 		}
 		retV.Cryptography = append(retV.Cryptography, cryptoOutItem)
 	}
-	return retV, notFound, nil
+
+	// Create a list of purls without information
+	for k, v := range mapInfo {
+		if mapPurls[k] && !v {
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, k)
+		}
+	}
+
+	return retV, summary, nil
 }

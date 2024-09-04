@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -76,7 +77,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
-	dtoCrypto, notFound, err := cryptoUc.GetCrypto(dtoRequest)
+	dtoCrypto, summary, err := cryptoUc.GetCrypto(dtoRequest)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -90,11 +91,27 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
-	if notFound > 0 {
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ""}
+	messages := []string{}
+	if len(summary.PurlsFailedToParse) > 0 {
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-		statusResp.Message = fmt.Sprintf("No information found for %d purl(s)", notFound)
 	}
+
+	if len(summary.PurlsNotFound) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(summary.PurlsWOInfo) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(messages) == 0 {
+		statusResp.Message = "Success"
+	} else {
+		statusResp.Message = strings.Join(messages, "/")
+	}
+
 	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 
@@ -122,7 +139,7 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
-	dtoCrypto, notFound, err := cryptoUc.GetCryptoInRange(dtoRequest)
+	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(dtoRequest)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 
@@ -137,11 +154,27 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
-	if notFound > 0 {
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ""}
+	messages := []string{}
+	if len(summary.PurlsFailedToParse) > 0 {
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-		statusResp.Message = fmt.Sprintf("No information found for %d purl(s)", notFound)
 	}
+
+	if len(summary.PurlsNotFound) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(summary.PurlsWOInfo) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(messages) == 0 {
+		statusResp.Message = "Success"
+	} else {
+		statusResp.Message = strings.Join(messages, "/")
+	}
+
 	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
 }
 

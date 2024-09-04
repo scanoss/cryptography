@@ -206,15 +206,14 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	}
 	rangeSpec, err := semver.NewConstraint(purlRange)
 	if err != nil {
-		fmt.Printf("Error al analizar el rango: %s\n", err)
 		return []AllURL{}, fmt.Errorf("failed to analyze range: %v", err)
 	}
 
 	for _, u := range allUrls {
-		// Analize versión
+		// Analize version
 		version, err := semver.NewVersion(u.SemVer)
 		if err != nil {
-			fmt.Printf("Error al analizar la versión: %s\n", err)
+
 			continue
 		}
 		// Check if version is inside the range
