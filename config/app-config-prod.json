@@ -1,0 +1,23 @@
+{
+  "App": {
+    "Name": "Cryptography Service",
+    "Debug": false,
+    "Mode":  "prod",
+    "GRPCPort": "55054",
+    "RESTPort": "44054"
+  },
+  "Database": {
+    "Driver": "sqlite",
+    "Dsn": "/data/home/scanoss/deploy/scanoss-cryptography/components_decoration.sqlite?cache=shared&mode=memory"
+  },
+  "TLS": {
+    "CertFile": "",
+    "KeyFile": ""
+  },
+  "Filtering": {
+    "AllowListFile": "",
+    "DenyListFile": "",
+    "BlockByDefault": true,
+    "TrustProxy": false
+  }
+}
