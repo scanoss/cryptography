@@ -40,3 +40,13 @@ type CryptoInRangeOutputItem struct {
 	Versions   []string          `json:"versions"`
 	Algorithms []CryptoUsageItem `json:"algorithms"`
 }
+
+type VersionsInRangeOutput struct {
+	Versions []VersionsInRangeUsingCryptoItem `json:"purls"`
+}
+
+type VersionsInRangeUsingCryptoItem struct {
+	Purl            string   `json:"purl"`
+	VersionsWith    []string `json:"versions_with"`
+	VersionsWithout []string `json:"versions_without"`
+}

@@ -32,7 +32,7 @@ import (
 	"scanoss.com/cryptography/pkg/models"
 )
 
-type CryptoMajorUseCase struct {
+type VersionsUsingCrypto struct {
 	ctx         context.Context
 	s           *zap.SugaredLogger
 	conn        *sqlx.Conn
@@ -40,21 +40,21 @@ type CryptoMajorUseCase struct {
 	cryptoUsage *models.CryptoUsageModel
 }
 
-func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoMajorUseCase {
-	return &CryptoMajorUseCase{ctx: ctx, s: s, conn: conn,
+func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *VersionsUsingCrypto {
+	return &VersionsUsingCrypto{ctx: ctx, s: s, conn: conn,
 		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
 		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
 	}
 }
 
-// GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+// GetVersionsUsingCryptoInRange takes the Crypto Input request, searches for Cryptographic and return versions that uses and does not use crypto.
+func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoInput) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
 
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+		return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
-	out := dtos.CryptoInRangeOutput{}
+	out := dtos.VersionsInRangeOutput{}
 	summary := models.QuerySummary{}
 	// Prepare purls to query
 	for _, reqPurl := range request.Purls {
@@ -65,7 +65,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 			continue
 		}
 		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
-			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
+			return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
@@ -78,39 +78,41 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
 		}
+
 		_ = errQ
-		item := dtos.CryptoInRangeOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
+		item := dtos.VersionsInRangeUsingCryptoItem{Purl: reqPurl.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
 		hashes := []string{}
 		nonDupVersions := make(map[string]bool)
-		allVersions := []string{}
+		//allVersions := []string{}
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
-			allVersions = append(allVersions, url.SemVer)
+			nonDupVersions[url.SemVer] = false
 		}
 		uses, err1 := d.cryptoUsage.GetUsageByURLHashes(hashes)
 		if err1 != nil {
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}
-		// avoid duplicate algorithms
-		nonDupAlgorithms := make(map[models.CryptoItem]bool)
+
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
-				nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
-				item.Algorithms = append(item.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
+		}
+		for k, v := range nonDupVersions {
+			if v {
+				item.VersionsWith = append(item.VersionsWith, k)
+			} else {
+				item.VersionsWithout = append(item.VersionsWithout, k)
 			}
 		}
-		for k, _ := range nonDupVersions {
-			item.Versions = append(item.Versions, k)
-		}
-		sort.Strings(item.Versions)
+		sort.Strings(item.VersionsWith)
+		sort.Strings(item.VersionsWithout)
+
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
 		}
 
-		out.Cryptography = append(out.Cryptography, item)
+		out.Versions = append(out.Versions, item)
 
 	}
 	return out, summary, nil
