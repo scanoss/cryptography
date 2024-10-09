@@ -221,3 +221,99 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("Expected to receive  2 versions")
 	}
 }
+//TODO: Implement this test
+func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	conn, err := db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseConn(conn)
+	err = models.LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+	myConfig.Database.Trace = true
+	var cryptoRequest = `{
+		      "purls": [
+		        {
+		          "purl": "pkg:github/scanoss/engine",
+				  "requirement":">v5.3"
+		          
+		        }
+		      ]
+		  	}`
+	cryptoUc := NewCryptoMajor(ctx, s, conn, myConfig)
+
+	requestDto, err := dtos.ParseCryptoInput(s, []byte(cryptoRequest))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+	algorithms, summary, err := cryptoUc.GetCryptoInRange(requestDto)
+	if err != nil {
+		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
+	}
+	if len(algorithms.Cryptography) == 0 {
+		t.Fatalf("Expected to receive  1 purl")
+	}
+	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
+		t.Fatalf("Expected to receive  3 versions")
+	}
+
+	if len(algorithms.Cryptography[0].Algorithms) == 0 || len(summary.PurlsNotFound) > 0 {
+		t.Fatalf("Expected to get at least 1 algorithm")
+	}
+
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
+	if err != nil {
+		t.Fatalf("error not expected: %v", err)
+	}
+	if len(summary.PurlsFailedToParse) > 0 {
+		t.Fatal("Expected to get All purls")
+	}
+
+	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
+		t.Fatalf("Expected to receive  2 versions")
+	}
+
+	cryptoRequest = `{
+		"purls": [
+		  {
+			"purl": "pkg:github/scanoss/engine",
+			"requirement":">v5.4.5,<5.4.7"
+			
+		  }
+		]
+		}`
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoRequest))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
+	if err != nil {
+		t.Fatalf("error not expected: %v", err)
+	}
+	if len(summary.PurlsNotFound) > 0 {
+		t.Fatal("Expected to get All purls")
+	}
+
+	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 1 {
+		t.Fatalf("Expected to receive  2 versions")
+	}
+}

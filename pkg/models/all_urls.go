@@ -198,6 +198,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			"LEFT JOIN mines m ON u.mine_id = m.id "+
 			"LEFT JOIN versions v ON u.version_id = v.id "+
 			"WHERE m.purl_type = $1 AND u.purl_name = $2 "+
+			"AND package_hash!='404' "+
 			"ORDER BY date DESC;",
 		purlType, purlName)
 	if err != nil {
