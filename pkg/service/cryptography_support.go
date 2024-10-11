@@ -91,18 +91,18 @@ func convertCryptoMajorOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOut
 }
 
 // convertVersionsInRangeUsingCryptoOutput converts an internal VersionsInRange Output structure into a DetectionsInRangeResponse struct.
-func convertVersionsInRangeUsingCryptoOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.DetectionsInRangeResponse, error) {
+func convertVersionsInRangeUsingCryptoOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.VersionsInRangeResponse, error) {
 	data, err := json.Marshal(output)
 
 	if err != nil {
 		s.Errorf("Problem marshalling Cryptography request output: %v", err)
-		return &pb.DetectionsInRangeResponse{}, errors.New("problem marshalling Versions output")
+		return &pb.VersionsInRangeResponse{}, errors.New("problem marshalling Versions output")
 	}
-	var depResp pb.DetectionsInRangeResponse
+	var depResp pb.VersionsInRangeResponse
 	err = json.Unmarshal(data, &depResp)
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
-		return &pb.DetectionsInRangeResponse{}, errors.New("problem unmarshalling Versions output")
+		return &pb.VersionsInRangeResponse{}, errors.New("problem unmarshalling Versions output")
 	}
 	return &depResp, nil
 }
