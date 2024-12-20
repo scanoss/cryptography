@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
@@ -82,12 +83,12 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		item := dtos.CryptoInRangeOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
 		hashes := []string{}
 		nonDupVersions := make(map[string]bool)
-		allVersions := []string{}
+
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
-			allVersions = append(allVersions, url.SemVer)
+
 		}
 		uses, err1 := d.cryptoUsage.GetUsageByURLHashes(hashes)
 		if err1 != nil {
@@ -105,7 +106,14 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		for k, _ := range nonDupVersions {
 			item.Versions = append(item.Versions, k)
 		}
-		sort.Strings(item.Versions)
+
+		sort.Slice(item.Versions, func(i, j int) bool {
+			versionA, _ := semver.NewVersion(item.Versions[i])
+			versionB, _ := semver.NewVersion(item.Versions[j])
+
+			return versionA.LessThan(versionB)
+		})
+
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
 		}
