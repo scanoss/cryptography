@@ -1666,3 +1666,5 @@ insert into versions (id, version_name, semver) values (11901716, 'v0.0.1', 'v0.
 insert into versions (id, version_name, semver) values (1047187,'v5.4.7','5.4.7');
 insert into versions (id, version_name, semver) values(10649589,'v5.4.5','5.4.5');
 insert into versions (id, version_name, semver) values(14079346,'v5.4.6','5.4.6');
+insert into versions (id, version_name, semver) values(454,'v1.0','1.0');
+
