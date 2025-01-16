@@ -62,25 +62,6 @@ func NewECUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQu
 	return &ECUsageModel{ctx: ctx, s: s, q: q}
 }
 
-/*
-	func (m *CryptoUsageModel) GetECUsageByURLHash(urlHash string) ([]ECUsage, error) {
-		if urlHash == "" {
-			m.s.Errorf("Please specify a valid url_hash")
-			return []ECUsage{}, errors.New("please specify a valid url hash to query")
-		}
-		stmt := "SELECT url_hash AS url_hash, algorithm_name, strength " +
-			"FROM component_crypto c " +
-			"WHERE url_hash = $1;"
-
-		var usages []ECUsage
-		err := m.q.SelectContext(m.ctx, &usages, stmt, urlHash)
-		if err != nil {
-			m.s.Errorf("Failed to query cryptoUsage:  %v", err)
-			return []ECUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
-		}
-		return usages, nil
-	}
-*/
 func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage, error) {
 	if len(urlHashes) == 0 {
 		m.s.Errorf("Please specify a valid Purl list to query")
@@ -99,9 +80,9 @@ func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage
 		m.s.Errorf("No hashes to query")
 		return []ECUsage{}, errors.New("no hashes to query")
 	}
-	stmt := "SELECT url_hash AS url_hash, detId as id ,name,description, url, category, purl " +
+	stmt := "SELECT url_hash AS url_hash, det_id as id ,name,description, url, category, purl " +
 		"FROM crypto_libraries ec, component_crypto_library cc " +
-		"WHERE url_hash in " + inStmt + " and cc.detId=ec.id;"
+		"WHERE url_hash in " + inStmt + " and cc.det_id=ec.id;"
 	fmt.Println(stmt)
 	var usages []ECUsage
 	err := m.q.SelectContext(m.ctx, &usages, stmt)
@@ -111,20 +92,3 @@ func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage
 	}
 	return usages, nil
 }
-
-/*
-func (m *CryptoUsageModel) GetECUsageByPurlMajor(purlname string, major string) ([]CryptoUsageOnVersion, error) {
-	major = strings.ReplaceAll(major, "*", "%")
-	stmt := "select au.purl_name as purl_name, au.version as version, cc.algorithm_name as algorithm_name,cc.strength as strength " +
-		"from all_urls au,component_crypto cc " +
-		"where cc.url_hash = au.package_hash and au.purl_name =$1 and au.version like $2;"
-	fmt.Println(purlname, major)
-	var usages []CryptoUsageOnVersion
-	err := m.q.SelectContext(m.ctx, &usages, stmt, purlname, major)
-	if err != nil {
-		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
-		return []CryptoUsageOnVersion{}, fmt.Errorf("failed to query the all urls table: %v", err)
-	}
-	return usages, nil
-}
-*/
