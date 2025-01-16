@@ -19,7 +19,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -61,7 +60,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			//	d.s.Logf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
@@ -77,7 +76,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
 		if errQ != nil {
-			d.s.Errorf("Missing requirement for purl '%s': %s", reqPurl.Purl, err)
+			//	d.s.Errorf("Missing requirement for purl '%s': %s", reqPurl.Purl, err)
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 
@@ -92,17 +91,21 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
-			hashes = append(hashes, url.URLHash)
-			mapVersionHash[url.URLHash] = url.SemVer
+			if url.URLHash == "" {
+				// No information for this url
+			} else {
+				hashes = append(hashes, url.URLHash)
+				mapVersionHash[url.URLHash] = url.SemVer
+			}
 		}
-		uses, err1 := d.usage.GetECUsageByURLHashes(hashes)
+		uses, err1 := d.usage.GetLibraryUsageByURLHashes(hashes)
 		if err1 != nil {
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}
-		// avoid duplicate algorithms
+		// avoid duplicate detections (if any)
+		// Duplicates should have been removed on mining but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
 		for _, alg := range uses {
-			fmt.Printf("hash:%s - version: %s Usages: %+v\n", alg.URLHash, mapVersionHash[alg.URLHash], alg)
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.Id]; !exist {
 				nonDupAlgorithms[alg.Id] = true

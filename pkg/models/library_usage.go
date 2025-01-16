@@ -62,32 +62,35 @@ func NewECUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQu
 	return &ECUsageModel{ctx: ctx, s: s, q: q}
 }
 
-func (m *CryptoUsageModel) GetECUsageByURLHash(urlHash string) ([]ECUsage, error) {
-	if urlHash == "" {
-		m.s.Errorf("Please specify a valid url_hash")
-		return []ECUsage{}, errors.New("please specify a valid url hash to query")
-	}
-	stmt := "SELECT url_hash AS url_hash, algorithm_name, strength " +
-		"FROM component_crypto c " +
-		"WHERE url_hash = $1;"
+/*
+	func (m *CryptoUsageModel) GetECUsageByURLHash(urlHash string) ([]ECUsage, error) {
+		if urlHash == "" {
+			m.s.Errorf("Please specify a valid url_hash")
+			return []ECUsage{}, errors.New("please specify a valid url hash to query")
+		}
+		stmt := "SELECT url_hash AS url_hash, algorithm_name, strength " +
+			"FROM component_crypto c " +
+			"WHERE url_hash = $1;"
 
-	var usages []ECUsage
-	err := m.q.SelectContext(m.ctx, &usages, stmt, urlHash)
-	if err != nil {
-		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
-		return []ECUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
+		var usages []ECUsage
+		err := m.q.SelectContext(m.ctx, &usages, stmt, urlHash)
+		if err != nil {
+			m.s.Errorf("Failed to query cryptoUsage:  %v", err)
+			return []ECUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
+		}
+		return usages, nil
 	}
-	return usages, nil
-}
-
-func (m *ECUsageModel) GetECUsageByURLHashes(urlHashes []string) ([]ECUsage, error) {
+*/
+func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage, error) {
 	if len(urlHashes) == 0 {
 		m.s.Errorf("Please specify a valid Purl list to query")
 		return []ECUsage{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
 	for p := range urlHashes {
-		purlNames = append(purlNames, "'"+urlHashes[p]+"'")
+		if urlHashes[p] != "" {
+			purlNames = append(purlNames, "'"+urlHashes[p]+"'")
+		}
 	}
 	inStmt := strings.Join(purlNames, ",")
 	inStmt = "(" + inStmt + ")"

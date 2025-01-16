@@ -54,7 +54,7 @@ func NewCryptoUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.
 	return &CryptoUsageModel{ctx: ctx, s: s, q: q}
 }
 
-func (m *CryptoUsageModel) GetUsageByURLHash(urlHash string) ([]CryptoUsage, error) {
+func (m *CryptoUsageModel) GetCryptoUsageByURLHash(urlHash string) ([]CryptoUsage, error) {
 	if urlHash == "" {
 		m.s.Errorf("Please specify a valid url_hash")
 		return []CryptoUsage{}, errors.New("please specify a valid url hash to query")
@@ -72,9 +72,9 @@ func (m *CryptoUsageModel) GetUsageByURLHash(urlHash string) ([]CryptoUsage, err
 	return usages, nil
 }
 
-func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsage, error) {
+func (m *CryptoUsageModel) GetCryptoUsageByURLHashes(urlHashes []string) ([]CryptoUsage, error) {
 	if len(urlHashes) == 0 {
-		m.s.Errorf("Please specify a valid Purl list to query")
+		m.s.Infof("Please specify a valid Purl list to query")
 		return []CryptoUsage{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
@@ -100,6 +100,7 @@ func (m *CryptoUsageModel) GetUsageByURLHashes(urlHashes []string) ([]CryptoUsag
 	return usages, nil
 }
 
+/*
 func (m *CryptoUsageModel) GetUsageByPurlMajor(purlname string, major string) ([]CryptoUsageOnVersion, error) {
 	major = strings.ReplaceAll(major, "*", "%")
 	stmt := "select au.purl_name as purl_name, au.version as version, cc.algorithm_name as algorithm_name,cc.strength as strength " +
@@ -114,3 +115,4 @@ func (m *CryptoUsageModel) GetUsageByPurlMajor(purlname string, major string) ([
 	}
 	return usages, nil
 }
+*/

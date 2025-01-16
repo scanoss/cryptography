@@ -90,7 +90,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 			mapVersionHash[url.URLHash] = url.SemVer
 
 		}
-		uses, err1 := d.cryptoUsage.GetUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
 		if err1 != nil {
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}

@@ -56,7 +56,7 @@ func NewAllURLModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQue
 
 func (m *AllUrlsModel) GetUrlsByPurlList(list []utils.PurlReq) ([]AllURL, error) {
 	if len(list) == 0 {
-		m.s.Errorf("Please specify a valid Purl list to query")
+		m.s.Infof("Please specify a valid Purl list to query")
 		return []AllURL{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
@@ -179,15 +179,15 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string) ([]AllURL, error) {
 	// TODO remove?
 	if len(purlName) == 0 {
-		m.s.Errorf("Please specify a valid Purl Name to query")
+		m.s.Infof("Please specify a valid Purl Name to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Name to query")
 	}
 	if len(purlType) == 0 {
-		m.s.Errorf("Please specify a valid Purl Type to query")
+		m.s.Infof("Please specify a valid Purl Type to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Type to query")
 	}
 	if len(purlRange) == 0 {
-		m.s.Errorf("Please specify a valid Purl Version range to query")
+		m.s.Infof("Please specify a valid Purl Version range to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Version to query")
 	}
 	var allUrls []AllURL
@@ -202,7 +202,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			"ORDER BY date DESC;",
 		purlType, purlName)
 	if err != nil {
-		m.s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
+		m.s.Infof("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
 		return []AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	rangeSpec, err := semver.NewConstraint(purlRange)

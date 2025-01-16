@@ -68,7 +68,7 @@ func SupportTools() error {
 			log.Fatal(err)
 		}
 
-		sqlContent := `CREATE TABLE if not exists "crypto_libraries2" (
+		sqlContent := `CREATE TABLE if not exists "crypto_libraries" (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		description TEXT NOT NULL,
