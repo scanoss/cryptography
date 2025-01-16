@@ -1,6 +1,6 @@
 CREATE TABLE component_crypto_library (
     url_hash TEXT  NOT NULL,
-    detId TEXT NOT NULL);
+    det_id TEXT NOT NULL);
 CREATE INDEX idx_component_crypto_library ON component_crypto_library(url_hash);
 INSERT INTO component_crypto_library VALUES('c8b5644375cfb4acd72dfc8ff458f7e3','protocol/https');
 INSERT INTO component_crypto_library VALUES('c8b5644375cfb4acd72dfc8ff458f7e3','protocol/ssh');

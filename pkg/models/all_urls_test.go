@@ -165,16 +165,16 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 	}
 	fmt.Printf("All Urls Version: %#v\n", allUrls)
 
-	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "")
 	if err == nil {
 		t.Errorf("expected error all_urls.GetUrlsByPurlNameTypeInRange() ")
 	}
 
-	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0")
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
-	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0")
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
