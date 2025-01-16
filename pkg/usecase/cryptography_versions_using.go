@@ -60,7 +60,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
@@ -69,7 +69,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
@@ -90,9 +90,9 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 			mapVersionHash[url.URLHash] = url.SemVer
 			nonDupVersions[url.SemVer] = false
 		}
-		uses, err1 := d.cryptoUsage.GetUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
+			d.s.Infof("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}
 
 		for _, alg := range uses {

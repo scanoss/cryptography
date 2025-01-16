@@ -25,6 +25,7 @@ import (
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
+	"scanoss.com/cryptography/pkg/utils"
 )
 
 func TestAllUrlsSearchVersion(t *testing.T) {
@@ -132,7 +133,7 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 	}
 }
 
-func TestAllUrlsSearchNoProject(t *testing.T) {
+func TestAllUrlsSearchVersionRange(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -155,14 +156,94 @@ func TestAllUrlsSearchNoProject(t *testing.T) {
 	myConfig.Database.Trace = true
 	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	allUrls, err := allUrlsModel.GetUrlsByPurlNameType("tablestyle", "gem", "0.0.8")
+	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", ">2.0")
 	if err != nil {
-		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
+		t.Errorf("all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
-	if len(allUrls.PurlName) == 0 {
-		t.Errorf("all_urls.GetUrlsByPurlNameType() No URLs returned from query")
+	if len(allUrls) == 0 {
+		t.Errorf("all_urls.GetUrlsByPurlString() No URLs returned from query")
 	}
-	fmt.Printf("All Urls: %#v\n", allUrls)
+	fmt.Printf("All Urls Version: %#v\n", allUrls)
+
+	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "")
+	if err == nil {
+		t.Errorf("expected error all_urls.GetUrlsByPurlNameTypeInRange() ")
+	}
+
+	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0")
+	if err == nil {
+		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
+	}
+	allUrls, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0")
+	if err == nil {
+		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
+	}
+}
+
+func TestAllUrlsSearchPurlList(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+	db := sqliteSetup(t) // Setup SQL Lite DB
+	defer CloseDB(db)
+	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
+	defer CloseConn(conn)
+	err = LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+	myConfig.Database.Trace = true
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	list := []utils.PurlReq{{Purl: "scanoss/engine", Version: "5.4.6"}, {Purl: "scanoss/dependencies", Version: "v0.0.1"}}
+	allUrls, err := allUrlsModel.GetUrlsByPurlList(list)
+	if err != nil {
+		t.Errorf("all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
+	}
+	if len(allUrls) == 0 {
+		t.Errorf("all_urls.GetUrlsByPurlString() No URLs returned from query")
+	}
+
+}
+
+func TestAllUrlsClosestVersionRequirement(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+	db := sqliteSetup(t) // Setup SQL Lite DB
+	defer CloseDB(db)
+	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
+	defer CloseConn(conn)
+	err = LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+	myConfig.Database.Trace = true
+	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+
+	allUrls := []AllURL{AllURL{URLHash: "0", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.0", PurlType: "github"},
+		AllURL{URLHash: "1", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.1", PurlType: "github"},
+		AllURL{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},
+		AllURL{URLHash: "3", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.3", PurlType: "github"},
+	}
+	urls, err := PickClosestUrls(allUrlsModel.s, allUrls, "scanoss/engine", "github", "v1.3")
+	_ = urls
+	fmt.Printf("%+v", allUrls)
 }
 
 func TestAllUrlsSearchNoLicense(t *testing.T) {

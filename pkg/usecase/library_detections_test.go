@@ -129,4 +129,83 @@ func TestLibrariesDetectionUseCase(t *testing.T) {
 	if len(summary.PurlsWOInfo) != 1 {
 		t.Fatalf("Expected to not find information for purl")
 	}
+
+	var emptyRequest = `{
+		"purls": [
+			 ]
+	}
+`
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(emptyRequest))
+
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+
+	libraries, summary, err = hintsUc.GetDetectionsInRange(requestDto)
+
+	if err == nil {
+		t.Fatalf("expected to get an error: %v", err)
+	}
+	//errors.errorString {s: "empty list of purls"}
+	if len(summary.PurlsWOInfo) != 0 {
+		t.Fatalf("Expected to not get information of purls")
+	}
+}
+func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	conn, err := db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseConn(conn)
+	err = models.LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+	myConfig.Database.Trace = true
+
+	var malformedPurls = `{
+		"purls": [
+			{
+			  "purl":"pkg:githubscanossengine",
+			  "requirement":">=1.0"
+			}
+	  ]
+	}
+`
+	hintsUc := NewECDetection(ctx, s, conn, myConfig)
+	requestDto, err := dtos.ParseCryptoInput(s, []byte(malformedPurls))
+
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	}
+
+	libraries, summary, err := hintsUc.GetDetectionsInRange(requestDto)
+
+	if err != nil {
+		t.Fatalf("Got an unexpected error: %v", err)
+	}
+
+	if len(summary.PurlsFailedToParse) != 1 {
+		t.Fatalf("Expected to fail parsing 1 purl")
+	}
+	if len(libraries.Hints) > 0 {
+		t.Fatalf("Not expected to get information from an empty request")
+	}
+
 }

@@ -51,7 +51,7 @@ func TestCryptoSearchUsage(t *testing.T) {
 
 	cum := NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	usage, err := cum.GetUsageByURLHash("7774ed78584b719f076bb92aa42fbc7f")
+	usage, err := cum.GetCryptoUsageByURLHash("7774ed78584b719f076bb92aa42fbc7f")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
@@ -59,4 +59,62 @@ func TestCryptoSearchUsage(t *testing.T) {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
 	}
 	fmt.Printf("All Urls Version: %#v\n", usage)
+}
+
+func TestCryptoSearchUsageByList(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+	db := sqliteSetup(t) // Setup SQL Lite DB
+	defer CloseDB(db)
+	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
+	defer CloseConn(conn)
+	err = LoadTestSQLData(db, ctx, conn)
+	if err != nil {
+		t.Fatalf("failed to load SQL test data: %v", err)
+	}
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+	myConfig.Database.Trace = true
+
+	cum := NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+
+	usage, err := cum.GetCryptoUsageByURLHashes([]string{"7774ed78584b719f076bb92aa42fbc7f", "541bae26cbf8e2d2f33d20cd22d435dd"})
+	if err != nil {
+		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
+	}
+	if len(usage) == 0 {
+		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
+	}
+	fmt.Printf("All Urls Version: %#v\n", usage)
+	usage, err = cum.GetCryptoUsageByURLHashes([]string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
+	if err != nil {
+		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
+	}
+	if len(usage) != 0 {
+		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
+	}
+
+	usage, err = cum.GetCryptoUsageByURLHashes([]string{"", ""})
+	if err != nil {
+		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
+	}
+	if len(usage) != 0 {
+		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
+	}
+
+	RunTestSQL(db, ctx, conn, "DROP TABLE component_crypto;")
+	usage, err = cum.GetCryptoUsageByURLHashes([]string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
+	if err == nil {
+		t.Errorf("Expected to get an error on GetCryptoUsageByURLHashes ")
+	}
+	if len(usage) != 0 {
+		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
+	}
 }

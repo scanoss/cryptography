@@ -51,6 +51,23 @@ func LoadTestSQLData(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn) error {
 	files := []string{"../models/tests/mines.sql", "../models/tests/all_urls.sql", "../models/tests/versions.sql", "../models/tests/component_crypto.sql", "../models/tests/component_crypto_libraries.sql", "../models/tests/crypto_libraries.sql"}
 	return loadTestSQLDataFiles(db, ctx, conn, files)
 }
+func RunTestSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
+	return runSQL(db, ctx, conn, stm)
+}
+func runSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
+	fmt.Printf("Running %+v\n", stm)
+
+	var err error
+	if conn != nil {
+		_, err = conn.ExecContext(ctx, stm)
+	} else {
+		_, err = db.Exec(stm)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // loadTestSQLDataFiles loads a list of test SQL files.
 func loadTestSQLDataFiles(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, files []string) error {
@@ -61,6 +78,16 @@ func loadTestSQLDataFiles(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, fil
 		}
 	}
 	return nil
+}
+func RunSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stmt string) error {
+
+	_, err := db.Exec(stmt)
+	if err != nil {
+
+		return fmt.Errorf("Could not run sql: %v", err)
+	}
+	return nil
+
 }
 
 // sqliteSetup sets up an in-memory SQL Lite DB for testing.

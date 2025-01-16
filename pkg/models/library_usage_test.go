@@ -18,7 +18,6 @@ package models
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -51,12 +50,20 @@ func TestECSearchUsage(t *testing.T) {
 
 	cum := NewECUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	usage, err := cum.GetECUsageByURLHashes([]string{"c8b569083fe8d7b94ad429c445800253"})
+	usage, err := cum.GetLibraryUsageByURLHashes([]string{"c8b569083fe8d7b94ad429c445800253"})
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
 	if len(usage) == 0 {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
 	}
-	fmt.Printf("All Urls Version: %#v\n", usage)
+	usage, err = cum.GetLibraryUsageByURLHashes([]string{})
+	if err == nil {
+		t.Errorf("Expected to get an error on empy list")
+	}
+	usage, err = cum.GetLibraryUsageByURLHashes([]string{"", ""})
+	if err == nil {
+		t.Errorf(" Expected to get an error on full list of empty urls")
+	}
+
 }
