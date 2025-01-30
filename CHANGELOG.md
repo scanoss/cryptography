@@ -1,17 +1,17 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 ### Added
 - Upcoming changes...
 
 
-## [0.0.1] - ?
+## [0.4.0] - 2025-01-14
 ### Added
-- ?
+- Detect cryptographic algorithms by specifying a purl and exact version
+- Identify cryptographic algorithms across a Semver-compliant version range for a given purl
+- Group versions  that do contain cryptographic algorithms and those do not within a specified purl version range
+- Analyze usage patterns of Libraries/Frameworks/SDKs/Protocols within a specified purl version range
 
-[0.0.1: https://github.com/scanoss/papi/compare/v0.0.0...v0.0.1
+### Fixed
+- Remove from list those versions that do not contain detections
+- Detailed response status message.
