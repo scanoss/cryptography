@@ -1,11 +1,43 @@
-# SCANOSS Platform 2.0 Cryptography
+# SCANOSS Platform 2.0 Cryptography Service
 Welcome to the Cryptography server for SCANOSS Platform 2.0
+A specialized service providing methods for Export Control tasks in software analysis. This service helps identify and track cryptographic algorithms and security-related components in software packages.
 
-**Warning** Work In Progress **Warning**
+## Key Features
 
-## Repository Structure
-This repository is made up of the following components:
-* ?
+### Cryptographic Algorithm Detection
+- **Exact Version Analysis**: Find cryptographic algorithms in specific package versions using PURL
+- **Version Range Analysis**: Detect cryptographic algorithms across version ranges (Semver compliant)
+- **Coverage Analysis**: Identify versions containing cryptographic algorithms that may go undetected within specified version ranges
+
+### Security Component Analysis
+- Detect usage patterns of:
+  - Libraries
+  - Frameworks
+  - SDKs
+  - Security Protocols
+
+## Service Access
+
+The service is accessible through:
+- gRPC methods (primary)
+- REST API (via gateway)
+
+For detailed service definitions, see our [PAPI Documentation](https://github.com/scanos/papi)
+
+## Database Support
+
+Compatible with multiple database systems including:
+- SQLite
+- PostgreSQL
+- Other SQL-compatible databases
+
+Database connection can be configured via:
+- Environment file (.env)
+- Configuration file (.json)
+
+## Data Collection
+
+For optimal data gathering and table population, we recommend using [minr](https://github.com/scanoss/minr).
 
 ## Configuration
 
@@ -22,7 +54,6 @@ APP_MODE=dev
 APP_DEBUG=false
 DB_DSN="./test-support/sqlite/scanoss.db?cache=shared&mode=memory"
 ```
-
 
 ## Docker Environment
 
@@ -63,3 +94,9 @@ After changing a Cryptography version, please run the following command:
 go mod tidy -compat=1.20
 ```
 https://mholt.github.io/json-to-go/
+
+## License 
+
+GPL-2.0-or-later
+
+Copyright (C) 2025 SCANOSS.COM
