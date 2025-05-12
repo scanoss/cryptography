@@ -320,3 +320,62 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 		t.Errorf("Status message does not match")
 	}
 }
+
+func TestCryptographyServer_GetHints(t *testing.T) {
+
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	server := NewCryptographyServer(db, myConfig)
+	r, err := server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: "v5.4.7"}}})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(r.Purls) != 1 {
+		t.Errorf("Expected to get exactly one purl")
+	}
+
+	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/pineappleea/pineapple-src1", Requirement: "v5.4.7"}}})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(r.Purls) != 1 {
+		t.Errorf("Expected to get exactly one purl")
+	}
+	if r.Status.Status != 2 {
+		t.Errorf("Error retrieving status")
+	}
+
+	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(r.Purls) != 0 {
+		t.Errorf("Did not expect to receive a malformed purl")
+	}
+	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(r.Purls) != 2 {
+		t.Errorf("Expected to get exactly one purl")
+	} else if !strings.Contains(r.Status.Message, "Can't find information") {
+		t.Errorf("Status message does not match")
+	}
+}
