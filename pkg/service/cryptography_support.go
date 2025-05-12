@@ -123,3 +123,20 @@ func convertECOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.HintsInRan
 	}
 	return &depResp, nil
 }
+
+// convertCryptoOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
+func convertHintsOutput(s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.HintsResponse, error) {
+	data, err := json.Marshal(output)
+
+	if err != nil {
+		s.Errorf("Problem marshalling Cryptography request output: %v", err)
+		return &pb.HintsResponse{}, errors.New("problem marshalling Cryptography output")
+	}
+	var depResp pb.HintsResponse
+	err = json.Unmarshal(data, &depResp)
+	if err != nil {
+		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
+		return &pb.HintsResponse{}, errors.New("problem unmarshalling Cryptography output")
+	}
+	return &depResp, nil
+}

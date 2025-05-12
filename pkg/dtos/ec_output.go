@@ -34,3 +34,13 @@ type ECDetectedItem struct {
 	Categoty    string `json:"category"`
 	Purl        string `json:"purl,omitempty"`
 }
+
+type HintsOutput struct {
+	Hints []HintsOutputItem `json:"purls"`
+}
+
+type HintsOutputItem struct {
+	Purl       string           `json:"purl"`
+	Version    string           `json:"version"`
+	Detections []ECDetectedItem `json:"hints"`
+}

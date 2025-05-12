@@ -1,0 +1,44 @@
+CREATE TABLE if not exists "crypto_libraries" (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		description TEXT NOT NULL,
+		url TEXT,
+		category TEXT NOT NULL,
+		purl TEXT
+	);
+INSERT INTO crypto_libraries VALUES('library/openssl','OpenSSL','A robust, full-featured open-source toolkit implementing the Secure Sockets Layer (SSL) and Transport Layer Security (TLS) protocols.','https://www.openssl.org/docs/','library','pkg:github/openssl/openssl');
+INSERT INTO crypto_libraries VALUES('library/bouncycastle','BouncyCastle','A collection of APIs used in cryptography, including lightweight cryptography for Java and C#.','https://www.bouncycastle.org/documentation.html','library','pkg:github/bouncycastle/bc-java');
+INSERT INTO crypto_libraries VALUES('library/libsodium','libsodium','A modern, easy-to-use software library for encryption, decryption, signatures, password hashing, and more.','https://libsodium.gitbook.io/doc/','library','pkg:github/jedisct1/libsodium');
+INSERT INTO crypto_libraries VALUES('package/cryptojs','CryptoJS','A self-contained Python package of low-level cryptographic primitives.','https://cryptojs.gitbook.io/docs/','package','pkg:npm/crypto-js');
+INSERT INTO crypto_libraries VALUES('package/nodjs-crypto','CryptoJS','A built-in NodeJS module','https://nodejs.org/api/crypto.html','package','pkg:npm/node');
+INSERT INTO crypto_libraries VALUES('package/bcryptjs','BcryptJS','Package for encrypting passwords using secure hashes',' https://github.com/dcodeIO/bcrypt.js','package','pkg:npm/bcryptjs');
+INSERT INTO crypto_libraries VALUES('package/openpgp-js','OpenPGP.js','End-to-end implementation of OpenPGP standard','https://openpgpjs.org/','package','pkg:npm/openpgp');
+INSERT INTO crypto_libraries VALUES('library/tweennacl-js','TweetNaCl.js','Lightwight library for modern cryptography','https://github.com/dchest/tweetnacl-js','library','pkg:npm/tweennacl');
+INSERT INTO crypto_libraries VALUES('package/pycryptodome','PyCryptodome','A self-contained Python package of low-level cryptographic primitives.','https://pycryptodome.readthedocs.io/en/latest/','package','pkg:github/Legrandin/pycryptodome');
+INSERT INTO crypto_libraries VALUES('library/cryptography','Cryptography (Python package)','A Python library providing cryptographic recipes and primitives to developers.','https://cryptography.io/en/latest/','library','pkg:pypi/cryptography');
+INSERT INTO crypto_libraries VALUES('library/nacl','NaCl (Networking and Cryptography Library)','A high-speed software library for network communication, encryption, decryption, signatures, etc.','https://nacl.cr.yp.to/','library','pkg:github/dedis/nacl');
+INSERT INTO crypto_libraries VALUES('sdk/awskms','AWS Key Management Service (KMS)','A managed service that makes it easy to create and control the encryption keys used to encrypt your data.','https://docs.aws.amazon.com/kms/latest/developerguide/overview.html','sdk','pkg:aws/kms');
+INSERT INTO crypto_libraries VALUES('framework/spring-security','Spring Security','Spring Security provides security services for the Spring IO Platform.','https://spring.io/projects/spring-security','framework','pkg:github/spring-projects/spring-security');
+INSERT INTO crypto_libraries VALUES('library/googletink','Google Tink','A multi-language, cross-platform library that provides cryptographic APIs that are secure, easy to use correctly, and hard(er) to misuse.','https://developers.google.com/tink','library','pkg:github/google/tink');
+INSERT INTO crypto_libraries VALUES('sdk/microsoftcng','Microsoft Cryptography Next Generation (CNG)','A suite of cryptographic APIs that are part of the Windows operating system, used to perform cryptographic operations.','https://docs.microsoft.com/en-us/windows/win32/seccng/cng-portal','sdk','pkg:github/microsoft/CNG');
+INSERT INTO crypto_libraries VALUES('framework/javajca-jce','Java Cryptography Architecture/Java Cryptography Extension (JCA/JCE)','A framework for accessing and developing cryptographic functionality for the Java platform.','https://docs.oracle.com/javase/8/docs/technotes/guides/security/crypto/CryptoSpec.html','framework','pkg:github/oracle/jdk8u');
+INSERT INTO crypto_libraries VALUES('library/gnutls','GnuTLS','GnuTLS is an implementation of the SSL, TLS, and DTLS protocols that is compatible with various operating systems. It is part of the GNU project.','https://www.gnutls.org/documentation.html','library','pkg:github/gnutls/gnutls');
+INSERT INTO crypto_libraries VALUES('library/crypto-browserify','crypto-browserify','A port of nodes crypto module to the browser.','https://browserify.org/','library','pkg:github/browserify/crypto-browserify');
+INSERT INTO crypto_libraries VALUES('library/wolfssl','WolfSSL','(CyaSSL) WolfSSL is a lightweight, open-source SSL/TLS library designed for resource-constrained environments such as embedded devices.','https://www.wolfssl.com/docs/','library','pkg:github/wolfSSL/wolfssl');
+INSERT INTO crypto_libraries VALUES('library/boringssl','BoringSSL','BoringSSL is a cryptographic library forked from OpenSSL, designed by Google to meet their specific needs for speed, security, and maintainability.','https://boringssl.googlesource.com/boringssl/','library','pkg:googlesource/boringssl');
+INSERT INTO crypto_libraries VALUES('library/paramiko','paramiko','Paramiko is a pure-Python 1 (3.6+) implementation of the SSHv2 protocol 2, providing both client and server functionality.','https://www.paramiko.org/','library','pkg:github/paramiko/paramiko');
+INSERT INTO crypto_libraries VALUES('library/crypto++','Crypto++','Crypto++: free C++ Class Library of Cryptographic Schemes.','https://cryptopp.com/','library','pkg:github/weidai11/cryptopp');
+INSERT INTO crypto_libraries VALUES('library/keyczar','Google Keyczar ','Keyczar is an open source cryptographic toolkit designed to make it easier and safer to use cryptography in applications',' https://github.com/google/keyczar','library','pkg:github/google/keyczar');
+INSERT INTO crypto_libraries VALUES('library/themis','Themis Cryptographic Library ','Themis is an open-source high-level cryptographic services library that provides secure data handling, storage and messaging for mobile and server platforms','https://github.com/cossacklabs/themis','library','pkg:github/cossacklabs/themis');
+INSERT INTO crypto_libraries VALUES('library/spongy-castle','Spongy Castle (Android)','Spongy Castle is a repackaged version of Bouncy Castle cryptographic library specifically for Android. It provides a clean library that can be used in conjunction with canonical Bouncy Castle deployments','https://rtyley.github.io/spongycastle/','library','pkg:maven/com.madgag/spongycastle-core');
+INSERT INTO crypto_libraries VALUES('library/chilkat','Chilkat','A comprehensive cross-platform software component library that provides implementations of various internet protocols, encryption, compression, and data manipulation algorithms','https://www.chilkatsoft.com/','library','pkg:generic/chilkat');
+INSERT INTO crypto_libraries VALUES('protocol/ssl','Secure Sockets Layer','SSL (Secure Sockets Layer) is a cryptographic protocol designed to provide secure communications over computer networks','','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/tls','TLS','TLS (Transport Layer Security) is a cryptographic protocol designed to provide secure communication over computer networks.','','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/https','HTTPS','HTTPS (Hypertext Transfer Protocol Secure) is a protocol for secure communication over a computer network','','library','');
+INSERT INTO crypto_libraries VALUES('protocol/dtls','DTLS','','TBD','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/quic',' ','','','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/zrtp','ZRTP','',' ','protocol','TBD');
+INSERT INTO crypto_libraries VALUES('protocol/bitmessage','Bitmessage ','Bitmessage is a decentralized, peer-to-peer, encrypted messaging protocol that allows users to send and receive messages anonymously.','','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/ssh','SSH ','Secure shell','www.example.com','this_is_the_category','TBD');
+INSERT INTO crypto_libraries VALUES('protocol/scp','Secure Copy Protocol','SCP (Secure Copy Protocol) is a protocol and command-line tool used to securely transfer files between computers over a network','','protocol','');
+INSERT INTO crypto_libraries VALUES('protocol/sftp','SFTP ','SFTP (SSH File Transfer Protocol) is a secure network protocol that provides file transfer and manipulation functionality over a secure SSH connection','','protocol','');
