@@ -19,6 +19,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -129,6 +130,69 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 
 			return versionA.LessThan(versionB)
 		})
+
+		if len(uses) == 0 {
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+		}
+
+		out.Hints = append(out.Hints, item)
+
+	}
+	return out, summary, nil
+}
+
+// GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
+func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsOutput, models.QuerySummary, error) {
+	if len(request.Purls) == 0 {
+		d.s.Info("Empty List of Purls supplied")
+		return dtos.HintsOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+	}
+	out := dtos.HintsOutput{}
+	summary := models.QuerySummary{}
+	// Prepare purls to query
+	for _, reqPurl := range request.Purls {
+		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+		if err != nil {
+			//	d.s.Logf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			continue
+		}
+
+		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
+		if err != nil {
+			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+
+			continue
+		}
+		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, reqPurl.Requirement)
+		if errQ != nil {
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			continue
+
+		}
+		fmt.Printf("\n\n%+v\n\n", res)
+		item := dtos.HintsOutputItem{Purl: reqPurl.Purl, Version: res.Version}
+		uses, err1 := d.usage.GetLibraryUsageByURLHashes([]string{res.URLHash})
+		if err1 != nil {
+			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
+		}
+		// avoid duplicate detections (if any)
+		// Duplicates should have been removed on mining but some appended keyword may produce a duplicate entry for an existing url
+		nonDupAlgorithms := make(map[string]bool)
+		for _, alg := range uses {
+			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
+			if _, exist := nonDupAlgorithms[alg.Id]; !exist {
+				nonDupAlgorithms[alg.Id] = true
+				item.Detections = append(item.Detections,
+					dtos.ECDetectedItem{Id: alg.Id,
+						Name:        alg.Name,
+						Description: alg.Description,
+						URL:         alg.URL,
+						Categoty:    alg.Category,
+						Purl:        alg.Purl})
+			}
+		}
 
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)

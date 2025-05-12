@@ -131,9 +131,10 @@ func (m *AllUrlsModel) GetUrlsByPurlNameType(purlName, purlType, purlReq string)
 			"purl_name, mine_id FROM all_urls u "+
 			"LEFT JOIN mines m ON u.mine_id = m.id "+
 			"LEFT JOIN versions v ON u.version_id = v.id "+
-			"WHERE m.purl_type = $1 AND u.purl_name = $2 AND is_mined = true "+
+			"WHERE m.purl_type = $1 AND u.purl_name = $2  "+
 			"ORDER BY date DESC;",
 		purlType, purlName)
+
 	if err != nil {
 		m.s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
 		return AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
