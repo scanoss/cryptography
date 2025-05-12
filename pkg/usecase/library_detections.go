@@ -19,7 +19,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -171,7 +170,7 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 			continue
 
 		}
-		fmt.Printf("\n\n%+v\n\n", res)
+
 		item := dtos.HintsOutputItem{Purl: reqPurl.Purl, Version: res.Version}
 		uses, err1 := d.usage.GetLibraryUsageByURLHashes([]string{res.URLHash})
 		if err1 != nil {
