@@ -24,9 +24,8 @@ import (
 	"scanoss.com/cryptography/pkg/cmd"
 )
 
-// main provides several tools to manage information for Cryptography service
+// main provides several tools to manage information for Cryptography service.
 func main() {
-
 	if err := cmd.SupportTools(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Server launch error: %v\n", err)
 		os.Exit(1)

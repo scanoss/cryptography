@@ -101,7 +101,6 @@ func TestCryptographyServer_Echo(t *testing.T) {
 }
 
 func TestCryptographyServer_GetAlgorithms(t *testing.T) {
-
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

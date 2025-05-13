@@ -30,7 +30,7 @@ import (
 )
 
 type DetectionsDefinition struct {
-	Id          string   `json:"id"`
+	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Keywords    []string `json:"keywords"`
@@ -48,18 +48,16 @@ func normalize(str string) string {
 
 // RunServer runs the gRPC Cryptography Server.
 func SupportTools() error {
-
-	var defJsonPath string
+	var defJSONPath string
 	var createLibrariesTable string
 
-	flag.StringVar(&defJsonPath, "json-definition", "", "Defines a json file path")
+	flag.StringVar(&defJSONPath, "json-definition", "", "Defines a json file path")
 	flag.StringVar(&createLibrariesTable, "create-table", "", "Defines a table to be created")
 	flag.Parse()
 	defs := []DetectionsDefinition{}
 
 	if createLibrariesTable != "" {
-
-		data, errFile := os.ReadFile(defJsonPath)
+		data, errFile := os.ReadFile(defJSONPath)
 		if errFile != nil {
 			fmt.Printf("%+v", errFile)
 		}
@@ -78,11 +76,13 @@ func SupportTools() error {
 	);`
 
 		for _, def := range defs {
-			line := fmt.Sprintf("\nINSERT INTO crypto_libraries VALUES('%s','%s','%s','%s','%s','%s');", normalize(def.Id), normalize(def.Name), normalize(def.Description), normalize(def.URL), normalize(def.Category), normalize(def.Purl))
+			line := fmt.Sprintf("\nINSERT INTO crypto_libraries VALUES('%s','%s','%s','%s','%s','%s');",
+				normalize(def.ID), normalize(def.Name), normalize(def.Description), normalize(def.URL),
+				normalize(def.Category), normalize(def.Purl))
 			sqlContent += line
 		}
 		fmt.Print(sqlContent)
 	}
-	//zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
+	// zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
 	return nil
 }

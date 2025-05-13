@@ -40,6 +40,10 @@ type cryptographyServer struct {
 	config *myconfig.ServerConfig
 }
 
+const (
+	ResponseMessageSUCCESS = "Success"
+)
+
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	setupMetrics()
@@ -91,7 +95,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ""}
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
 	messages := []string{}
 	if len(summary.PurlsFailedToParse) > 0 {
 		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
@@ -107,7 +111,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
 	}
 	if len(messages) == 0 {
-		statusResp.Message = "Success"
+		statusResp.Message = ResponseMessageSUCCESS
 	} else {
 		statusResp.Message = strings.Join(messages, "/")
 	}
@@ -154,7 +158,7 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ""}
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
 	messages := []string{}
 	if len(summary.PurlsFailedToParse) > 0 {
 		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
@@ -170,7 +174,7 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
 	}
 	if len(messages) == 0 {
-		statusResp.Message = "Success"
+		statusResp.Message = ResponseMessageSUCCESS
 	} else {
 		statusResp.Message = strings.Join(messages, "/")
 	}
@@ -179,7 +183,6 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 }
 
 func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
-
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
@@ -218,7 +221,7 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ""}
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
 	messages := []string{}
 	if len(summary.PurlsFailedToParse) > 0 {
 		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
@@ -234,7 +237,7 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
 	}
 	if len(messages) == 0 {
-		statusResp.Message = "Success"
+		statusResp.Message = ResponseMessageSUCCESS
 	} else {
 		statusResp.Message = strings.Join(messages, "/")
 	}
@@ -281,7 +284,7 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
 	messages := []string{}
 	if len(summary.PurlsFailedToParse) > 0 {
 		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
@@ -297,13 +300,12 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
 	}
 	if len(messages) == 0 {
-		statusResp.Message = "Success"
+		statusResp.Message = ResponseMessageSUCCESS
 	} else {
 		statusResp.Message = strings.Join(messages, "/")
 	}
 
 	return &pb.HintsInRangeResponse{Purls: ecResponse.Purls, Status: &statusResp}, nil
-
 }
 
 func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
@@ -346,7 +348,7 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: "Success"}
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
 	messages := []string{}
 	if len(summary.PurlsFailedToParse) > 0 {
 		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
@@ -362,13 +364,12 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
 	}
 	if len(messages) == 0 {
-		statusResp.Message = "Success"
+		statusResp.Message = ResponseMessageSUCCESS
 	} else {
 		statusResp.Message = strings.Join(messages, "/")
 	}
 
 	return &pb.HintsResponse{Purls: ecResponse.Purls, Status: &statusResp}, nil
-
 }
 
 // telemetryRequestTime records the crypto algorithms request time to telemetry.

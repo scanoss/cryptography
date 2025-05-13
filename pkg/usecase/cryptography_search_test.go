@@ -99,8 +99,8 @@ func TestCryptographyUseCase(t *testing.T) {
 	if len(summary.PurlsFailedToParse) == 0 {
 		t.Fatalf("did not get an expected purl failed to parse")
 	}
-	//t.Logf("Got expected error: %+v\n", err)
-	var closestUrl = `{
+	// t.Logf("Got expected error: %+v\n", err)
+	closestURL := `{
 		"purls": [
 			{
 			  "purl": "pkg:github/scanoss/engine",
@@ -109,7 +109,7 @@ func TestCryptographyUseCase(t *testing.T) {
 	  ]
 	}
 	`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(closestUrl))
+	requestDto, err = dtos.ParseCryptoInput(s, []byte(closestURL))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}

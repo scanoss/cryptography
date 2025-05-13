@@ -210,7 +210,6 @@ func TestAllUrlsSearchPurlList(t *testing.T) {
 	if len(allUrls) == 0 {
 		t.Errorf("all_urls.GetUrlsByPurlString() No URLs returned from query")
 	}
-
 }
 
 func TestAllUrlsClosestVersionRequirement(t *testing.T) {
@@ -241,8 +240,7 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 		AllURL{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},
 		AllURL{URLHash: "3", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.3", PurlType: "github"},
 	}
-	urls, err := PickClosestUrls(allUrlsModel.s, allUrls, "scanoss/engine", "github", "v1.3")
-	_ = urls
+	_, err = PickClosestUrls(allUrlsModel.s, allUrls, "scanoss/engine", "github", "v1.3")
 	fmt.Printf("%+v", allUrls)
 }
 

@@ -185,7 +185,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected to get an error: %v", err)
 	}
-	//errors.errorString {s: "empty list of purls"}
+	// errors.errorString {s: "empty list of purls"}
 	if len(summary.PurlsWOInfo) != 0 {
 		t.Fatalf("Expected to not get information of purls")
 	}

@@ -49,7 +49,6 @@ func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sql
 
 // GetVersionsUsingCryptoInRange takes the Crypto Input request, searches for Cryptographic and return versions that uses and does not use crypto.
 func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoInput) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
-
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -60,7 +59,6 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
-
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
@@ -69,7 +67,6 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
@@ -83,7 +80,6 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		item := dtos.VersionsInRangeUsingCryptoItem{Purl: reqPurl.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
 		hashes := []string{}
 		nonDupVersions := make(map[string]bool)
-		//allVersions := []string{}
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
@@ -111,9 +107,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
 		}
-
 		out.Versions = append(out.Versions, item)
-
 	}
 	return out, summary, nil
 }

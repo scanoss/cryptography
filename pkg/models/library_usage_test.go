@@ -57,13 +57,12 @@ func TestECSearchUsage(t *testing.T) {
 	if len(usage) == 0 {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
 	}
-	usage, err = cum.GetLibraryUsageByURLHashes([]string{})
+	_, err = cum.GetLibraryUsageByURLHashes([]string{})
 	if err == nil {
 		t.Errorf("Expected to get an error on empy list")
 	}
-	usage, err = cum.GetLibraryUsageByURLHashes([]string{"", ""})
+	_, err = cum.GetLibraryUsageByURLHashes([]string{"", ""})
 	if err == nil {
 		t.Errorf(" Expected to get an error on full list of empty urls")
 	}
-
 }
