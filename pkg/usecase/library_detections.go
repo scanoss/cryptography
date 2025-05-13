@@ -109,7 +109,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
 				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.ID,
+					dtos.ECDetectedItem{ID: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
@@ -177,7 +177,7 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
 				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.ID,
+					dtos.ECDetectedItem{ID: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,

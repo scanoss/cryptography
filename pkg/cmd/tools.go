@@ -30,7 +30,7 @@ import (
 )
 
 type DetectionsDefinition struct {
-	Id          string   `json:"id"`
+	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Keywords    []string `json:"keywords"`
@@ -76,7 +76,9 @@ func SupportTools() error {
 	);`
 
 		for _, def := range defs {
-			line := fmt.Sprintf("\nINSERT INTO crypto_libraries VALUES('%s','%s','%s','%s','%s','%s');", normalize(def.Id), normalize(def.Name), normalize(def.Description), normalize(def.URL), normalize(def.Category), normalize(def.Purl))
+			line := fmt.Sprintf("\nINSERT INTO crypto_libraries VALUES('%s','%s','%s','%s','%s','%s');",
+				normalize(def.ID), normalize(def.Name), normalize(def.Description), normalize(def.URL),
+				normalize(def.Category), normalize(def.Purl))
 			sqlContent += line
 		}
 		fmt.Print(sqlContent)

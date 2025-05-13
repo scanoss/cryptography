@@ -27,7 +27,7 @@ type ECOutputItem struct {
 }
 
 type ECDetectedItem struct {
-	Id          string `json:"id"`
+	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	URL         string `json:"URL,omitempty"`
