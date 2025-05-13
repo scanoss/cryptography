@@ -24,7 +24,8 @@ CONF_DOWNLOAD=https://raw.githubusercontent.com/scanoss/cryptography/main/config
 ENVIRONMENT=""
 FORCE_INSTALL=0
 
-export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+export SCRIPT_DIR
 
 while getopts ":ye:" opt; do
   case $opt in
@@ -110,7 +111,7 @@ if [ -f "$SCRIPT_DIR/$SC_SERVICE_FILE" ] ; then
 else 
   echo "No service file found at $SCRIPT_DIR/$SC_SERVICE_FILE"
 fi
-if ! cp $SCRIPT_DIR/scanoss-cryptography-api.sh /usr/local/bin ; then
+if ! cp "$SCRIPT_DIR"/scanoss-cryptography-api.sh /usr/local/bin ; then
   echo "Cryptography api startup script copy failed"
   exit 1
 fi
@@ -144,7 +145,7 @@ fi
 BINARY=scanoss-cryptography-api
 if [ -f "$SCRIPT_DIR/$BINARY" ] ; then
   echo "Copying app binary to /usr/local/bin ..."
-  if ! cp $SCRIPT_DIR/$BINARY /usr/local/bin ; then
+  if ! cp "$SCRIPT_DIR"/$BINARY /usr/local/bin ; then
     echo "copy $BINARY failed"
     echo "Please make sure the service is stopped: systemctl stop scanoss-cryptography-api"
     exit 1
