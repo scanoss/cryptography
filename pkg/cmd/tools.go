@@ -48,18 +48,16 @@ func normalize(str string) string {
 
 // RunServer runs the gRPC Cryptography Server.
 func SupportTools() error {
-
-	var defJsonPath string
+	var defJSONPath string
 	var createLibrariesTable string
 
-	flag.StringVar(&defJsonPath, "json-definition", "", "Defines a json file path")
+	flag.StringVar(&defJSONPath, "json-definition", "", "Defines a json file path")
 	flag.StringVar(&createLibrariesTable, "create-table", "", "Defines a table to be created")
 	flag.Parse()
 	defs := []DetectionsDefinition{}
 
 	if createLibrariesTable != "" {
-
-		data, errFile := os.ReadFile(defJsonPath)
+		data, errFile := os.ReadFile(defJSONPath)
 		if errFile != nil {
 			fmt.Printf("%+v", errFile)
 		}
@@ -83,6 +81,6 @@ func SupportTools() error {
 		}
 		fmt.Print(sqlContent)
 	}
-	//zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
+	// zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
 	return nil
 }

@@ -34,7 +34,7 @@ type ECUsageModel struct {
 
 type ECUsage struct {
 	URLHash     string `db:"url_hash"`
-	Id          string `db:"id"`
+	ID          string `db:"id"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
 	URL         string `db:"url"`
@@ -49,7 +49,7 @@ type ECUsageOnVersion struct {
 	Strength  string `db:"strength"`
 }
 type ECDetectionItem struct {
-	Id          string
+	ID          string
 	Name        string
 	Description string
 	URL         string

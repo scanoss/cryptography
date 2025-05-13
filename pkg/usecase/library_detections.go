@@ -79,7 +79,6 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 			//	d.s.Errorf("Missing requirement for purl '%s': %s", reqPurl.Purl, err)
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
-
 		}
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
@@ -107,10 +106,10 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 		nonDupAlgorithms := make(map[string]bool)
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[alg.Id]; !exist {
-				nonDupAlgorithms[alg.Id] = true
+			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
+				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.Id,
+					dtos.ECDetectedItem{Id: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
@@ -119,23 +118,19 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 			}
 		}
 		item.Versions = []string{}
-		for k, _ := range nonDupVersions {
+		for k := range nonDupVersions {
 			item.Versions = append(item.Versions, k)
 		}
-
 		sort.Slice(item.Versions, func(i, j int) bool {
 			versionA, _ := semver.NewVersion(item.Versions[i])
 			versionB, _ := semver.NewVersion(item.Versions[j])
 
 			return versionA.LessThan(versionB)
 		})
-
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
 		}
-
 		out.Hints = append(out.Hints, item)
-
 	}
 	return out, summary, nil
 }
@@ -168,9 +163,7 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 		if errQ != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
-
 		}
-
 		item := dtos.HintsOutputItem{Purl: reqPurl.Purl, Version: res.Version}
 		uses, err1 := d.usage.GetLibraryUsageByURLHashes([]string{res.URLHash})
 		if err1 != nil {
@@ -181,10 +174,10 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 		nonDupAlgorithms := make(map[string]bool)
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[alg.Id]; !exist {
-				nonDupAlgorithms[alg.Id] = true
+			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
+				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.Id,
+					dtos.ECDetectedItem{Id: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
@@ -192,13 +185,10 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 						Purl:        alg.Purl})
 			}
 		}
-
 		if len(uses) == 0 {
 			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
 		}
-
 		out.Hints = append(out.Hints, item)
-
 	}
 	return out, summary, nil
 }

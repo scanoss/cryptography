@@ -212,66 +212,8 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	if len(summary.PurlsNotFound) != 1 {
 		t.Fatalf("Expected to get exactly one purl not found and received %d", len(summary.PurlsFailedToParse))
 	}
-
-	/*if len(versions.Versions[0].VersionsWith) != 3 {
-		t.Fatalf("expected to get 3 versions with crypto and received %d\n", len(versions.Versions[0].VersionsWith))
-	}
-	if len(versions.Versions[0].VersionsWithout) != 0 {
-		t.Fatalf("Not expected to get versions without crypto %d\n", len(versions.Versions[0].VersionsWith))
-	}
-
-	/* dtos.VersionsInRangeUsingCryptoItem {Purl: "pkg:github/scanoss/engine", VersionsWith: []string len: 3, cap: 4, ["5.4.5","5.4.6","5.4.7"], VersionsWithout: []string len: 0, cap: 0, []}
-	*/
-
-	_ = summary
-	/*if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
-		t.Fatalf("Expected to receive  3 versions")
-	}
-
-	if len(algorithms.Cryptography[0].Algorithms) == 0 || len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 algorithm")
-	}
-
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
-	if err != nil {
-		t.Fatalf("error not expected: %v", err)
-	}
-	if len(summary.PurlsFailedToParse) > 0 {
-		t.Fatal("Expected to get All purls")
-	}
-
-	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
-		t.Fatalf("Expected to receive  2 versions")
-	}
-
-	cryptoRequest = `{
-		"purls": [
-		  {
-			"purl": "pkg:github/scanoss/engine",
-			"requirement":">v5.4.5,<5.4.7"
-
-		  }
-		]
-		}`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoRequest))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
-	}
-
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(requestDto)
-	if err != nil {
-		t.Fatalf("error not expected: %v", err)
-	}
-	if len(summary.PurlsNotFound) > 0 {
-		t.Fatal("Expected to get All purls")
-	}
-
-	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 1 {
-		t.Fatalf("Expected to receive  2 versions")
-	}*/
 }
 
-// TODO: Implement this test
 func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

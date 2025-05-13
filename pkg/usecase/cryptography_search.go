@@ -76,14 +76,12 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, m
 	for _, reqPurl := range request.Purls {
 		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
 		if err != nil {
-
 			// Append purl to the list of malformed purls
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
 			continue
 		}
 		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
 			continue
 		}
@@ -133,17 +131,13 @@ func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, m
 	for r := range query {
 		query[r].SelectedURLS, err = models.PickClosestUrls(d.s, purlMap[query[r].PurlName], query[r].PurlName, "", query[r].Requirement)
 		if err != nil {
-			return dtos.CryptoOutput{}, models.QuerySummary{}, nil
+			return dtos.CryptoOutput{}, models.QuerySummary{}, err
 		}
 		if len(query[r].SelectedURLS) > 0 {
 			query[r].SelectedVersion = query[r].SelectedURLS[0].Version
 			for h := range query[r].SelectedURLS {
 				urlHashes = append(urlHashes, query[r].SelectedURLS[h].URLHash)
-
 			}
-		} else {
-			// NO URL linked to that reqPurl
-			//purlMap[urls[r].PurlName] = append(purlMap[urls[r].PurlName], urls[r])
 		}
 		mapInfo[query[r].PurlName] = false
 	}
