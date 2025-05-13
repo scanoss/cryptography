@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -124,36 +125,115 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 
-	server := NewCryptographyServer(db, myConfig)
-	r, err := server.GetAlgorithms(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}}})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 1 {
-		t.Errorf("Expected to get exactly one purl")
+	invalidDB, err := sqlx.Connect("sqlite", ":memory:")
+	invalidDB.Close()
+	tests := []struct {
+		name                 string
+		req                  string
+		request              string
+		expectedPurls        int
+		expectedError        bool
+		status               common.StatusCode
+		expectedErrorMessage string
+		db                   *sqlx.DB
+	}{
+		{
+			name:                 "Should_Return_ResponseWithOnePurl",
+			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}]}`,
+			expectedPurls:        1,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_CantFindPurl",
+			request:              `{"purls": [{"purl": "pkg:github/scanoss/engines", "requirement":"v5.4.5"}]}`,
+			expectedPurls:        0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_FailedToParsePurl",
+			request:              `{"purls": [{"purl": "pkg:githubscanossengine", "requirement":"v5.4.5"}]}`,
+			expectedPurls:        0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_ResponseWithTwoPurls",
+			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}, {"purl": "pkg:github/scanoss/dependencies", "requirement": "v5.4.5"}]}`,
+			expectedPurls:        2,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find information for 1 purl(s):scanoss/dependencies",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_NoDataSupplied",
+			request:              `{"purls":[]}`,
+			expectedError:        true,
+			expectedPurls:        0,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "No purls in request data supplied",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_NoDataSupplied",
+			request:              `{"purls":[{"purl":""}]}`,
+			expectedError:        false,
+			expectedPurls:        0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			db:                   db,
+		},
+		{
+			name:                 "Should_ReturnError_NoDBConnection",
+			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}]}`,
+			expectedError:        true,
+			expectedPurls:        0,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "Failed to get database pool connection",
+			db:                   invalidDB,
+		},
+		{
+			name:                 "Should_ReturnError_InvalidJSON",
+			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement": [],}]}`,
+			expectedError:        true,
+			expectedPurls:        0,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "No purls in request data supplied",
+			db:                   db,
+		},
 	}
 
-	r, err = server.GetAlgorithms(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"}}})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
-		t.Errorf("Expected to get exactly one purl")
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := NewCryptographyServer(tt.db, myConfig)
+			var req common.PurlRequest
+			err = json.Unmarshal([]byte(tt.request), &req)
+			r, err := server.GetAlgorithms(ctx, &req)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("service.GetAlgorithms() error = %v, wantErr %v", err, tt.expectedError)
+			}
+			if len(r.Purls) != tt.expectedPurls {
+				t.Errorf("expected to get exactly %d purl, but received %d", tt.expectedPurls, len(r.Purls))
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
+			}
+			if r.Status.Message != tt.expectedErrorMessage {
+				t.Errorf("service.GetAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			}
 
-	r, err = server.GetAlgorithms(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
-		t.Errorf("Expected to get exactly one purl")
-	}
-	r, err = server.GetAlgorithms(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 2 {
-		t.Errorf("Expected to get exactly one purl")
-	} else if !strings.Contains(r.Status.Message, "Can't find information for 1 purl(s)") {
-		t.Errorf("Status message does not match")
+		})
 	}
 }
+
 func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 
 	ctx := context.Background()
