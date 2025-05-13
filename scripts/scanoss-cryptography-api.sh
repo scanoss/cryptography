@@ -21,8 +21,6 @@ if [ -f "$LOGFILE" ] ; then
   gzip -f "$BACKUP_FILE"
 fi
 echo > "$LOGFILE"
-
-echo > $LOGFILE
 # Start scanoss-cryptography-api
 echo "starting SCANOSS Cryptography API"
 exec /usr/local/bin/scanoss-cryptography-api --json-config "$CONF_FILE" > "$LOGFILE" 2>&1

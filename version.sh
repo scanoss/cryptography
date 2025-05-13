@@ -18,6 +18,7 @@
 
 version=$(git describe --tags --abbrev=0)
 if [[ -z "$version" ]] ; then
+  # shellcheck disable=SC2046
   version=$(git describe --tags $(git rev-list --tags --max-count=1))
 fi
 if [[ -z "$version" ]] ; then
