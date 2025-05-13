@@ -18,6 +18,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -130,6 +131,44 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("Expected to not find information for purl")
 	}
 
+	tests := []struct {
+		name          string
+		input         string
+		expectedError bool
+	}{
+		{
+			name:          "Should_ReturnError_EmptyListOfPurls",
+			input:         `{"purls": []}}`,
+			expectedError: true,
+		},
+		{
+			name:          "Should_ReturnError_RequirementIncludeWildcard",
+			input:         `{"purls": [ {"purl": "pkg:github/scanoss/engine", "requirement": "*" } ]}`,
+			expectedError: true,
+		},
+		{
+			name:          "Should_ReturnError_RequirementIncludeWildcard",
+			input:         `{"purls": [ {"purl": "pkg:github/scanoss/engine", "requirement": "v*" } ]}`,
+			expectedError: true,
+		},
+		{
+			name:          "Should_Return_EmptyListOfPurls",
+			input:         `{"purls": [ {"purl": "pkgg:github/scanoss/engine"} ]}`,
+			expectedError: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var req dtos.CryptoInput
+			json.Unmarshal([]byte(test.input), &req)
+			libraries, summary, err = hintsUc.GetDetectionsInRange(req)
+			if (err != nil) != test.expectedError {
+				t.Errorf("Test '%s': Expected an error but got nil", test.name)
+			}
+		})
+	}
+
 	var emptyRequest = `{
 		"purls": [
 			 ]
@@ -151,6 +190,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("Expected to not get information of purls")
 	}
 }
+
 func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

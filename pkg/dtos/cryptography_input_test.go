@@ -18,6 +18,7 @@ package dtos
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -33,31 +34,97 @@ func TestParseCryptoInput(t *testing.T) {
 	defer zlog.SyncZap()
 	ctx := ctxzap.ToContext(context.Background(), zlog.L)
 	s := ctxzap.Extract(ctx).Sugar()
-	var cryptoRequest = `{
-				"purls": [
-				  {
-					"purl": "pkg:github/pineappleea/pineapple-src",
-					"requirement":">=0"
-					
-				  }
-				]
-				}`
-	requestDto, err := ParseCryptoInput(s, []byte(cryptoRequest))
-	_ = requestDto
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+
+	tests := []struct {
+		name           string
+		input          []byte
+		expectedOutput CryptoInput
+		expectedErr    bool
+	}{
+		{
+			name: "Should_ParseSuccessfully_WhenPurlHasRequirement",
+			input: []byte(
+				`{ "purls": [ 
+								{
+									"purl": "pkg:github/pineappleea/pineapple-src",
+									"requirement":">=0"
+								}
+							]
+				}`),
+			expectedOutput: CryptoInput{
+				Purls: []CryptoInputItem{
+					{
+						Purl:        "pkg:github/pineappleea/pineapple-src",
+						Requirement: ">=0",
+					},
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "Should_ParseSuccessfully_WhenPurlHasNoRequirement",
+			input: []byte(
+				`{ "purls": [ 
+								{
+									"purl": "pkg:github/pineappleea/pineapple-src"
+								}
+							]
+				}`),
+			expectedOutput: CryptoInput{
+				Purls: []CryptoInputItem{
+					{
+						Purl: "pkg:github/pineappleea/pineapple-src",
+					},
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:           "Should_ReturnError_WhenInputIsEmptyString",
+			input:          []byte(""),
+			expectedOutput: CryptoInput{},
+			expectedErr:    true,
+		},
+		{
+			name:           "Should_ReturnError_WhenInputContainsOnlyWhitespace",
+			input:          []byte(" "),
+			expectedOutput: CryptoInput{},
+			expectedErr:    true,
+		},
+		{
+			name:           "Should_ReturnError_WhenInputIsNull",
+			input:          []byte("null"),
+			expectedOutput: CryptoInput{},
+			expectedErr:    false,
+		},
+		{
+			name:           "Should_ReturnError_WhenInputIsInvalidJSON",
+			input:          []byte("{this is not valid json}"),
+			expectedOutput: CryptoInput{},
+			expectedErr:    true,
+		},
+		{
+			name:           "Should_ReturnError_WhenInputIsIncompleteJSON",
+			input:          []byte("{\"Purls\": ["),
+			expectedOutput: CryptoInput{},
+			expectedErr:    true,
+		},
+		{
+			name:           "Should_ReturnError_WhenFieldTypeIsWrong",
+			input:          []byte("{\"Purls\": \"not an array\"}"),
+			expectedOutput: CryptoInput{},
+			expectedErr:    true,
+		},
 	}
-	if requestDto.Purls[0].Purl != "pkg:github/pineappleea/pineapple-src" || requestDto.Purls[0].Requirement != ">=0" {
-		t.Fatalf("Corrupted unmarshalled data")
-	}
-	cryptoRequest = ` `
-	requestDto, err = ParseCryptoInput(s, []byte(cryptoRequest))
-	if err == nil {
-		t.Fatalf("Expected to get an error on empty json")
-	}
-	cryptoRequest = ``
-	requestDto, err = ParseCryptoInput(s, []byte(cryptoRequest))
-	if err == nil {
-		t.Fatalf("Expected to get an error on empty json")
+
+	for _, test := range tests {
+		t.Run(string(test.name), func(t *testing.T) {
+
+			requestDto, err := ParseCryptoInput(s, test.input)
+			if err == nil && test.expectedErr {
+				t.Fatalf("an error was expected when parsing input json, %v", err)
+			}
+			require.Equal(t, test.expectedOutput, requestDto)
+		})
 	}
 }

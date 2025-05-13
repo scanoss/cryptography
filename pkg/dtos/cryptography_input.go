@@ -42,7 +42,8 @@ func ParseCryptoInput(s *zap.SugaredLogger, input []byte) (CryptoInput, error) {
 	err := json.Unmarshal(input, &data)
 	if err != nil {
 		s.Errorf("Parse failure: %v", err)
-		return CryptoInput{}, fmt.Errorf("failed to parse cryptography input data: %v", err)
+		errMsg := fmt.Sprintf("failed to parse cryptography input data: %v", err)
+		return CryptoInput{}, errors.New(errMsg)
 	}
 	s.Debugf("Parsed data2: %v", data)
 	return data, nil

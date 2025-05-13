@@ -36,3 +36,7 @@ local-build-commands.txt
 
 # Ignore logfiles
 *.log
+
+# Coverage files
+coverage.out
+coverage.html
