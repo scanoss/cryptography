@@ -83,7 +83,6 @@ func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage
 	stmt := "SELECT url_hash AS url_hash, det_id as id ,name,description, url, category, purl " +
 		"FROM crypto_libraries ec, component_crypto_library cc " +
 		"WHERE url_hash in " + inStmt + " and cc.det_id=ec.id;"
-	fmt.Println(stmt)
 	var usages []ECUsage
 	err := m.q.SelectContext(m.ctx, &usages, stmt)
 	if err != nil {
