@@ -50,7 +50,6 @@ func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, 
 
 // GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
 func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
-
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -88,7 +87,6 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
-
 		}
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
 		if err1 != nil {
@@ -103,7 +101,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 				item.Algorithms = append(item.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
-		for k, _ := range nonDupVersions {
+		for k := range nonDupVersions {
 			item.Versions = append(item.Versions, k)
 		}
 
@@ -119,7 +117,6 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		}
 
 		out.Cryptography = append(out.Cryptography, item)
-
 	}
 	return out, summary, nil
 }

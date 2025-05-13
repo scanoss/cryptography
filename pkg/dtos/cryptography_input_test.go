@@ -18,12 +18,13 @@ package dtos
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	_ "modernc.org/sqlite"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseCryptoInput(t *testing.T) {
@@ -118,8 +119,7 @@ func TestParseCryptoInput(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(string(test.name), func(t *testing.T) {
-
+		t.Run(test.name, func(t *testing.T) {
 			requestDto, err := ParseCryptoInput(s, test.input)
 			if err == nil && test.expectedErr {
 				t.Fatalf("an error was expected when parsing input json, %v", err)

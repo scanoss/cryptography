@@ -78,8 +78,10 @@ func TestHintsOutputConvert(t *testing.T) {
 	defer zlog.SyncZap()
 
 	var output dtos.ECOutput
-	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/engine", Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "protocol/ssl", Categoty: "protocol"}}})
-	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/dependencies", Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "library/openss", Categoty: "library", Purl: "pkg:github/openssl/openssl"}}})
+	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/engine",
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "protocol/ssl", Categoty: "protocol"}}})
+	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/dependencies",
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "library/openss", Categoty: "library", Purl: "pkg:github/openssl/openssl"}}})
 	input, err := convertECOutput(zlog.S, output)
 	if err != nil {
 		t.Errorf("TestHintOutputConvert failed: %v", err)
@@ -95,7 +97,8 @@ func TestVersionsInRangeOutputConvert(t *testing.T) {
 	defer zlog.SyncZap()
 
 	var output dtos.VersionsInRangeOutput
-	output.Versions = append(output.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: "pkg:github/scanoss/engine", VersionsWith: []string{"1.0", "1.1"}, VersionsWithout: []string{"2.0", "2.1"}})
+	output.Versions = append(output.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: "pkg:github/scanoss/engine",
+		VersionsWith: []string{"1.0", "1.1"}, VersionsWithout: []string{"2.0", "2.1"}})
 	input, err := convertVersionsInRangeUsingCryptoOutput(zlog.S, output)
 	if err != nil {
 		t.Errorf("TestHintOutputConvert failed: %v", err)

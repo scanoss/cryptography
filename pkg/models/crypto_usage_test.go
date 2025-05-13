@@ -75,7 +75,7 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
 	}
 
-	RunTestSQL(db, ctx, conn, "DROP TABLE component_crypto;")
+	_ = RunTestSQL(db, ctx, conn, "DROP TABLE component_crypto;")
 	usage, err = cum.GetCryptoUsageByURLHashes([]string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
 	if err == nil {
 		t.Errorf("Expected to get an error on GetCryptoUsageByURLHashes ")

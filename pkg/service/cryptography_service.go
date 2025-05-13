@@ -179,7 +179,6 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 }
 
 func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
-
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
@@ -303,7 +302,6 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 	}
 
 	return &pb.HintsInRangeResponse{Purls: ecResponse.Purls, Status: &statusResp}, nil
-
 }
 
 func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
@@ -368,7 +366,6 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 	}
 
 	return &pb.HintsResponse{Purls: ecResponse.Purls, Status: &statusResp}, nil
-
 }
 
 // telemetryRequestTime records the crypto algorithms request time to telemetry.
