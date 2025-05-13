@@ -79,9 +79,9 @@ func TestHintsOutputConvert(t *testing.T) {
 
 	var output dtos.ECOutput
 	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/engine",
-		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "protocol/ssl", Categoty: "protocol"}}})
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{ID: "protocol/ssl", Categoty: "protocol"}}})
 	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/dependencies",
-		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{Id: "library/openss", Categoty: "library", Purl: "pkg:github/openssl/openssl"}}})
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{ID: "library/openss", Categoty: "library", Purl: "pkg:github/openssl/openssl"}}})
 	input, err := convertECOutput(zlog.S, output)
 	if err != nil {
 		t.Errorf("TestHintOutputConvert failed: %v", err)
