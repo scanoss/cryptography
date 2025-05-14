@@ -58,14 +58,14 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 	var cryptoRequest = `{
-			   "purls": [
-				 {
-				   "purl": "pkg:github/pineappleea/pineapple-src",
-				   "requirement":">=0"
-				   
-				 }
-			   ]
-			   }`
+				   "purls": [
+					 {
+					   "purl": "pkg:github/pineappleea/pineapple-src",
+					   "requirement":">=0"
+
+					 }
+				   ]
+				   }`
 	hintsUc := NewECDetection(ctx, s, conn, myConfig)
 
 	requestDto, err := dtos.ParseCryptoInput(s, []byte(cryptoRequest))
@@ -84,13 +84,13 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	}
 
 	var unExistentRequirement = `{
-					"purls": [
-						{
-						  "purl":"pkg:github/scanoss/engine"
-						}
-				  ]
-				}
-			`
+						"purls": [
+							{
+							  "purl":"pkg:github/scanoss/engine"
+							}
+					  ]
+					}
+				`
 	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentRequirement))
 
 	if err != nil {
@@ -106,6 +106,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	if len(summary.PurlsFailedToParse) != 1 {
 		t.Fatalf("Expected to fail parsing the purl")
 	}
+
 	var unExistentHints = `{
 		"purls": [
 			{
@@ -113,8 +114,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 			  "requirement":">=1.0"
 			}
 	  ]
-	}
-`
+	}`
 	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentHints))
 
 	if err != nil {
@@ -156,6 +156,16 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 			input:         `{"purls": [ {"purl": "pkgg:github/scanoss/engine"} ]}`,
 			expectedError: false,
 		},
+		{
+			name: "Should_Return_Hints",
+			input: `{ "purls": [ 
+								{ "purl": "pkg:github/pineappleea/pineapple-src","requirement":">=0" },
+								{ "purl": "pkg:github/pineappleea/pineapple-src","requirement":">=0" },
+								{ "purl":"pkg:github/scanoss/engine" }
+							  ]
+							}`,
+			expectedError: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -170,10 +180,10 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	}
 
 	var emptyRequest = `{
-		"purls": [
-			 ]
-	}
-`
+	   		"purls": [
+	   			 ]
+	   	}
+	   `
 	requestDto, err = dtos.ParseCryptoInput(s, []byte(emptyRequest))
 
 	if err != nil {
