@@ -1,7 +1,5 @@
 run:
   timeout: 3m
-  skip-dirs:
-    - tests
 
 linters-settings:
   cyclop:
@@ -28,7 +26,6 @@ linters-settings:
       - G204
 
   govet:
-    check-shadowing: true
     enable-all: true
     disable-all: false
     disable:
@@ -68,9 +65,13 @@ linters:
     - usestdlibvars
     - whitespace
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gocognit
+  # Replacing deprecated run.skip-files
   exclude-files:
     - ".*_test.go$"
+
+  # Replacing deprecated run.skip-dirs
+  exclude-dirs:
+    - "test"        # Skip whole test directories if you have dedicated test folders
+    - "mocks"       # Skip mock directories
+    - "testdata"    # Skip testdata directories
+    - "tests"
