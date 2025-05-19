@@ -22,13 +22,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
-	"go.uber.org/zap"
+	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	myconfig "scanoss.com/cryptography/pkg/config"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
-	purlhelper "github.com/scanoss/go-purl-helper/pkg"
+	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
+	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 )
@@ -54,84 +54,19 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.ECOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
+
 	out := dtos.ECOutput{}
 	summary := models.QuerySummary{}
-	// Prepare purls to query
+
 	for _, reqPurl := range request.Purls {
-		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
-		if err != nil {
-			//	d.s.Logf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
-			continue
-		}
 		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
 			return dtos.ECOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
-		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
-		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
-
-			continue
+		if item, ok := d.processSinglePurl(reqPurl, &summary); ok {
+			out.Hints = append(out.Hints, *item)
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
-		if errQ != nil {
-			//	d.s.Errorf("Missing requirement for purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
-			continue
-		}
-		if len(res) == 0 {
-			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
-			continue
-		}
-		_ = errQ
-		item := dtos.ECOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
-		hashes := []string{}
-		nonDupVersions := make(map[string]bool)
-		mapVersionHash := make(map[string]string)
-		for _, url := range res {
-			if url.URLHash == "" {
-				// No information for this url
-			} else {
-				hashes = append(hashes, url.URLHash)
-				mapVersionHash[url.URLHash] = url.SemVer
-			}
-		}
-		uses, err1 := d.usage.GetLibraryUsageByURLHashes(hashes)
-		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
-		}
-		// avoid duplicate detections (if any)
-		// Duplicates should have been removed on mining but some appended keyword may produce a duplicate entry for an existing url
-		nonDupAlgorithms := make(map[string]bool)
-		for _, alg := range uses {
-			nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
-				nonDupAlgorithms[alg.ID] = true
-				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.ID,
-						Name:        alg.Name,
-						Description: alg.Description,
-						URL:         alg.URL,
-						Categoty:    alg.Category,
-						Purl:        alg.Purl})
-			}
-		}
-		item.Versions = []string{}
-		for k := range nonDupVersions {
-			item.Versions = append(item.Versions, k)
-		}
-		sort.Slice(item.Versions, func(i, j int) bool {
-			versionA, _ := semver.NewVersion(item.Versions[i])
-			versionB, _ := semver.NewVersion(item.Versions[j])
-
-			return versionA.LessThan(versionB)
-		})
-		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
-		}
-		out.Hints = append(out.Hints, item)
 	}
+
 	return out, summary, nil
 }
 
@@ -156,7 +91,6 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
-
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, reqPurl.Requirement)
@@ -170,14 +104,14 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
 		}
 		// avoid duplicate detections (if any)
-		// Duplicates should have been removed on mining but some appended keyword may produce a duplicate entry for an existing url
+		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
 				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{Id: alg.ID,
+					dtos.ECDetectedItem{ID: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
@@ -191,4 +125,104 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 		out.Hints = append(out.Hints, item)
 	}
 	return out, summary, nil
+}
+
+// processURLResults handles the processing of URL results and creates an ECOutputItem.
+func (d ECDetectionUseCase) processURLResults(res []models.AllURL, reqPurl dtos.CryptoInputItem) (dtos.ECOutputItem, []string) {
+	item := dtos.ECOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
+	hashes := make([]string, 0)
+	mapVersionHash := make(map[string]string)
+
+	for _, url := range res {
+		if url.URLHash != "" {
+			hashes = append(hashes, url.URLHash)
+			mapVersionHash[url.URLHash] = url.SemVer
+		}
+	}
+
+	return item, d.processUsages(hashes, mapVersionHash, &item)
+}
+
+// processUsages handles library usage processing and returns hashes.
+func (d ECDetectionUseCase) processUsages(hashes []string, mapVersionHash map[string]string, item *dtos.ECOutputItem) []string {
+	uses, err := d.usage.GetLibraryUsageByURLHashes(hashes)
+	if err != nil {
+		d.s.Errorf("error getting algorithms usage for purl '%s': %s", item.Purl, err)
+		return hashes
+	}
+	// If a library has no usages, return empty hashes
+	if len(uses) == 0 {
+		return []string{}
+	}
+
+	nonDupVersions := make(map[string]bool)
+	nonDupAlgorithms := make(map[string]bool)
+
+	for _, alg := range uses {
+		nonDupVersions[mapVersionHash[alg.URLHash]] = true
+		if _, exist := nonDupAlgorithms[alg.ID]; !exist {
+			nonDupAlgorithms[alg.ID] = true
+			item.Detections = append(item.Detections, dtos.ECDetectedItem{
+				ID:          alg.ID,
+				Name:        alg.Name,
+				Description: alg.Description,
+				URL:         alg.URL,
+				Categoty:    alg.Category,
+				Purl:        alg.Purl,
+			})
+		}
+	}
+
+	item.Versions = d.getSortedVersions(nonDupVersions)
+	return hashes
+}
+
+// getSortedVersions returns a sorted slice of versions.
+func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string {
+	result := make([]string, 0, len(versions))
+	for version := range versions {
+		result = append(result, version)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		versionA, _ := semver.NewVersion(result[i])
+		versionB, _ := semver.NewVersion(result[j])
+		return versionA.LessThan(versionB)
+	})
+
+	return result
+}
+
+// processSinglePurl processes a single PURL and returns whether to continue processing.
+func (d ECDetectionUseCase) processSinglePurl(reqPurl dtos.CryptoInputItem, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
+	purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+	if err != nil {
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		return nil, false
+	}
+
+	purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl)
+	if err != nil {
+		d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		return nil, false
+	}
+
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
+	if err != nil {
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		return nil, false
+	}
+
+	if len(res) == 0 {
+		summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
+		return nil, false
+	}
+
+	item, hashes := d.processURLResults(res, reqPurl)
+	if len(hashes) == 0 {
+		summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+	}
+
+	return &item, true
 }
