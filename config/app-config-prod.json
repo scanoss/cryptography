@@ -3,8 +3,8 @@
     "Name": "Cryptography Service",
     "Debug": false,
     "Mode":  "prod",
-    "GRPCPort": "55054",
-    "RESTPort": "44054"
+    "GRPCPort": "50054",
+    "RESTPort": "40054"
   },
   "Database": {
     "Driver": "sqlite",
