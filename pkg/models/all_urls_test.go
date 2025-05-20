@@ -235,10 +235,10 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 	myConfig.Database.Trace = true
 	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	allUrls := []AllURL{AllURL{URLHash: "0", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.0", PurlType: "github"},
-		AllURL{URLHash: "1", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.1", PurlType: "github"},
-		AllURL{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},
-		AllURL{URLHash: "3", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.3", PurlType: "github"},
+	allUrls := []AllURL{{URLHash: "0", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.0", PurlType: "github"},
+		{URLHash: "1", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.1", PurlType: "github"},
+		{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},
+		{URLHash: "3", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.3", PurlType: "github"},
 	}
 	_, err = PickClosestUrls(allUrlsModel.s, allUrls, "scanoss/engine", "github", "v1.3")
 	fmt.Printf("%+v", allUrls)

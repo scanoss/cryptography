@@ -61,8 +61,8 @@ func TestCryptoMajorOutputConvert(t *testing.T) {
 	defer zlog.SyncZap()
 
 	var output dtos.CryptoInRangeOutput
-	output.Cryptography = append(output.Cryptography, dtos.CryptoInRangeOutputItem{Purl: "pkg:github/scanoss/engine", Versions: []string{"1.0", "1.1"}, Algorithms: []dtos.CryptoUsageItem{dtos.CryptoUsageItem{Algorithm: "MD5", Strength: "128"}}})
-	output.Cryptography = append(output.Cryptography, dtos.CryptoInRangeOutputItem{Purl: "pkg:github/scanoss/minr", Versions: []string{"2.0", "21.1"}, Algorithms: []dtos.CryptoUsageItem{dtos.CryptoUsageItem{Algorithm: "CRC64", Strength: "64"}}})
+	output.Cryptography = append(output.Cryptography, dtos.CryptoInRangeOutputItem{Purl: "pkg:github/scanoss/engine", Versions: []string{"1.0", "1.1"}, Algorithms: []dtos.CryptoUsageItem{{Algorithm: "MD5", Strength: "128"}}})
+	output.Cryptography = append(output.Cryptography, dtos.CryptoInRangeOutputItem{Purl: "pkg:github/scanoss/minr", Versions: []string{"2.0", "21.1"}, Algorithms: []dtos.CryptoUsageItem{{Algorithm: "CRC64", Strength: "64"}}})
 	input, err := convertCryptoMajorOutput(zlog.S, output)
 	if err != nil {
 		t.Errorf("TestCryptoMajorOutputConvert failed: %v", err)
@@ -79,9 +79,9 @@ func TestHintsOutputConvert(t *testing.T) {
 
 	var output dtos.ECOutput
 	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/engine",
-		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{ID: "protocol/ssl", Categoty: "protocol"}}})
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{{ID: "protocol/ssl", Category: "protocol"}}})
 	output.Hints = append(output.Hints, dtos.ECOutputItem{Purl: "pkg:github/scanoss/dependencies",
-		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{dtos.ECDetectedItem{ID: "library/openss", Categoty: "library", Purl: "pkg:github/openssl/openssl"}}})
+		Versions: []string{"1.0", "1.1"}, Detections: []dtos.ECDetectedItem{{ID: "library/openss", Category: "library", Purl: "pkg:github/openssl/openssl"}}})
 	input, err := convertECOutput(zlog.S, output)
 	if err != nil {
 		t.Errorf("TestHintOutputConvert failed: %v", err)
