@@ -48,7 +48,7 @@ func NewECDetection(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, 
 	}
 }
 
-// GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
+// GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
 func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos.ECOutput, models.QuerySummary, error) {
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")
@@ -115,7 +115,7 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
-						Categoty:    alg.Category,
+						Category:    alg.Category,
 						Purl:        alg.Purl})
 			}
 		}
@@ -167,7 +167,7 @@ func (d ECDetectionUseCase) processUsages(hashes []string, mapVersionHash map[st
 				Name:        alg.Name,
 				Description: alg.Description,
 				URL:         alg.URL,
-				Categoty:    alg.Category,
+				Category:    alg.Category,
 				Purl:        alg.Purl,
 			})
 		}

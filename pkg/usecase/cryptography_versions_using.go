@@ -78,7 +78,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 
 		_ = errQ
 		item := dtos.VersionsInRangeUsingCryptoItem{Purl: reqPurl.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
-		hashes := []string{}
+		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {

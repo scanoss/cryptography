@@ -171,7 +171,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var req dtos.CryptoInput
-			json.Unmarshal([]byte(test.input), &req)
+			_ = json.Unmarshal([]byte(test.input), &req)
 			libraries, summary, err = hintsUc.GetDetectionsInRange(req)
 			if (err != nil) != test.expectedError {
 				t.Errorf("Test '%s': Expected an error but got nil", test.name)

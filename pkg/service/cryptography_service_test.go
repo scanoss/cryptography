@@ -126,6 +126,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 
 	invalidDB, err := sqlx.Connect("sqlite", ":memory:")
 	invalidDB.Close()
+	
 	tests := []struct {
 		name                 string
 		req                  string

@@ -54,7 +54,7 @@ func SupportTools() error {
 	flag.StringVar(&defJSONPath, "json-definition", "", "Defines a json file path")
 	flag.StringVar(&createLibrariesTable, "create-table", "", "Defines a table to be created")
 	flag.Parse()
-	defs := []DetectionsDefinition{}
+	var defs []DetectionsDefinition
 
 	if createLibrariesTable != "" {
 		data, errFile := os.ReadFile(defJSONPath)
