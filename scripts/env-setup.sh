@@ -17,9 +17,14 @@ if [ "$1" = "-h" ] || [ "$1" = "-help" ] ; then
   exit 1
 fi
 
-CONF_DIR=/usr/local/etc/scanoss/cryptography
-LOGS_DIR=/var/log/scanoss/cryptography
-CONF_DOWNLOAD=https://raw.githubusercontent.com/scanoss/cryptography/main/config/app-config-prod.json
+export BASE_C_PATH=/usr/local/etc/scanoss
+export CONF_DIR="${BASE_C_PATH}/cryptography"
+export LOGS_DIR=/var/log/scanoss/cryptography
+export CONF_DOWNLOAD_URL=https://raw.githubusercontent.com/scanoss/cryptography/refs/heads/main/config/app-config-prod.json
+export DB_PATH_BASE=/var/lib/scanoss
+export SQLITE_PATH="${DB_PATH_BASE}/db/sqlite/cryptography"
+export SQLITE_DB_NAME="db.sqlite"
+
 
 ENVIRONMENT=""
 FORCE_INSTALL=0
@@ -119,31 +124,140 @@ if ! chmod +x /usr/local/bin/scanoss-cryptography-api.sh ; then
   echo "Cryptography api startup script permissions failed"
   exit 1
 fi
-# Copy in the configuration file if requested
+
+
+####################################################
+#                SEARCH CONFIG FILE                #
+####################################################
 CONF=app-config-prod.json
 if [ -n "$ENVIRONMENT" ] ; then
   CONF="app-config-${ENVIRONMENT}.json"
 fi
-if [ -f "$SCRIPT_DIR/$CONF" ] ; then
-  echo "Copying app config to $CONF_DIR ..."
-  if ! cp "$SCRIPT_DIR/$CONF" "$CONF_DIR/" ; then
-    echo "copy $CONF failed"
-    exit 1
+CONFIG_FILE_PATH=""
+# Search on current dir
+if [ -f "./$CONF" ]; then
+    CONFIG_FILE_PATH="./$CONF"
+# Search on parent dir
+elif [ -f "../$CONF" ]; then
+    CONFIG_FILE_PATH="../$CONF"
+fi
+############### END SEARCH CONFIG FILE ##############
+
+####################################################
+#                   SETUP SQLITE DB                #
+####################################################
+SQLITE_DB_PATH=""
+# Search on current dir
+if [ -f "./$SQLITE_DB_NAME" ]; then
+    SQLITE_DB_PATH="./$SQLITE_DB_NAME"
+# Search on parent dir
+elif [ -f "../$SQLITE_DB_NAME" ]; then
+    SQLITE_DB_PATH="../$SQLITE_DB_NAME"
+fi
+## If SQLite DB is found.
+SQLITE_TARGET_PATH="$SQLITE_PATH/$SQLITE_DB_NAME"
+if [ -n "$SQLITE_DB_PATH" ]; then
+    # If the target DB already exists, ask to replace it.
+    if [ -f "$SQLITE_TARGET_PATH" ]; then
+        read -p "SQLite file found at $(realpath "$SQLITE_DB_PATH"). Do you want to replace the ${SQLITE_TARGET_PATH}? (n/y) [n]: " -n 1 -r
+              echo
+       if [[ "$REPLY" =~ ^[Yy]$ ]] ; then
+          echo "Copying SQLite from $(realpath "$SQLITE_DB_PATH") to $SQLITE_PATH"
+          echo "Please be patient, this process might take some minutes..."
+          if ! cp "$SQLITE_DB_PATH" "$SQLITE_PATH/$SQLITE_DB_NAME"; then
+              echo "Error: Failed to copy SQLite database."
+              exit 1
+          fi
+          echo "Database successfully copied."
+       else
+         echo "Skipping DB copy."
+       fi
+    else
+       # Create SQLite DB dir
+       if ! mkdir -p "$SQLITE_PATH"; then
+           echo "Error: Failed to create directory: $SQLITE_PATH"
+           exit 1
+       fi
+       # Copy database
+       echo "Copying SQLite from $(realpath "$SQLITE_DB_PATH") to $SQLITE_PATH"
+       echo "Please be patient, this process might take some minutes."
+       if ! cp "$SQLITE_DB_PATH" "$SQLITE_PATH/$SQLITE_DB_NAME"; then
+           echo "Error: Failed to copy SQLite database from $SQLITE_DB_PATH to $SQLITE_PATH/$SQLITE_DB_NAME"
+           exit 1
+       fi
+       echo "Database successfully copied."
+    fi
+else
+  echo "Warning: No SQLite DB detected. Skipping DB setup."
+fi
+if [ ! -f "$SQLITE_TARGET_PATH" ] ; then
+  echo "Warning: No database exists at: $SQLITE_TARGET_PATH"
+  echo "Service startup will most likely fail."
+fi
+############### END SETUP SQLITE DB ################
+
+
+####################################################
+#                  COPY CONFIG FILE                #
+####################################################
+TARGET_CONFIG_PATH="$CONFIG_DIR/$CONF"
+if [ -n "$CONFIG_FILE_PATH" ]; then
+  if [ -f "$TARGET_CONFIG_PATH" ]; then
+      read -p "Configuration file found at $(realpath "$TARGET_CONFIG_PATH"). Do you want to replace $TARGET_CONFIG_PATH? (n/y) [n]: " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]] ; then
+          echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $TARGET_CONFIG_PATH ..."
+          if ! cp "$CONFIG_FILE_PATH" "$CONFIG_DIR/"; then
+            echo "Error: Failed to copy config file."
+            exit 1
+          fi
+        else
+          echo "Skipping config file copy."
+        fi
+  else
+      echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $TARGET_CONFIG_PATH ..."
+      if ! cp "$CONFIG_FILE_PATH" "$CONF_DIR/"; then
+        echo "Error: Failed to copy config file."
+        exit 1
+      fi
   fi
 else
-  if [ ! -f "$CONF_DIR/$CONF" ] ; then
-    # if the target conf file (/usr/local/etc/scanoss/cryptography/app-config-prod.json) doesn't exist
-    # But a local downloaded (current or parent directory) - copy that
-    # if the target config file doesn't exist, and there is no local, offer to download from GH
-    read -p "Download sample $CONF (y/n) [y]? " -n 1 -r
-    echo
+    read -p "Configuration file not found. Do you want to download an example $CONF file? (n/y) [n]: " -n 1 -r
+      echo
     if [[ $REPLY =~ ^[Nn]$ ]] ; then
-      echo "Please put the config file into: $CONF_DIR/$CONF"
-    elif ! curl $CONF_DOWNLOAD > "$CONF_DIR/$CONF" ; then
-      echo "Warning: curl download failed"
+        echo "Please put the config file into: $TARGET_CONFIG_PATH"
+      elif ! curl  $CONF_DOWNLOAD_URL > "$CONF_DIR/$CONF" ; then
+        echo "Warning: curl download failed"
     fi
-  fi
 fi
+
+if [ ! -f "$TARGET_CONFIG_PATH" ] ; then
+  echo "Warning: No application config file in place: $TARGET_CONFIG_PATH"
+  echo "Service startup will most likely fail, especially in relation to the DB location."
+fi
+################ END CONFIG FILE ##################
+
+####################################################
+#         CHANGE OWNERSHIP AND PERMISSIONS         #
+####################################################
+# Change ownership to config folder
+if ! chown -R $RUNTIME_USER:$RUNTIME_USER "$BASE_C_PATH"; then
+  echo "Error: Problem changing ownership to config folder: $BASE_C_PATH"
+  exit 1
+fi
+# Change permissions to config folder
+if ! chmod -R 700 "$CONFIG_DIR"; then
+  echo "Error: Problem changing permissions to config folder: $CONFIG_DIR"
+  exit 1
+fi
+# Change ownership to SQLite folder
+if ! chown -R $RUNTIME_USER:$RUNTIME_USER "$DB_PATH_BASE"; then
+    echo "Error: Failed to change ownership to $RUNTIME_USER"
+    echo "Please check if the user exists and you have proper permissions."
+    exit 1
+fi
+######  END CHANGE OWNERSHIP AND PERMISSIONS #######
+
 # Copy the binaries if requested
 BINARY=scanoss-cryptography-api
 if [ -f "$SCRIPT_DIR/$BINARY" ] ; then
@@ -176,7 +290,7 @@ if [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo "curl $CONF_DOWNLOAD > $CONF_DIR/$CONF"
 fi
 echo
-echo "Review service config in: $CONF_DIR/$CONF"
+echo "Review service config in: $TARGET_CONFIG_PATH"
 echo "Logs are stored in: $LOGS_DIR"
 echo "Start the service using: systemctl start $SC_SERVICE_NAME"
 echo "Stop the service using: systemctl stop $SC_SERVICE_NAME"
