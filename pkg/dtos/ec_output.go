@@ -31,7 +31,7 @@ type ECDetectedItem struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	URL         string `json:"URL,omitempty"`
-	Categoty    string `json:"category"`
+	Category    string `json:"category"`
 	Purl        string `json:"purl,omitempty"`
 }
 

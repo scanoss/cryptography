@@ -59,7 +59,7 @@ func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, confi
 	}
 }
 
-// GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CrytoOutput struct.
+// GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
 func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, models.QuerySummary, error) {
 	if len(request.Purls) == 0 {
 		d.s.Info("Empty List of Purls supplied")

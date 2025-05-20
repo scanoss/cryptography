@@ -40,3 +40,6 @@ local-build-commands.txt
 # Coverage files
 coverage.out
 coverage.html
+
+# idea
+.idea

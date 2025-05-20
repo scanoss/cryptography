@@ -212,7 +212,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	}
 
 	for _, u := range allUrls {
-		// Analize version
+		// Analyze version
 		version, err := semver.NewVersion(u.SemVer)
 		if err != nil {
 			continue
@@ -302,7 +302,6 @@ func PickClosestUrls(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType,
 		s.Infof("No component match (in urls) found for %v, %v", purlName, purlType)
 		return []AllURL{}, nil
 	}
-	// s.Debugf("Potential Matches: %v", allUrls)
 	var c *semver.Constraints
 	var urlMap = make(map[*semver.Version][]AllURL)
 
@@ -355,10 +354,8 @@ func PickClosestUrls(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType,
 		versions[vi] = version
 		vi++
 	}
-	// s.Debugf("Version List: %v", versions)
 	sort.Sort(semver.Collection(versions))
 	version := versions[len(versions)-1] // Get the latest (acceptable) URL version
-	// s.Debugf("Sorted versions: %v. Highest: %v", versions, version)
 
 	url, ok := urlMap[version] // Retrieve the latest accepted URL version
 	if !ok {
