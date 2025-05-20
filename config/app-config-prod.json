@@ -3,12 +3,12 @@
     "Name": "Cryptography Service",
     "Debug": false,
     "Mode":  "prod",
-    "GRPCPort": "55054",
-    "RESTPort": "44054"
+    "GRPCPort": "50054",
+    "RESTPort": "40054"
   },
   "Database": {
     "Driver": "sqlite",
-    "Dsn": "/data/home/scanoss/deploy/scanoss-cryptography/components_decoration.sqlite?cache=shared&mode=memory"
+    "Dsn": "/var/lib/scanoss/db/sqlite/cryptography/data.sqlite?cache=shared&mode=memory"
   },
   "TLS": {
     "CertFile": "",

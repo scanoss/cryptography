@@ -132,6 +132,9 @@ if [ -f "$SCRIPT_DIR/$CONF" ] ; then
   fi
 else
   if [ ! -f "$CONF_DIR/$CONF" ] ; then
+    # if the target conf file (/usr/local/etc/scanoss/cryptography/app-config-prod.json) doesn't exist
+    # But a local downloaded (current or parent directory) - copy that
+    # if the target config file doesn't exist, and there is no local, offer to download from GH
     read -p "Download sample $CONF (y/n) [y]? " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]] ; then
