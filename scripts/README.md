@@ -2,7 +2,7 @@
 This folder contains convenience utilities for deploying, configuring and running the SCANOSS cryptography API service.
 
 ## Setup
-The [scripts](.) folder contains an [env_setup.sh](env-setup.sh) script which attempts to do the following:
+The [scripts](.) folder contains an [env-setup.sh](env-setup.sh) script which attempts to do the following:
 * Set up the default folders
 * Set permissions
 * Set up service registration ([scanoss-cryptography-api.service](scanoss-cryptography-api.service))
@@ -16,9 +16,9 @@ Logs are written by default to `/var/log/scanoss/cryptography/scanoss-cryptograp
 Configuration is written by default to: `/usr/local/etc/scanoss/cryptography`.
 
 ## Installation
-Running the [env_setup.sh](env-setup.sh) on the target server, takes care of installation. Simply run:
+Running the [env-setup.sh](env-setup.sh) on the target server, takes care of installation. Simply run:
 ```shell
-./env_setup.sh
+./env-setup.sh
 ```
 
 This will copy the configuration files to `/usr/local/etc/scanoss/cryptography` the binaries to `/usr/local/bin` and the service registration to `/etc/systemd/system`. 
@@ -43,7 +43,7 @@ cp app-config-prod.json app-config-<env>.json
 
 Finally, run the environment setup script using:
 ```shell
-./env_setup.sh <env>
+./env-setup.sh <env>
 ```
 
 This will search for these specific service & config files and place them in the correct location.
