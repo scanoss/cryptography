@@ -18,12 +18,13 @@ if [ "$1" = "-h" ] || [ "$1" = "-help" ] ; then
 fi
 
 export BASE_C_PATH=/usr/local/etc/scanoss
-export CONF_DIR="${BASE_C_PATH}/cryptography"
+export CONFIG_DIR="${BASE_C_PATH}/cryptography"
 export LOGS_DIR=/var/log/scanoss/cryptography
 export CONF_DOWNLOAD_URL=https://raw.githubusercontent.com/scanoss/cryptography/refs/heads/main/config/app-config-prod.json
 export DB_PATH_BASE=/var/lib/scanoss
 export SQLITE_PATH="${DB_PATH_BASE}/db/sqlite/cryptography"
-export SQLITE_DB_NAME="db.sqlite"
+export SQLITE_DB_NAME=base.sqlite
+export TARGET_SQLITE_DB_NAME=db.sqlite
 
 
 ENVIRONMENT=""
@@ -75,7 +76,7 @@ else
 fi
 # Setup all the required folders and ownership
 echo "Setting up Cryptography API system folders..."
-if ! mkdir -p "$CONF_DIR" ; then
+if ! mkdir -p "$CONFIG_DIR" ; then
   echo "mkdir failed"
   exti 1
 fi
@@ -154,8 +155,17 @@ if [ -f "./$SQLITE_DB_NAME" ]; then
 elif [ -f "../$SQLITE_DB_NAME" ]; then
     SQLITE_DB_PATH="../$SQLITE_DB_NAME"
 fi
+
+# Create SQLite DB dir
+if [ ! -d "$SQLITE_PATH" ] ; then
+  if ! mkdir -p "$SQLITE_PATH"; then
+    echo "Error: Failed to create directory: $SQLITE_PATH"
+    exit 1
+  fi
+fi
+
 ## If SQLite DB is found.
-SQLITE_TARGET_PATH="$SQLITE_PATH/$SQLITE_DB_NAME"
+SQLITE_TARGET_PATH="$SQLITE_PATH/$TARGET_SQLITE_DB_NAME"
 if [ -n "$SQLITE_DB_PATH" ]; then
     # If the target DB already exists, ask to replace it.
     if [ -f "$SQLITE_TARGET_PATH" ]; then
@@ -164,7 +174,7 @@ if [ -n "$SQLITE_DB_PATH" ]; then
        if [[ "$REPLY" =~ ^[Yy]$ ]] ; then
           echo "Copying SQLite from $(realpath "$SQLITE_DB_PATH") to $SQLITE_PATH"
           echo "Please be patient, this process might take some minutes..."
-          if ! cp "$SQLITE_DB_PATH" "$SQLITE_PATH/$SQLITE_DB_NAME"; then
+          if ! cp "$SQLITE_DB_PATH" "$SQLITE_TARGET_PATH"; then
               echo "Error: Failed to copy SQLite database."
               exit 1
           fi
@@ -173,16 +183,11 @@ if [ -n "$SQLITE_DB_PATH" ]; then
          echo "Skipping DB copy."
        fi
     else
-       # Create SQLite DB dir
-       if ! mkdir -p "$SQLITE_PATH"; then
-           echo "Error: Failed to create directory: $SQLITE_PATH"
-           exit 1
-       fi
        # Copy database
        echo "Copying SQLite from $(realpath "$SQLITE_DB_PATH") to $SQLITE_PATH"
        echo "Please be patient, this process might take some minutes."
-       if ! cp "$SQLITE_DB_PATH" "$SQLITE_PATH/$SQLITE_DB_NAME"; then
-           echo "Error: Failed to copy SQLite database from $SQLITE_DB_PATH to $SQLITE_PATH/$SQLITE_DB_NAME"
+       if ! cp "$SQLITE_DB_PATH" "$SQLITE_TARGET_PATH"; then
+           echo "Error: Failed to copy SQLite database from $SQLITE_DB_PATH to $SQLITE_PATH"
            exit 1
        fi
        echo "Database successfully copied."
@@ -206,7 +211,7 @@ if [ -n "$CONFIG_FILE_PATH" ]; then
       read -p "Configuration file found at $(realpath "$TARGET_CONFIG_PATH"). Do you want to replace $TARGET_CONFIG_PATH? (n/y) [n]: " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]] ; then
-          echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $TARGET_CONFIG_PATH ..."
+          echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $CONFIG_DIR ..."
           if ! cp "$CONFIG_FILE_PATH" "$CONFIG_DIR/"; then
             echo "Error: Failed to copy config file."
             exit 1
@@ -215,20 +220,24 @@ if [ -n "$CONFIG_FILE_PATH" ]; then
           echo "Skipping config file copy."
         fi
   else
-      echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $TARGET_CONFIG_PATH ..."
-      if ! cp "$CONFIG_FILE_PATH" "$CONF_DIR/"; then
+      echo "Copying config file from $(realpath "$CONFIG_FILE_PATH") to $CONFIG_DIR ..."
+      if ! cp "$CONFIG_FILE_PATH" "$CONFIG_DIR/"; then
         echo "Error: Failed to copy config file."
         exit 1
       fi
   fi
 else
-    read -p "Configuration file not found. Do you want to download an example $CONF file? (n/y) [n]: " -n 1 -r
-      echo
-    if [[ $REPLY =~ ^[Nn]$ ]] ; then
-        echo "Please put the config file into: $TARGET_CONFIG_PATH"
-      elif ! curl  $CONF_DOWNLOAD_URL > "$CONF_DIR/$CONF" ; then
-        echo "Warning: curl download failed"
-    fi
+   read -p "Configuration file not found. Do you want to download an example $CONF file? (n/y) [n]: " -n 1 -r
+        echo
+      if [[ $REPLY =~ ^[Yy]$ ]] ; then
+          if curl $CONF_DOWNLOAD_URL > "$CONFIG_DIR/$CONF" ; then
+            echo "Configuration file successfully downloaded to $CONFIG_DIR/$CONF"
+          else
+           echo "Error: Failed to download configuration file from $CONF_DOWNLOAD_URL"
+          fi
+      else
+         echo "Warning: Please put the config file into: $CONFIG_DIR/$CONF"
+      fi
 fi
 
 if [ ! -f "$TARGET_CONFIG_PATH" ] ; then
@@ -246,8 +255,13 @@ if ! chown -R $RUNTIME_USER:$RUNTIME_USER "$BASE_C_PATH"; then
   exit 1
 fi
 # Change permissions to config folder
-if ! chmod -R 700 "$CONFIG_DIR"; then
+if ! find "$CONFIG_DIR" -type d -exec chmod 0750 "{}" \; ; then
   echo "Error: Problem changing permissions to config folder: $CONFIG_DIR"
+  exit 1
+fi
+# Change permissions to config folder files
+if ! find "$CONFIG_DIR" -type f -exec chmod 0600 "{}" \; ; then
+  echo "Error: Problem changing permissions to config files within: $CONFIG_DIR"
   exit 1
 fi
 # Change ownership to SQLite folder
@@ -255,6 +269,16 @@ if ! chown -R $RUNTIME_USER:$RUNTIME_USER "$DB_PATH_BASE"; then
     echo "Error: Failed to change ownership to $RUNTIME_USER"
     echo "Please check if the user exists and you have proper permissions."
     exit 1
+fi
+# Change permissions to config folder
+if ! find "$DB_PATH_BASE" -type d -exec chmod 0750 "{}" \; ; then
+  echo "Error: Problem changing permissions to DB folder: $CONFIG_DIR"
+  exit 1
+fi
+# Change permissions to config folder files
+if ! find "$DB_PATH_BASE" -type f -exec chmod 0640 "{}" \; ; then
+  echo "Error: Problem changing permissions to DB files within: $CONFIG_DIR"
+  exit 1
 fi
 ######  END CHANGE OWNERSHIP AND PERMISSIONS #######
 
@@ -283,11 +307,11 @@ if [ "$service_stopped" == "true" ] ; then
   fi
   systemctl status "$SC_SERVICE_NAME"
 fi
-if [ ! -f "$CONF_DIR/$CONF" ] ; then
+if [ ! -f "$CONFIG_DIR/$CONF" ] ; then
   echo
-  echo "Warning: Please create a configuration file in: $CONF_DIR/$CONF"
+  echo "Warning: Please create a configuration file in: $CONFIG_DIR/$CONF"
   echo "A sample version can be downloaded from GitHub:"
-  echo "curl $CONF_DOWNLOAD > $CONF_DIR/$CONF"
+  echo "curl $CONF_DOWNLOAD > $CONFIG_DIR/$CONF"
 fi
 echo
 echo "Review service config in: $TARGET_CONFIG_PATH"
