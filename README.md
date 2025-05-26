@@ -1,6 +1,6 @@
 # SCANOSS Platform 2.0 Cryptography Service
 Welcome to the Cryptography server for SCANOSS Platform 2.0
-A specialized service providing methods for Export Control tasks in software analysis. This service helps identify and track cryptographic algorithms and security-related components in software packages.
+A specialised service providing methods for Export Control tasks in software analysis. This service helps identify and track cryptographic algorithms and security-related components in software packages.
 
 ## Key Features
 
@@ -76,10 +76,6 @@ make ghcr_build
 Run the SCANOSS Cryptography Server Docker image by specifying the environmental file to be used with the ```--env-file``` argument. 
 
 You may also need to expose the ```APP_PORT``` on a given ```interface:port``` with the ```-p``` argument.
-
-```bash
-docker run -it -v "$(pwd)":"$(pwd)" -p 50054:50054 ghcr.io/scanoss/scanoss-cryptography-api -json-config $(pwd)/config/app-config-docker-local-dev.json -debug
-```
 
 ## Development
 
