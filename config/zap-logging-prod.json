@@ -1,8 +1,8 @@
 {
   "level": "info",
   "encoding": "json",
-  "outputPaths": ["stderr", "/var/log/scanoss/api/scanoss-crypto-prod.log"],
-  "errorOutputPaths": ["stderr", "/var/log/scanoss/api/scanoss-crypto-prod.log"],
+  "outputPaths": ["stderr", "/var/log/scanoss/api/scanoss-cryptography-api-prod.log"],
+  "errorOutputPaths": ["stderr", "/var/log/scanoss/api/scanoss-cryptography-api-prod.log"],
   "encoderConfig": {
       "messageKey": "message",
       "levelKey": "level",
