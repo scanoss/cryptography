@@ -11,9 +11,11 @@ The [scripts](.) folder contains an [env-setup.sh](env-setup.sh) script which at
 
 A sample production configuration file can be found in [config/app-config-prod.json](../config/app-config-prod.json).
 
-Logs are written by default to `/var/log/scanoss/cryptography/scanoss-cryptography-api-prod.log`.
+Logs are written by default to: `/var/log/scanoss/cryptography/scanoss-cryptography-api-prod.log`
 
-Configuration is written by default to: `/usr/local/etc/scanoss/cryptography`.
+Configuration is written by default to: `/usr/local/etc/scanoss/cryptography`
+
+The database is stored by default to: `/var/lib/scanoss/db/sqlite/cryptography`
 
 ## Installation
 Running the [env-setup.sh](env-setup.sh) on the target server, takes care of installation. Simply run:
@@ -33,7 +35,7 @@ Create a copy of the [scanoss-cryptography-api.service](scanoss-cryptography-api
 cp scanoss-cryptography-api.service scanoss-cryptography-api-<env>.service
 ```
 
-Where `env` is the name of this edition of the service (i.e. dev).
+Where `env` is the name assigned to this edition of the service (i.e. dev).
 
 The `app-config-prod.json` file will also need to be copied:
 ```shell
