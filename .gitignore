@@ -41,3 +41,5 @@ local-build-commands.txt
 
 # Ignore logfiles
 *.log
+
+.DS_Store

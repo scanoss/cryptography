@@ -23,7 +23,7 @@ export LOGS_DIR=/var/log/scanoss/cryptography
 export CONF_DOWNLOAD_URL=https://raw.githubusercontent.com/scanoss/cryptography/refs/heads/main/config/app-config-prod.json
 export DB_PATH_BASE=/var/lib/scanoss
 export SQLITE_PATH="${DB_PATH_BASE}/db/sqlite/cryptography"
-export SQLITE_DB_NAME=base.sqlite
+export SQLITE_DB_NAME=crypto.sqlite
 export TARGET_SQLITE_DB_NAME=db.sqlite
 
 
