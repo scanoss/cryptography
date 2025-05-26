@@ -1,3 +1,6 @@
+# idea
+.idea
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -10,6 +13,8 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage*.txt
+coverage*.html
 
 # Ignore env files
 .env
@@ -36,10 +41,3 @@ local-build-commands.txt
 
 # Ignore logfiles
 *.log
-
-# Coverage files
-coverage.out
-coverage.html
-
-# idea
-.idea
