@@ -1,4 +1,4 @@
-# Sample SCANOSS Scanning GO API Configs
+# Sample SCANOSS Cryptography API Configs
 This folder contains some examples of configuration for running the SCANOSS Cryptography API.
 
 There are two types of configuration:
