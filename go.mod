@@ -16,7 +16,7 @@ require (
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/metric v1.35.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.73.0
 	modernc.org/sqlite v1.37.0
 )
 
@@ -26,7 +26,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
-	github.com/package-url/packageurl-go v0.1.3 // indirect
+	github.com/package-url/packageurl-go v0.1.3
 	github.com/phuslu/iploc v1.0.20250430 // indirect
 	github.com/scanoss/ipfilter/v2 v2.0.2 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
