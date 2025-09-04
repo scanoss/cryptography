@@ -4,6 +4,12 @@
 ### Added
 - Upcoming changes...
 
+## [0.5.0] - 2025-09-04
+### Changed
+- Removed `/api` prefix from REST endpoints
+### Updated
+- Updated dependencies to latest version
+
 ## [0.4.2] - 2025-05-26
 ### Added 
 - Added support to SQLite Database on env-setup.sh
@@ -33,6 +39,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.5.0]: https://github.com/scanoss/cryptography/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/scanoss/cryptography/releases/tag/v0.4.1....v0.4.2
 [0.4.1]: https://github.com/scanoss/cryptography/releases/tag/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/scanoss/cryptography/releases/tag/v0.4.0
