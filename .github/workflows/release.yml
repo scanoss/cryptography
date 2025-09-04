@@ -39,5 +39,5 @@ jobs:
           files: |
             target/scanoss-cryptography-api-linux-amd64
             target/scanoss-cryptography-api-linux-arm64
-            scanoss-cryptography_linux-amd64_${{ github.ref_name }}-1.tgz
-            scanoss-cryptography_linux-arm64_${{ github.ref_name }}-1.tgz
+            scanoss-cryptography-api_linux-amd64_${{ github.ref_name }}-1.tgz
+            scanoss-cryptography-api_linux-arm64_${{ github.ref_name }}-1.tgz
