@@ -37,6 +37,9 @@ linters-settings:
   lll:
     line-length: 180
 
+  staticcheck:
+    checks: ["all", "-SA1019"]
+
 linters:
   enable:
     - cyclop
@@ -59,6 +62,7 @@ linters:
     - nonamedreturns
     - predeclared
     - reassign
+    - staticcheck
     - stylecheck
     - unconvert
     - unparam
