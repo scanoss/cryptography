@@ -216,7 +216,7 @@ func Test_convertComponentRequestToComponentDTO(t *testing.T) {
 	}
 }
 
-func Test_cryptoOutputToComponentsAlgorithmsResponse(t *testing.T) {
+func Test_convertCryptoOutputToComponents(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -318,36 +318,36 @@ func Test_cryptoOutputToComponentsAlgorithmsResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := cryptoOutputToComponentsAlgorithmsResponse(s, tt.output)
+			got, err := convertCryptoOutputToComponents(s, tt.output)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("cryptoOutputToComponentsAlgorithmsResponse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("convertCryptoOutputToComponents() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
 				if len(got.Components) != len(tt.want.Components) {
-					t.Errorf("cryptoOutputToComponentsAlgorithmsResponse() len = %v, want %v", len(got.Components), len(tt.want.Components))
+					t.Errorf("convertCryptoOutputToComponents() len = %v, want %v", len(got.Components), len(tt.want.Components))
 					return
 				}
 				for i, component := range got.Components {
 					if component.Purl != tt.want.Components[i].Purl {
-						t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Purl = %v, want %v", i, component.Purl, tt.want.Components[i].Purl)
+						t.Errorf("convertCryptoOutputToComponents().Components[%d].Purl = %v, want %v", i, component.Purl, tt.want.Components[i].Purl)
 					}
 					if component.Version != tt.want.Components[i].Version {
-						t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Version = %v, want %v", i, component.Version, tt.want.Components[i].Version)
+						t.Errorf("convertCryptoOutputToComponents().Components[%d].Version = %v, want %v", i, component.Version, tt.want.Components[i].Version)
 					}
 					if component.Requirement != tt.want.Components[i].Requirement {
-						t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Requirement = %v, want %v", i, component.Requirement, tt.want.Components[i].Requirement)
+						t.Errorf("convertCryptoOutputToComponents().Components[%d].Requirement = %v, want %v", i, component.Requirement, tt.want.Components[i].Requirement)
 					}
 					if len(component.Algorithms) != len(tt.want.Components[i].Algorithms) {
-						t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Algorithms len = %v, want %v", i, len(component.Algorithms), len(tt.want.Components[i].Algorithms))
+						t.Errorf("convertCryptoOutputToComponents().Components[%d].Algorithms len = %v, want %v", i, len(component.Algorithms), len(tt.want.Components[i].Algorithms))
 						continue
 					}
 					for j, alg := range component.Algorithms {
 						if alg.Algorithm != tt.want.Components[i].Algorithms[j].Algorithm {
-							t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Algorithms[%d].Algorithm = %v, want %v", i, j, alg.Algorithm, tt.want.Components[i].Algorithms[j].Algorithm)
+							t.Errorf("convertCryptoOutputToComponents().Components[%d].Algorithms[%d].Algorithm = %v, want %v", i, j, alg.Algorithm, tt.want.Components[i].Algorithms[j].Algorithm)
 						}
 						if alg.Strength != tt.want.Components[i].Algorithms[j].Strength {
-							t.Errorf("cryptoOutputToComponentsAlgorithmsResponse().Components[%d].Algorithms[%d].Strength = %v, want %v", i, j, alg.Strength, tt.want.Components[i].Algorithms[j].Strength)
+							t.Errorf("convertCryptoOutputToComponents().Components[%d].Algorithms[%d].Strength = %v, want %v", i, j, alg.Strength, tt.want.Components[i].Algorithms[j].Strength)
 						}
 					}
 				}
@@ -356,7 +356,7 @@ func Test_cryptoOutputToComponentsAlgorithmsResponse(t *testing.T) {
 	}
 }
 
-func Test_cryptoOutputToComponentAlgorithmsResponse(t *testing.T) {
+func Test_convertCryptoOutputToComponent(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -424,31 +424,267 @@ func Test_cryptoOutputToComponentAlgorithmsResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := cryptoOutputToComponentAlgorithmsResponse(s, tt.output)
+			got, err := convertCryptoOutputToComponent(s, tt.output)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("cryptoOutputToComponentAlgorithmsResponse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("convertCryptoOutputToComponent() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
 				if got.Component.Purl != tt.want.Component.Purl {
-					t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Purl = %v, want %v", got.Component.Purl, tt.want.Component.Purl)
+					t.Errorf("convertCryptoOutputToComponent().Component.Purl = %v, want %v", got.Component.Purl, tt.want.Component.Purl)
 				}
 				if got.Component.Version != tt.want.Component.Version {
-					t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Version = %v, want %v", got.Component.Version, tt.want.Component.Version)
+					t.Errorf("convertCryptoOutputToComponent().Component.Version = %v, want %v", got.Component.Version, tt.want.Component.Version)
 				}
 				if got.Component.Requirement != tt.want.Component.Requirement {
-					t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Requirement = %v, want %v", got.Component.Requirement, tt.want.Component.Requirement)
+					t.Errorf("convertCryptoOutputToComponent().Component.Requirement = %v, want %v", got.Component.Requirement, tt.want.Component.Requirement)
 				}
 				if len(got.Component.Algorithms) != len(tt.want.Component.Algorithms) {
-					t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Algorithms len = %v, want %v", len(got.Component.Algorithms), len(tt.want.Component.Algorithms))
+					t.Errorf("convertCryptoOutputToComponent().Component.Algorithms len = %v, want %v", len(got.Component.Algorithms), len(tt.want.Component.Algorithms))
 					return
 				}
 				for i, alg := range got.Component.Algorithms {
 					if alg.Algorithm != tt.want.Component.Algorithms[i].Algorithm {
-						t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Algorithms[%d].Algorithm = %v, want %v", i, alg.Algorithm, tt.want.Component.Algorithms[i].Algorithm)
+						t.Errorf("convertCryptoOutputToComponent().Component.Algorithms[%d].Algorithm = %v, want %v", i, alg.Algorithm, tt.want.Component.Algorithms[i].Algorithm)
 					}
 					if alg.Strength != tt.want.Component.Algorithms[i].Strength {
-						t.Errorf("cryptoOutputToComponentAlgorithmsResponse().Component.Algorithms[%d].Strength = %v, want %v", i, alg.Strength, tt.want.Component.Algorithms[i].Strength)
+						t.Errorf("convertCryptoOutputToComponent().Component.Algorithms[%d].Strength = %v, want %v", i, alg.Strength, tt.want.Component.Algorithms[i].Strength)
+					}
+				}
+			}
+		})
+	}
+}
+
+func Test_convertComponentsCryptoInRangeOutput(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	s := zlog.L.Sugar()
+
+	tests := []struct {
+		name    string
+		output  dtos.CryptoInRangeOutput
+		want    *pb.ComponentsAlgorithmsInRangeResponse
+		wantErr bool
+	}{
+		{
+			name: "Valid single component with algorithms and versions",
+			output: dtos.CryptoInRangeOutput{
+				Cryptography: []dtos.CryptoInRangeOutputItem{
+					{
+						Purl:     "pkg:github/scanoss/engine",
+						Versions: []string{"v5.4.5", "v5.4.6"},
+						Algorithms: []dtos.CryptoUsageItem{
+							{Algorithm: "aes", Strength: "256"},
+							{Algorithm: "rsa", Strength: "2048"},
+						},
+					},
+				},
+			},
+			want: &pb.ComponentsAlgorithmsInRangeResponse{
+				Components: []*pb.ComponentsAlgorithmsInRangeResponse_Component{
+					{
+						Purl:     "pkg:github/scanoss/engine",
+						Versions: []string{"v5.4.5", "v5.4.6"},
+						Algorithms: []*pb.Algorithm{
+							{Algorithm: "aes", Strength: "256"},
+							{Algorithm: "rsa", Strength: "2048"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Multiple components",
+			output: dtos.CryptoInRangeOutput{
+				Cryptography: []dtos.CryptoInRangeOutputItem{
+					{
+						Purl:     "pkg:github/scanoss/engine",
+						Versions: []string{"v5.4.5"},
+						Algorithms: []dtos.CryptoUsageItem{
+							{Algorithm: "aes", Strength: "256"},
+						},
+					},
+					{
+						Purl:     "pkg:github/scanoss/dependencies",
+						Versions: []string{"v1.0.0", "v1.0.1"},
+						Algorithms: []dtos.CryptoUsageItem{
+							{Algorithm: "sha256", Strength: "256"},
+						},
+					},
+				},
+			},
+			want: &pb.ComponentsAlgorithmsInRangeResponse{
+				Components: []*pb.ComponentsAlgorithmsInRangeResponse_Component{
+					{
+						Purl:     "pkg:github/scanoss/engine",
+						Versions: []string{"v5.4.5"},
+						Algorithms: []*pb.Algorithm{
+							{Algorithm: "aes", Strength: "256"},
+						},
+					},
+					{
+						Purl:     "pkg:github/scanoss/dependencies",
+						Versions: []string{"v1.0.0", "v1.0.1"},
+						Algorithms: []*pb.Algorithm{
+							{Algorithm: "sha256", Strength: "256"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty crypto output",
+			output: dtos.CryptoInRangeOutput{
+				Cryptography: []dtos.CryptoInRangeOutputItem{},
+			},
+			want: &pb.ComponentsAlgorithmsInRangeResponse{
+				Components: []*pb.ComponentsAlgorithmsInRangeResponse_Component{},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertComponentsCryptoInRangeOutput(s, tt.output)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertComponentsCryptoInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if len(got.Components) != len(tt.want.Components) {
+					t.Errorf("convertComponentsCryptoInRangeOutput() len = %v, want %v", len(got.Components), len(tt.want.Components))
+					return
+				}
+				for i, component := range got.Components {
+					if component.Purl != tt.want.Components[i].Purl {
+						t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Purl = %v, want %v", i, component.Purl, tt.want.Components[i].Purl)
+					}
+					if len(component.Versions) != len(tt.want.Components[i].Versions) {
+						t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Versions len = %v, want %v", i, len(component.Versions), len(tt.want.Components[i].Versions))
+						continue
+					}
+					for j, version := range component.Versions {
+						if version != tt.want.Components[i].Versions[j] {
+							t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Versions[%d] = %v, want %v", i, j, version, tt.want.Components[i].Versions[j])
+						}
+					}
+					if len(component.Algorithms) != len(tt.want.Components[i].Algorithms) {
+						t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Algorithms len = %v, want %v", i, len(component.Algorithms), len(tt.want.Components[i].Algorithms))
+						continue
+					}
+					for j, alg := range component.Algorithms {
+						if alg.Algorithm != tt.want.Components[i].Algorithms[j].Algorithm {
+							t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Algorithms[%d].Algorithm = %v, want %v", i, j, alg.Algorithm, tt.want.Components[i].Algorithms[j].Algorithm)
+						}
+						if alg.Strength != tt.want.Components[i].Algorithms[j].Strength {
+							t.Errorf("convertComponentsCryptoInRangeOutput().Components[%d].Algorithms[%d].Strength = %v, want %v", i, j, alg.Strength, tt.want.Components[i].Algorithms[j].Strength)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func Test_convertComponentCryptoInRangeOutput(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	s := zlog.L.Sugar()
+
+	tests := []struct {
+		name    string
+		output  dtos.CryptoInRangeOutput
+		want    *pb.ComponentAlgorithmsInRangeResponse
+		wantErr bool
+	}{
+		{
+			name: "Valid single component with algorithms and versions",
+			output: dtos.CryptoInRangeOutput{
+				Cryptography: []dtos.CryptoInRangeOutputItem{
+					{
+						Purl:     "pkg:github/scanoss/engine",
+						Versions: []string{"v5.4.5", "v5.4.6"},
+						Algorithms: []dtos.CryptoUsageItem{
+							{Algorithm: "aes", Strength: "256"},
+							{Algorithm: "rsa", Strength: "2048"},
+						},
+					},
+				},
+			},
+			want: &pb.ComponentAlgorithmsInRangeResponse{
+				Component: &pb.ComponentAlgorithmsInRangeResponse_Component{
+					Purl:     "pkg:github/scanoss/engine",
+					Versions: []string{"v5.4.5", "v5.4.6"},
+					Algorithms: []*pb.Algorithm{
+						{Algorithm: "aes", Strength: "256"},
+						{Algorithm: "rsa", Strength: "2048"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Component with no algorithms",
+			output: dtos.CryptoInRangeOutput{
+				Cryptography: []dtos.CryptoInRangeOutputItem{
+					{
+						Purl:       "pkg:github/scanoss/engine",
+						Versions:   []string{"v5.4.5"},
+						Algorithms: []dtos.CryptoUsageItem{},
+					},
+				},
+			},
+			want: &pb.ComponentAlgorithmsInRangeResponse{
+				Component: &pb.ComponentAlgorithmsInRangeResponse_Component{
+					Purl:       "pkg:github/scanoss/engine",
+					Versions:   []string{"v5.4.5"},
+					Algorithms: []*pb.Algorithm{},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertComponentCryptoInRangeOutput(s, tt.output)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertComponentCryptoInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got.Component.Purl != tt.want.Component.Purl {
+					t.Errorf("convertComponentCryptoInRangeOutput().Component.Purl = %v, want %v", got.Component.Purl, tt.want.Component.Purl)
+				}
+				if len(got.Component.Versions) != len(tt.want.Component.Versions) {
+					t.Errorf("convertComponentCryptoInRangeOutput().Component.Versions len = %v, want %v", len(got.Component.Versions), len(tt.want.Component.Versions))
+					return
+				}
+				for i, version := range got.Component.Versions {
+					if version != tt.want.Component.Versions[i] {
+						t.Errorf("convertComponentCryptoInRangeOutput().Component.Versions[%d] = %v, want %v", i, version, tt.want.Component.Versions[i])
+					}
+				}
+				if len(got.Component.Algorithms) != len(tt.want.Component.Algorithms) {
+					t.Errorf("convertComponentCryptoInRangeOutput().Component.Algorithms len = %v, want %v", len(got.Component.Algorithms), len(tt.want.Component.Algorithms))
+					return
+				}
+				for i, alg := range got.Component.Algorithms {
+					if alg.Algorithm != tt.want.Component.Algorithms[i].Algorithm {
+						t.Errorf("convertComponentCryptoInRangeOutput().Component.Algorithms[%d].Algorithm = %v, want %v", i, alg.Algorithm, tt.want.Component.Algorithms[i].Algorithm)
+					}
+					if alg.Strength != tt.want.Component.Algorithms[i].Strength {
+						t.Errorf("convertComponentCryptoInRangeOutput().Component.Algorithms[%d].Strength = %v, want %v", i, alg.Strength, tt.want.Component.Algorithms[i].Strength)
 					}
 				}
 			}

@@ -189,7 +189,7 @@ func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dt
 
 // cryptoOutputToComponentsAlgorithmsResponse converts an internal Crypto Output structure
 // into a ComponentsAlgorithmsResponse.
-func cryptoOutputToComponentsAlgorithmsResponse(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
+func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
 	response := &pb.ComponentsAlgorithmsResponse{
 		Components: make([]*pb.ComponentAlgorithms, 0, len(output.Cryptography)),
 		Status:     &common.StatusResponse{},
@@ -215,7 +215,7 @@ func cryptoOutputToComponentsAlgorithmsResponse(s *zap.SugaredLogger, output dto
 
 // cryptoOutputToComponentAlgorithmsResponse converts an internal Crypto Output structure
 // into a ComponentAlgorithmsResponse for single component queries.
-func cryptoOutputToComponentAlgorithmsResponse(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
+func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
 	response := &pb.ComponentAlgorithmsResponse{
 		Component: &pb.ComponentAlgorithms{
 			Purl:        output.Cryptography[0].Purl,
@@ -232,6 +232,60 @@ func cryptoOutputToComponentAlgorithmsResponse(s *zap.SugaredLogger, output dtos
 				Strength:  alg.Strength,
 			})
 		}
+	}
+	return response, nil
+}
+
+// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
+func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
+	var response = &pb.ComponentsAlgorithmsInRangeResponse{
+		Components: make([]*pb.ComponentsAlgorithmsInRangeResponse_Component, 0),
+		Status:     &common.StatusResponse{},
+	}
+	for i, c := range output.Cryptography {
+		var algorithms = make([]*pb.Algorithm, 0, len(output.Cryptography[i].Algorithms))
+		for _, alg := range c.Algorithms {
+			algorithms = append(algorithms, &pb.Algorithm{
+				Algorithm: alg.Algorithm,
+				Strength:  alg.Strength,
+			})
+		}
+		response.Components = append(response.Components, &pb.ComponentsAlgorithmsInRangeResponse_Component{
+			Purl:       output.Cryptography[i].Purl,
+			Versions:   output.Cryptography[i].Versions,
+			Algorithms: algorithms,
+		})
+	}
+	return response, nil
+}
+
+// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
+func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+	var response = &pb.ComponentAlgorithmsInRangeResponse{
+		Status: &common.StatusResponse{},
+	}
+
+	if len(output.Cryptography) > 0 {
+		response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
+			Purl:       output.Cryptography[0].Purl,
+			Versions:   output.Cryptography[0].Versions,
+			Algorithms: make([]*pb.Algorithm, 0, len(output.Cryptography[0].Algorithms)),
+		}
+		for _, c := range output.Cryptography {
+			for _, alg := range c.Algorithms {
+				response.Component.Algorithms = append(response.Component.Algorithms, &pb.Algorithm{
+					Algorithm: alg.Algorithm,
+					Strength:  alg.Strength,
+				})
+			}
+		}
+
+		return response, nil
+	}
+	response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
+		Purl:       "",
+		Versions:   []string{},
+		Algorithms: []*pb.Algorithm{},
 	}
 	return response, nil
 }

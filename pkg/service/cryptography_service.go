@@ -152,7 +152,7 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
 
-	response, err := cryptoOutputToComponentsAlgorithmsResponse(s, results) // Convert the internal data into a response object
+	response, err := convertCryptoOutputToComponents(s, results) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -213,7 +213,7 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
 
-	response, err := cryptoOutputToComponentAlgorithmsResponse(s, results) // Convert the internal data into a response object
+	response, err := convertCryptoOutputToComponent(s, results) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -246,68 +246,187 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 	return response, nil
 }
 
-//func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
-//	requestStartTime := time.Now() // Capture the scan start time
-//	s := ctxzap.Extract(ctx).Sugar()
-//	s.Info("Processing crypto algorithms request...")
-//	// Make sure we have Cryptography data to query
-//	reqPurls := request.GetPurls()
-//	if len(reqPurls) == 0 {
-//		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-//		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-//	}
-//	dtoRequest, err := convertPurlRequestToComponentDTO(s, request) // Convert to internal DTO for processing
-//	if err != nil {
-//		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-//		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
-//	}
-//	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-//	if err != nil {
-//		s.Errorf("Failed to get a database connection from the pool: %v", err)
-//		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-//		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-//	}
-//	defer gd.CloseSQLConnection(conn)
-//	// Search the KB for information about each Cryptography
-//	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
-//	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(dtoRequest)
-//	if err != nil {
-//		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-//
-//		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-//		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
-//	}
-//	cryptoResponse, err := convertCryptoMajorOutput(s, dtoCrypto) // Convert the internal data into a response object
-//	if err != nil {
-//		s.Errorf("Failed to covnert parsed dependencies: %v", err)
-//		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-//		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
-//	}
-//	telemetryRequestTime(ctx, c.config, requestStartTime)
-//	// Set the status and respond with the data
-//	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-//	var messages []string
-//	if len(summary.PurlsFailedToParse) > 0 {
-//		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-//		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-//	}
-//
-//	if len(summary.PurlsNotFound) > 0 {
-//		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-//		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-//	}
-//	if len(summary.PurlsWOInfo) > 0 {
-//		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-//		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-//	}
-//	if len(messages) == 0 {
-//		statusResp.Message = ResponseMessageSUCCESS
-//	} else {
-//		statusResp.Message = strings.Join(messages, "/")
-//	}
-//
-//	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
-//}
+func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
+	s := ctxzap.Extract(ctx).Sugar()
+	s.Info("Processing crypto algorithms request...")
+	// Make sure we have Cryptography data to query
+	reqPurls := request.GetPurls()
+	if len(reqPurls) == 0 {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
+		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
+	}
+	dtoRequest, err := convertPurlRequestToComponentDTO(s, request) // Convert to internal DTO for processing
+	if err != nil {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
+		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+	}
+	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		s.Errorf("Failed to get a database connection from the pool: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
+		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+	}
+	defer gd.CloseSQLConnection(conn)
+	// Search the KB for information about each Cryptography
+	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
+	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(dtoRequest)
+	if err != nil {
+		s.Errorf("Failed to get cryptographic algorithms: %v", err)
+
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
+		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	cryptoResponse, err := convertCryptoMajorOutput(s, dtoCrypto) // Convert the internal data into a response object
+	if err != nil {
+		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
+	// Set the status and respond with the data
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
+	var messages []string
+	if len(summary.PurlsFailedToParse) > 0 {
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+
+	if len(summary.PurlsNotFound) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(summary.PurlsWOInfo) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(messages) == 0 {
+		statusResp.Message = ResponseMessageSUCCESS
+	} else {
+		statusResp.Message = strings.Join(messages, "/")
+	}
+
+	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
+}
+
+func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
+	s := ctxzap.Extract(ctx).Sugar()
+	s.Info("Processing crypto algorithms request...")
+	if len(request.Components) == 0 {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
+	}
+	componentDTOS, err := convertComponentsRequestToComponentDTO(request) // Convert to internal DTO for processing
+	if err != nil {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+	}
+	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		s.Errorf("Failed to get a database connection from the pool: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+	}
+	defer gd.CloseSQLConnection(conn)
+	// Search the KB for information about each Cryptography
+	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
+	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(componentDTOS)
+	if err != nil {
+		s.Errorf("Failed to get cryptographic algorithms: %v", err)
+
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	response, err := convertComponentsCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
+	if err != nil {
+		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
+	// Set the status and respond with the data
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
+	var messages []string
+	if len(summary.PurlsFailedToParse) > 0 {
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+
+	if len(summary.PurlsNotFound) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(summary.PurlsWOInfo) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(messages) == 0 {
+		statusResp.Message = ResponseMessageSUCCESS
+	} else {
+		statusResp.Message = strings.Join(messages, "/")
+	}
+	response.Status = &statusResp
+	return response, nil
+}
+
+func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
+	s := ctxzap.Extract(ctx).Sugar()
+	s.Info("Processing crypto algorithms request...")
+	componentDTOS, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	if err != nil {
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+	}
+	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	if err != nil {
+		s.Errorf("Failed to get a database connection from the pool: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+	}
+	defer gd.CloseSQLConnection(conn)
+	// Search the KB for information about each Cryptography
+	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
+	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange([]dtos.ComponentDTO{componentDTOS})
+	if err != nil {
+		s.Errorf("Failed to get cryptographic algorithms: %v", err)
+
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	response, err := convertComponentCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
+	if err != nil {
+		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
+	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
+	// Set the status and respond with the data
+	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
+	var messages []string
+	if len(summary.PurlsFailedToParse) > 0 {
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+
+	if len(summary.PurlsNotFound) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(summary.PurlsWOInfo) > 0 {
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	}
+	if len(messages) == 0 {
+		statusResp.Message = ResponseMessageSUCCESS
+	} else {
+		statusResp.Message = strings.Join(messages, "/")
+	}
+	response.Status = &statusResp
+	return response, nil
+}
+
 //
 //func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
 //	requestStartTime := time.Now() // Capture the scan start time
