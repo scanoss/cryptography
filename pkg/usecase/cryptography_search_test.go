@@ -56,21 +56,16 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	var cryptoRequest = `{
-		      "purls": [
-		        {
-		          "purl": "pkg:github/scanoss/engine"
-		          
-		        }
-		      ]
-		  	}`
 	cryptoUc := NewCrypto(ctx, s, conn, myConfig)
-
-	requestDto, err := dtos.ParseCryptoInput(s, []byte(cryptoRequest))
+	var componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl: "pkg:github/scanoss/engine",
+		},
+	}
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when parsing input json", err)
 	}
-	algorithms, summary, err := cryptoUc.GetCrypto(requestDto)
+	algorithms, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -82,58 +77,34 @@ func TestCryptographyUseCase(t *testing.T) {
 		len(summary.PurlsNotFound) > 0 {
 		t.Fatalf("Expected to get at least 1 algorithm")
 	}
-
-	var cryptoBadRequest = `{
-	   		    "purls": [
-	   		        {
-	   		          "purl": "pkg:npm/"
-	   		        }
-	   		  ]
-	   		}
-	   		`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoBadRequest))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl: "pkg:npm/",
+		},
 	}
-	algorithms, summary, err = cryptoUc.GetCrypto(requestDto)
+	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	if len(summary.PurlsFailedToParse) == 0 {
 		t.Fatalf("did not get an expected purl failed to parse")
 	}
 	// t.Logf("Got expected error: %+v\n", err)
-	closestURL := `{
-		"purls": [
-			{
-			  "purl": "pkg:github/scanoss/engine",
-			  "requirement":"v5.9.0"
-			}
-	  ]
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl:        "pkg:github/scanoss/engine",
+			Requirement: "v5.9.0",
+		},
 	}
-	`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(closestURL))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
-	}
-	algorithms, summary, err = cryptoUc.GetCrypto(requestDto)
+	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
 
 	if len(summary.PurlsFailedToParse) != 0 {
 		t.Fatalf("did not get an expected purl failed to parse")
 	}
 
-	var unExistentPurlRequest = `{
-	   		"purls": [
-	   			{
-	   			  "purl":"pkg:github/scanoss/engines"
-	   			}
-	   	  ]
-	   	}
-	   `
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentPurlRequest))
-
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl: "pkg:github/scanoss/engines",
+		},
 	}
-
-	algorithms, summary, err = cryptoUc.GetCrypto(requestDto)
+	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	t.Logf("%+v - %v\n", summary, err)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)

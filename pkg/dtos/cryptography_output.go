@@ -21,9 +21,10 @@ type CryptoOutput struct {
 }
 
 type CryptoOutputItem struct {
-	Purl       string            `json:"purl"`
-	Version    string            `json:"version"`
-	Algorithms []CryptoUsageItem `json:"algorithms"`
+	Purl        string            `json:"purl"`
+	Version     string            `json:"version"`
+	Requirement string            `json:"requirement"`
+	Algorithms  []CryptoUsageItem `json:"algorithms"`
 }
 
 type CryptoUsageItem struct {

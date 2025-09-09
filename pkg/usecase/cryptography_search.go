@@ -59,13 +59,13 @@ func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, confi
 	}
 }
 
-// GetCrypto takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoUseCase) GetCrypto(request dtos.CryptoInput) (dtos.CryptoOutput, models.QuerySummary, error) {
-	if len(request.Purls) == 0 {
+// GetComponentsAlgorithms takes a list of ComponentDTO objects, searches for cryptographic usages and returns a CryptoOutput struct.
+func (d CryptoUseCase) GetComponentsAlgorithms(components []dtos.ComponentDTO) (dtos.CryptoOutput, models.QuerySummary, error) {
+	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.CryptoOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
-	query, purlsToQuery, mapPurls, summary := d.processInputPurls(request)
+	query, purlsToQuery, mapPurls, summary := d.processInputPurls(components)
 
 	// URLs by PurlList
 	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
@@ -125,27 +125,28 @@ func (d CryptoUseCase) processPurlVersion(purl packageurl.PackageURL, requiremen
 	return purl.Version
 }
 
-func (d CryptoUseCase) processInputPurls(request dtos.CryptoInput) ([]InternalQuery, []utils.PurlReq, map[string]bool, models.QuerySummary) {
+func (d CryptoUseCase) processInputPurls(components []dtos.ComponentDTO) ([]InternalQuery, []utils.PurlReq, map[string]bool, models.QuerySummary) {
 	var query []InternalQuery
 	var purlsToQuery []utils.PurlReq
 	mapPurls := make(map[string]bool)
 	summary := models.QuerySummary{}
-	for _, reqPurl := range request.Purls {
-		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+	for _, c := range components {
+		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl)
+		purlName, err := purlhelper.PurlNameFromString(c.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, reqPurl.Purl)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		version := d.processPurlVersion(purl, reqPurl.Requirement)
+		version := d.processPurlVersion(purl, c.Requirement)
+
 		d.s.Debugf("Purl to query: %v, Name: %s, Version: %s", purl, purlName, version)
 		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: version})
 		mapPurls[purlName] = false
-		query = append(query, InternalQuery{CompletePurl: reqPurl.Purl, Requirement: version, PurlName: purlName})
+		query = append(query, InternalQuery{CompletePurl: c.Purl, SelectedVersion: version, Requirement: c.Requirement, PurlName: purlName})
 	}
 	return query, purlsToQuery, mapPurls, summary
 }
@@ -221,8 +222,9 @@ func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutIte
 
 func (d CryptoUseCase) buildCryptoOutputItem(q InternalQuery, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutputItem {
 	cryptoOutItem := dtos.CryptoOutputItem{
-		Version: q.SelectedVersion,
-		Purl:    q.CompletePurl,
+		Version:     q.SelectedVersion,
+		Requirement: q.Requirement,
+		Purl:        q.CompletePurl,
 	}
 
 	algorithms := make(map[string]bool)

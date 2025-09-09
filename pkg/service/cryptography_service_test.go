@@ -459,3 +459,245 @@ func TestCryptographyServer_GetHints(t *testing.T) {
 		t.Errorf("Status message does not match")
 	}
 }
+
+func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	invalidDB, err := sqlx.Connect("sqlite", ":memory:")
+	invalidDB.Close()
+
+	tests := []struct {
+		name                 string
+		components           []*common.ComponentRequest
+		expectedComponents   int
+		expectedError        bool
+		status               common.StatusCode
+		expectedErrorMessage string
+		db                   *sqlx.DB
+	}{
+		{
+			name: "Should_Return_ResponseWithOneComponent",
+			components: []*common.ComponentRequest{
+				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			},
+			expectedComponents:   1,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+			db:                   db,
+		},
+		{
+			name: "Should_Return_CantFindComponent",
+			components: []*common.ComponentRequest{
+				{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
+			},
+			expectedComponents:   0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			db:                   db,
+		},
+		{
+			name: "Should_Return_FailedToParseComponent",
+			components: []*common.ComponentRequest{
+				{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
+			},
+			expectedComponents:   0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
+			db:                   db,
+		},
+		{
+			name: "Should_Return_ResponseWithTwoComponents",
+			components: []*common.ComponentRequest{
+				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+				{Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"},
+			},
+			expectedComponents:   2,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find information for 1 purl(s):scanoss/dependencies",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_NoDataSupplied",
+			components:           []*common.ComponentRequest{},
+			expectedError:        true,
+			expectedComponents:   0,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "No purls in request data supplied",
+			db:                   db,
+		},
+		{
+			name: "Should_Return_EmptyPurl",
+			components: []*common.ComponentRequest{
+				{Purl: "", Requirement: "v5.4.5"},
+			},
+			expectedError:        false,
+			expectedComponents:   0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			db:                   db,
+		},
+		{
+			name: "Should_ReturnError_NoDBConnection",
+			components: []*common.ComponentRequest{
+				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			},
+			expectedError:        true,
+			expectedComponents:   0,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "Failed to get database pool connection",
+			db:                   invalidDB,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := NewCryptographyServer(tt.db, myConfig)
+			req := &common.ComponentsRequest{Components: tt.components}
+			
+			r, err := server.GetComponentsAlgorithms(ctx, req)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("service.GetComponentsAlgorithms() error = %v, wantErr %v", err, tt.expectedError)
+			}
+			if len(r.Components) != tt.expectedComponents {
+				t.Errorf("expected to get exactly %d components, but received %d", tt.expectedComponents, len(r.Components))
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentsAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
+			}
+			if r.Status.Message != tt.expectedErrorMessage {
+				t.Errorf("service.GetComponentsAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}
+
+func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	invalidDB, err := sqlx.Connect("sqlite", ":memory:")
+	invalidDB.Close()
+
+	tests := []struct {
+		name                 string
+		component            *common.ComponentRequest
+		hasComponent         bool
+		expectedError        bool
+		status               common.StatusCode
+		expectedErrorMessage string
+		db                   *sqlx.DB
+	}{
+		{
+			name:                 "Should_Return_ResponseWithOneComponent",
+			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			hasComponent:         true,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_CantFindComponent",
+			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
+			hasComponent:         true,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_FailedToParseComponent",
+			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
+			hasComponent:         true,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
+			db:                   db,
+		},
+		{
+			name:                 "Should_Return_EmptyPurl",
+			component:            &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
+			hasComponent:         true,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			db:                   db,
+		},
+		{
+			name:                 "Should_ReturnError_NoDBConnection",
+			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			hasComponent:         false,
+			expectedError:        true,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "Failed to get database pool connection",
+			db:                   invalidDB,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := NewCryptographyServer(tt.db, myConfig)
+			
+			r, err := server.GetComponentAlgorithms(ctx, tt.component)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("service.GetComponentAlgorithms() error = %v, wantErr %v", err, tt.expectedError)
+			}
+			if tt.hasComponent && r.Component == nil {
+				t.Errorf("expected to get a component, but received nil")
+			} else if !tt.hasComponent && r.Component != nil {
+				t.Errorf("expected not to get a component, but received one")
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
+			}
+			if r.Status.Message != tt.expectedErrorMessage {
+				t.Errorf("service.GetComponentAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}
