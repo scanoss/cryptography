@@ -1122,3 +1122,251 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 		})
 	}
 }
+
+func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	server := NewCryptographyServer(db, myConfig)
+
+	tests := []struct {
+		name                 string
+		request              *common.ComponentRequest
+		expectedHints        int
+		expectedError        bool
+		status               common.StatusCode
+		expectedErrorMessage string
+	}{
+		{
+			name: "Should_Return_ResponseWithHints",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/pineappleea/pineapple-src",
+				Requirement: ">=0",
+			},
+			expectedHints:        5,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+		},
+		{
+			name: "Should_Return_CantFindComponent",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/scanoss/engines",
+				Requirement: ">=1.0",
+			},
+			expectedHints:        0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+		},
+		{
+			name: "Should_Return_FailedToParsePurl",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:githubscanossengine",
+				Requirement: ">=1.0",
+			},
+			expectedHints:        0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+		},
+		{
+			name: "Should_Return_NoInfoForComponent",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/scanoss/engine",
+				Requirement: ">=1.0",
+			},
+			expectedHints:        0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find information for 1 purl(s):",
+		},
+		{
+			name: "Should_Return_ErrorOnWildcardRequirement",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/pineappleea/pineapple-src",
+				Requirement: "*",
+			},
+			expectedHints:        0,
+			expectedError:        true,
+			status:               common.StatusCode_FAILED,
+			expectedErrorMessage: "requirement should include version range or major and wildcard",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := server.GetComponentHintsInRange(ctx, tt.request)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("GetComponentHintsInRange() error = %v, wantErr %v", err, tt.expectedError)
+				return
+			}
+			if tt.expectedError {
+				return
+			}
+
+			hintCount := 0
+			if r.Component != nil && len(r.Component.Hints) > 0 {
+				hintCount = len(r.Component.Hints)
+			}
+
+			if hintCount != tt.expectedHints {
+				t.Errorf("Expected to get exactly %d hints, got %d", tt.expectedHints, hintCount)
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentHintsInRange() status = %v, want %v", r.Status.Status, tt.status)
+			}
+			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
+				t.Errorf("service.GetComponentHintsInRange() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}
+
+func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	server := NewCryptographyServer(db, myConfig)
+
+	tests := []struct {
+		name                 string
+		request              *common.ComponentsRequest
+		expectedComponents   int
+		expectedError        bool
+		status               common.StatusCode
+		expectedErrorMessage string
+	}{
+		{
+			name: "Should_Return_ResponseWithOneComponent",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0"},
+				},
+			},
+			expectedComponents:   1,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+		},
+		{
+			name: "Should_Return_CantFindComponents",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
+				},
+			},
+			expectedComponents:   0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+		},
+		{
+			name: "Should_Return_FailedToParsePurl",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:githubscanossengine", Requirement: ">=1.0"},
+				},
+			},
+			expectedComponents:   0,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+		},
+		{
+			name: "Should_Return_ResponseWithMultipleComponents",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0"},
+					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
+				},
+			},
+			expectedComponents:   1,
+			expectedError:        false,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+		},
+		{
+			name: "Should_Return_ErrorOnEmptyComponents",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{},
+			},
+			expectedComponents: 0,
+			expectedError:      true,
+			status:             common.StatusCode_FAILED,
+		},
+		{
+			name: "Should_Return_ErrorOnWildcardRequirement",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: "*"},
+				},
+			},
+			expectedComponents: 0,
+			expectedError:      true,
+			status:             common.StatusCode_FAILED,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := server.GetComponentsHintsInRange(ctx, tt.request)
+			if (err != nil) != tt.expectedError {
+				t.Errorf("GetComponentsHintsInRange() error = %v, wantErr %v", err, tt.expectedError)
+				return
+			}
+			if tt.expectedError {
+				return
+			}
+
+			if len(r.Components) != tt.expectedComponents {
+				t.Errorf("Expected to get exactly %d components, got %d", tt.expectedComponents, len(r.Components))
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentsHintsInRange() status = %v, want %v", r.Status.Status, tt.status)
+			}
+			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
+				t.Errorf("service.GetComponentsHintsInRange() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}

@@ -315,13 +315,76 @@ func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.Ve
 			VersionsWithout: []string{},
 		},
 	}
-	
 	// Take the first component if available (single component response)
 	if len(output.Versions) > 0 {
 		response.Component.Purl = output.Versions[0].Purl
 		response.Component.VersionsWith = output.Versions[0].VersionsWith
 		response.Component.VersionsWithout = output.Versions[0].VersionsWithout
 	}
-	
+	return response, nil
+}
+
+// convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
+func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
+	var response = &pb.ComponentsHintsInRangeResponse{
+		Status:     &common.StatusResponse{},
+		Components: make([]*pb.ComponentsHintsInRangeResponse_Component, 0, len(output.Hints)),
+	}
+	if len(output.Hints) > 0 {
+		for _, hint := range output.Hints {
+			hints := make([]*pb.Hint, 0, len(hint.Detections))
+			for _, detection := range hint.Detections {
+				hints = append(hints, &pb.Hint{
+					Id:          detection.ID,
+					Name:        detection.Name,
+					Purl:        detection.Purl,
+					Description: detection.Description,
+					Category:    detection.Category,
+					Url:         detection.URL,
+				})
+			}
+			component := &pb.ComponentsHintsInRangeResponse_Component{
+				Purl:     hint.Purl,
+				Versions: hint.Versions,
+				Hints:    hints,
+			}
+			response.Components = append(response.Components, component)
+		}
+		s.Debugf("Converted %d hints to components", len(output.Hints))
+	}
+	return response, nil
+}
+
+// convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
+func convertToComponentHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
+	var response = &pb.ComponentHintsInRangeResponse{
+		Status:    &common.StatusResponse{},
+		Component: &pb.ComponentHintsInRangeResponse_Component{},
+	}
+	if len(output.Hints) == 0 {
+		s.Debugf("convertToComponentHintsInRangeOutput: No hints to convert")
+		return response, nil
+	}
+	if len(output.Hints) > 0 {
+		for _, hint := range output.Hints {
+			hints := make([]*pb.Hint, 0, len(hint.Detections))
+			for _, detection := range hint.Detections {
+				hints = append(hints, &pb.Hint{
+					Id:          detection.ID,
+					Name:        detection.Name,
+					Purl:        detection.Purl,
+					Description: detection.Description,
+					Category:    detection.Category,
+					Url:         detection.URL,
+				})
+			}
+			response.Component = &pb.ComponentHintsInRangeResponse_Component{
+				Purl:     hint.Purl,
+				Versions: hint.Versions,
+				Hints:    hints,
+			}
+		}
+		s.Debugf("convertToComponentHintsInRangeOutput : Converted %v hint to component ", output.Hints)
+	}
 	return response, nil
 }
