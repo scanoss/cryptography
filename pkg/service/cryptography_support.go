@@ -187,7 +187,7 @@ func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dt
 	return componentDTO[0], err
 }
 
-// cryptoOutputToComponentsAlgorithmsResponse converts an internal Crypto Output structure
+// convertCryptoOutputToComponents converts an internal Crypto Output structure
 // into a ComponentsAlgorithmsResponse.
 func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
 	response := &pb.ComponentsAlgorithmsResponse{
@@ -213,7 +213,7 @@ func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOut
 	return response, nil
 }
 
-// cryptoOutputToComponentAlgorithmsResponse converts an internal Crypto Output structure
+// convertCryptoOutputToComponent converts an internal Crypto Output structure
 // into a ComponentAlgorithmsResponse for single component queries.
 func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
 	response := &pb.ComponentAlgorithmsResponse{
@@ -259,12 +259,11 @@ func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Cryp
 	return response, nil
 }
 
-// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
+// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentAlgorithmsInRangeResponse.
 func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	var response = &pb.ComponentAlgorithmsInRangeResponse{
 		Status: &common.StatusResponse{},
 	}
-
 	if len(output.Cryptography) > 0 {
 		response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
 			Purl:       output.Cryptography[0].Purl,
@@ -287,5 +286,42 @@ func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Crypt
 		Versions:   []string{},
 		Algorithms: []*pb.Algorithm{},
 	}
+	return response, nil
+}
+
+// convertToComponentsVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
+func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
+	var response = &pb.ComponentsVersionsInRangeResponse{
+		Components: make([]*pb.ComponentsVersionsInRangeResponse_Component, 0),
+		Status:     &common.StatusResponse{},
+	}
+	for _, v := range output.Versions {
+		response.Components = append(response.Components, &pb.ComponentsVersionsInRangeResponse_Component{
+			Purl:            v.Purl,
+			VersionsWith:    v.VersionsWith,
+			VersionsWithout: v.VersionsWithout,
+		})
+	}
+	return response, nil
+}
+
+// convertToComponentVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentVersionsInRangeResponse struct.
+func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
+	response := &pb.ComponentVersionsInRangeResponse{
+		Status: &common.StatusResponse{},
+		Component: &pb.ComponentVersionsInRangeResponse_Component{
+			Purl:            "",
+			VersionsWith:    []string{},
+			VersionsWithout: []string{},
+		},
+	}
+	
+	// Take the first component if available (single component response)
+	if len(output.Versions) > 0 {
+		response.Component.Purl = output.Versions[0].Purl
+		response.Component.VersionsWith = output.Versions[0].VersionsWith
+		response.Component.VersionsWithout = output.Versions[0].VersionsWithout
+	}
+	
 	return response, nil
 }

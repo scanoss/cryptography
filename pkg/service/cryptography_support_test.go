@@ -691,3 +691,274 @@ func Test_convertComponentCryptoInRangeOutput(t *testing.T) {
 		})
 	}
 }
+
+func Test_convertToComponentsVersionInRangeOutput(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	s := zlog.L.Sugar()
+
+	tests := []struct {
+		name    string
+		output  dtos.VersionsInRangeOutput
+		want    *pb.ComponentsVersionsInRangeResponse
+		wantErr bool
+	}{
+		{
+			name: "Valid single component with versions",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5", "v5.4.6"},
+						VersionsWithout: []string{"v5.4.0", "v5.3.0"},
+					},
+				},
+			},
+			want: &pb.ComponentsVersionsInRangeResponse{
+				Components: []*pb.ComponentsVersionsInRangeResponse_Component{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5", "v5.4.6"},
+						VersionsWithout: []string{"v5.4.0", "v5.3.0"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Multiple components",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5"},
+						VersionsWithout: []string{"v5.4.0"},
+					},
+					{
+						Purl:            "pkg:github/scanoss/dependencies",
+						VersionsWith:    []string{"v1.0.0", "v1.0.1"},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			want: &pb.ComponentsVersionsInRangeResponse{
+				Components: []*pb.ComponentsVersionsInRangeResponse_Component{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5"},
+						VersionsWithout: []string{"v5.4.0"},
+					},
+					{
+						Purl:            "pkg:github/scanoss/dependencies",
+						VersionsWith:    []string{"v1.0.0", "v1.0.1"},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty versions output",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{},
+			},
+			want: &pb.ComponentsVersionsInRangeResponse{
+				Components: []*pb.ComponentsVersionsInRangeResponse_Component{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Component with empty version lists",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/empty",
+						VersionsWith:    []string{},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			want: &pb.ComponentsVersionsInRangeResponse{
+				Components: []*pb.ComponentsVersionsInRangeResponse_Component{
+					{
+						Purl:            "pkg:github/scanoss/empty",
+						VersionsWith:    []string{},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertToComponentsVersionInRangeOutput(s, tt.output)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertToComponentsVersionInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if len(got.Components) != len(tt.want.Components) {
+					t.Errorf("convertToComponentsVersionInRangeOutput() len = %v, want %v", len(got.Components), len(tt.want.Components))
+					return
+				}
+				for i, component := range got.Components {
+					if component.Purl != tt.want.Components[i].Purl {
+						t.Errorf("convertToComponentsVersionInRangeOutput().Components[%d].Purl = %v, want %v", i, component.Purl, tt.want.Components[i].Purl)
+					}
+					if len(component.VersionsWith) != len(tt.want.Components[i].VersionsWith) {
+						t.Errorf("convertToComponentsVersionInRangeOutput().Components[%d].VersionsWith len = %v, want %v", i, len(component.VersionsWith), len(tt.want.Components[i].VersionsWith))
+						continue
+					}
+					for j, version := range component.VersionsWith {
+						if version != tt.want.Components[i].VersionsWith[j] {
+							t.Errorf("convertToComponentsVersionInRangeOutput().Components[%d].VersionsWith[%d] = %v, want %v", i, j, version, tt.want.Components[i].VersionsWith[j])
+						}
+					}
+					if len(component.VersionsWithout) != len(tt.want.Components[i].VersionsWithout) {
+						t.Errorf("convertToComponentsVersionInRangeOutput().Components[%d].VersionsWithout len = %v, want %v", i, len(component.VersionsWithout), len(tt.want.Components[i].VersionsWithout))
+						continue
+					}
+					for j, version := range component.VersionsWithout {
+						if version != tt.want.Components[i].VersionsWithout[j] {
+							t.Errorf("convertToComponentsVersionInRangeOutput().Components[%d].VersionsWithout[%d] = %v, want %v", i, j, version, tt.want.Components[i].VersionsWithout[j])
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func Test_convertToComponentVersionInRangeOutput(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	s := zlog.L.Sugar()
+
+	tests := []struct {
+		name    string
+		output  dtos.VersionsInRangeOutput
+		want    *pb.ComponentVersionsInRangeResponse
+		wantErr bool
+	}{
+		{
+			name: "Valid single component with versions",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5", "v5.4.6"},
+						VersionsWithout: []string{"v5.4.0", "v5.3.0"},
+					},
+				},
+			},
+			want: &pb.ComponentVersionsInRangeResponse{
+				Component: &pb.ComponentVersionsInRangeResponse_Component{
+					Purl:            "pkg:github/scanoss/engine",
+					VersionsWith:    []string{"v5.4.5", "v5.4.6"},
+					VersionsWithout: []string{"v5.4.0", "v5.3.0"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Multiple components - takes first one",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.5"},
+						VersionsWithout: []string{"v5.4.0"},
+					},
+					{
+						Purl:            "pkg:github/scanoss/dependencies",
+						VersionsWith:    []string{"v1.0.0", "v1.0.1"},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			want: &pb.ComponentVersionsInRangeResponse{
+				Component: &pb.ComponentVersionsInRangeResponse_Component{
+					Purl:            "pkg:github/scanoss/engine",
+					VersionsWith:    []string{"v5.4.5"},
+					VersionsWithout: []string{"v5.4.0"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty versions output",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{},
+			},
+			want: &pb.ComponentVersionsInRangeResponse{
+				Component: &pb.ComponentVersionsInRangeResponse_Component{
+					Purl:            "",
+					VersionsWith:    []string{},
+					VersionsWithout: []string{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Component with empty version lists",
+			output: dtos.VersionsInRangeOutput{
+				Versions: []dtos.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/empty",
+						VersionsWith:    []string{},
+						VersionsWithout: []string{},
+					},
+				},
+			},
+			want: &pb.ComponentVersionsInRangeResponse{
+				Component: &pb.ComponentVersionsInRangeResponse_Component{
+					Purl:            "pkg:github/scanoss/empty",
+					VersionsWith:    []string{},
+					VersionsWithout: []string{},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertToComponentVersionInRangeOutput(s, tt.output)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertToComponentVersionInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got.Component.Purl != tt.want.Component.Purl {
+					t.Errorf("convertToComponentVersionInRangeOutput().Component.Purl = %v, want %v", got.Component.Purl, tt.want.Component.Purl)
+				}
+				if len(got.Component.VersionsWith) != len(tt.want.Component.VersionsWith) {
+					t.Errorf("convertToComponentVersionInRangeOutput().Component.VersionsWith len = %v, want %v", len(got.Component.VersionsWith), len(tt.want.Component.VersionsWith))
+					return
+				}
+				for i, version := range got.Component.VersionsWith {
+					if version != tt.want.Component.VersionsWith[i] {
+						t.Errorf("convertToComponentVersionInRangeOutput().Component.VersionsWith[%d] = %v, want %v", i, version, tt.want.Component.VersionsWith[i])
+					}
+				}
+				if len(got.Component.VersionsWithout) != len(tt.want.Component.VersionsWithout) {
+					t.Errorf("convertToComponentVersionInRangeOutput().Component.VersionsWithout len = %v, want %v", len(got.Component.VersionsWithout), len(tt.want.Component.VersionsWithout))
+					return
+				}
+				for i, version := range got.Component.VersionsWithout {
+					if version != tt.want.Component.VersionsWithout[i] {
+						t.Errorf("convertToComponentVersionInRangeOutput().Component.VersionsWithout[%d] = %v, want %v", i, version, tt.want.Component.VersionsWithout[i])
+					}
+				}
+			}
+		})
+	}
+}

@@ -942,3 +942,183 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 		})
 	}
 }
+
+func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	server := NewCryptographyServer(db, myConfig)
+
+	tests := []struct {
+		name                 string
+		request              *common.ComponentRequest
+		expectedPurlsCount   int
+		status               common.StatusCode
+		expectedErrorMessage string
+	}{
+		{
+			name: "Should_Return_ResponseWithOneComponent",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/scanoss/engine",
+				Requirement: "v5.4.5",
+			},
+			expectedPurlsCount:   1,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+		},
+		{
+			name: "Should_Return_CantFindComponent",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:github/scanoss/engines",
+				Requirement: "v5.4.5",
+			},
+			expectedPurlsCount:   0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+		},
+		{
+			name: "Should_Return_FailedToParsePurl",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:githubscanossengine",
+				Requirement: "v5.4.5",
+			},
+			expectedPurlsCount:   0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := server.GetComponentVersionsInRange(ctx, tt.request)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentVersionsInRange(),received = %v, want %v", r.Status.Status, tt.status)
+			}
+			if r.Status.Message != tt.expectedErrorMessage {
+				t.Errorf("service.GetComponentVersionsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}
+
+func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
+	ctx := context.Background()
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	db, err := sqlx.Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer models.CloseDB(db)
+	ctx = ctxzap.ToContext(ctx, zlog.L)
+
+	err = models.LoadTestSQLData(db, nil, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	myConfig, err := myconfig.NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("failed to load Config: %v", err)
+	}
+
+	server := NewCryptographyServer(db, myConfig)
+
+	tests := []struct {
+		name                 string
+		request              *common.ComponentsRequest
+		expectedPurlsCount   int
+		status               common.StatusCode
+		expectedErrorMessage string
+	}{
+		{
+			name: "Should_Return_ResponseWithOneComponent",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+				},
+			},
+			expectedPurlsCount:   1,
+			status:               common.StatusCode_SUCCESS,
+			expectedErrorMessage: "Success",
+		},
+		{
+			name: "Should_Return_CantFindComponent",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
+				},
+			},
+			expectedPurlsCount:   0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+		},
+		{
+			name: "Should_Return_FailedToParsePurl",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
+				},
+			},
+			expectedPurlsCount:   0,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Failed to parse 1 purl(s):",
+		},
+		{
+			name: "Should_Return_ResponseWithTwoComponents",
+			request: &common.ComponentsRequest{
+				Components: []*common.ComponentRequest{
+					{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+					{Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"},
+				},
+			},
+			expectedPurlsCount:   1,
+			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			expectedErrorMessage: "Can't find 1 purl(s):scanoss/dependencies",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := server.GetComponentsVersionsInRange(ctx, tt.request)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if len(r.Components) != tt.expectedPurlsCount {
+				t.Errorf("Expected to get exactly %d components, got %d", tt.expectedPurlsCount, len(r.Components))
+			}
+			if tt.status != r.Status.Status {
+				t.Errorf("service.GetComponentsVersionsInRange(),received = %v, want %v", r.Status.Status, tt.status)
+			}
+			if r.Status.Message != tt.expectedErrorMessage {
+				t.Errorf("service.GetComponentsVersionsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			}
+		})
+	}
+}
