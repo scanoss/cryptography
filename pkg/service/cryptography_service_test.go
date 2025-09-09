@@ -161,7 +161,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 			expectedPurls:        0,
 			expectedError:        false,
 			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
 		{

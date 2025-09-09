@@ -49,8 +49,8 @@ func NewECDetection(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, 
 }
 
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos.ECOutput, models.QuerySummary, error) {
-	if len(request.Purls) == 0 {
+func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO) (dtos.ECOutput, models.QuerySummary, error) {
+	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.ECOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
@@ -58,11 +58,11 @@ func (d ECDetectionUseCase) GetDetectionsInRange(request dtos.CryptoInput) (dtos
 	out := dtos.ECOutput{}
 	summary := models.QuerySummary{}
 
-	for _, reqPurl := range request.Purls {
-		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
+	for _, component := range components {
+		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
 			return dtos.ECOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
-		if item, ok := d.processSinglePurl(reqPurl, &summary); ok {
+		if item, ok := d.processSinglePurl(component, &summary); ok {
 			out.Hints = append(out.Hints, *item)
 		}
 	}
@@ -128,8 +128,8 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 }
 
 // processURLResults handles the processing of URL results and creates an ECOutputItem.
-func (d ECDetectionUseCase) processURLResults(res []models.AllURL, reqPurl dtos.CryptoInputItem) (dtos.ECOutputItem, []string) {
-	item := dtos.ECOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
+func (d ECDetectionUseCase) processURLResults(res []models.AllURL, componentDTO dtos.ComponentDTO) (dtos.ECOutputItem, []string) {
+	item := dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}}
 	hashes := make([]string, 0)
 	mapVersionHash := make(map[string]string)
 
@@ -194,21 +194,21 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 }
 
 // processSinglePurl processes a single PURL and returns whether to continue processing.
-func (d ECDetectionUseCase) processSinglePurl(reqPurl dtos.CryptoInputItem, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
-	purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
+	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 		return nil, false
 	}
 
-	purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl)
+	purlName, err := purlhelper.PurlNameFromString(componentDTO.Purl)
 	if err != nil {
-		d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+		d.s.Errorf("Failed to parse purl '%s': %s", componentDTO.Purl, err)
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 		return nil, false
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 		return nil, false
@@ -219,9 +219,9 @@ func (d ECDetectionUseCase) processSinglePurl(reqPurl dtos.CryptoInputItem, summ
 		return nil, false
 	}
 
-	item, hashes := d.processURLResults(res, reqPurl)
+	item, hashes := d.processURLResults(res, componentDTO)
 	if len(hashes) == 0 {
-		summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+		summary.PurlsWOInfo = append(summary.PurlsWOInfo, componentDTO.Purl)
 	}
 
 	return &item, true

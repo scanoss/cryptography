@@ -61,7 +61,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
 		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
@@ -70,7 +70,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement)
