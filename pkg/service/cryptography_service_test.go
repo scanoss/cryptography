@@ -533,10 +533,10 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 		{
 			name:                 "Should_Return_NoDataSupplied",
 			components:           []*common.ComponentRequest{},
-			expectedError:        true,
+			expectedError:        false,
 			expectedComponents:   0,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "No purls in request data supplied",
+			expectedErrorMessage: "'components' array cannot be empty, at least one component must be provided",
 			db:                   db,
 		},
 		{
@@ -775,10 +775,10 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 		{
 			name:                 "Should_Return_NoDataSupplied",
 			components:           []*common.ComponentRequest{},
-			expectedError:        true,
+			expectedError:        false,
 			expectedComponents:   0,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "No purls in request data supplied",
+			expectedErrorMessage: "'components' array cannot be empty, at least one component must be provided",
 			db:                   db,
 		},
 		{
@@ -875,7 +875,7 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 		{
 			name:                 "Should_Return_CantFindComponent",
 			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
-			hasComponent:         true,
+			hasComponent:         false,
 			expectedError:        false,
 			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
@@ -884,7 +884,7 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 		{
 			name:                 "Should_Return_FailedToParseComponent",
 			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
-			hasComponent:         true,
+			hasComponent:         false,
 			expectedError:        false,
 			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
@@ -1322,7 +1322,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 				Components: []*common.ComponentRequest{},
 			},
 			expectedComponents: 0,
-			expectedError:      true,
+			expectedError:      false,
 			status:             common.StatusCode_FAILED,
 		},
 		{

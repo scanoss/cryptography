@@ -43,7 +43,7 @@ func setupMetrics() {
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
 }
 
-// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct. TODO: Remove this method when legacy request be removed
+// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct. TODO: Remove this method when legacy request be removed.
 func convertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.PurlRequest) ([]dtos.ComponentDTO, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -146,7 +146,7 @@ func convertHintsOutput(s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.Hint
 	return &depResp, nil
 }
 
-// buildComponentDTO creates a ComponentDTO from a PURL string and requirement specification
+// buildComponentDTO creates a ComponentDTO from a PURL string and requirement specification.
 func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 	p := purl
 	req := requirement
@@ -167,13 +167,13 @@ func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 	}
 }
 
-// convertComponentsRequestToComponentDTO converts a ComponentsRequest to a slice of ComponentDTO
+// convertComponentsRequestToComponentDTO converts a ComponentsRequest to a slice of ComponentDTO.
 func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) ([]dtos.ComponentDTO, error) {
 	if request.Components == nil {
 		return nil, errors.New("'components' field is required but was not provided")
 	}
 	var components []dtos.ComponentDTO
-	if len(request.Components) <= 0 {
+	if len(request.Components) == 0 {
 		return nil, errors.New("'components' array cannot be empty, at least one component must be provided")
 	}
 	for _, req := range request.Components {
@@ -182,7 +182,7 @@ func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) (
 	return components, nil
 }
 
-// convertComponentRequestToComponentDTO converts a single ComponentRequest to ComponentDTO
+// convertComponentRequestToComponentDTO converts a single ComponentRequest to ComponentDTO.
 func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dtos.ComponentDTO, error) {
 	if request.Purl == "" {
 		return dtos.ComponentDTO{}, errors.New("no purl supplied. A PURL is required")
@@ -196,6 +196,7 @@ func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dt
 // convertCryptoOutputToComponents converts an internal Crypto Output structure
 // into a ComponentsAlgorithmsResponse.
 func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
+	s.Debugf("convertCryptoOutputToComponents: %v", output)
 	response := &pb.ComponentsAlgorithmsResponse{
 		Components: make([]*pb.ComponentAlgorithms, 0, len(output.Cryptography)),
 		Status:     &common.StatusResponse{},
@@ -222,6 +223,7 @@ func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOut
 // convertCryptoOutputToComponent converts an internal Crypto Output structure
 // into a ComponentAlgorithmsResponse for single component queries.
 func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
+	s.Debugf("convertCryptoOutputToComponent: %v", output)
 	response := &pb.ComponentAlgorithmsResponse{
 		Component: &pb.ComponentAlgorithms{
 			Purl:        output.Cryptography[0].Purl,
@@ -244,6 +246,7 @@ func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutp
 
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
 func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
+	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
 	var response = &pb.ComponentsAlgorithmsInRangeResponse{
 		Components: make([]*pb.ComponentsAlgorithmsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
@@ -267,6 +270,7 @@ func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Cryp
 
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentAlgorithmsInRangeResponse.
 func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+	s.Debugf("convertComponentCryptoInRangeOutput: %v", output)
 	var response = &pb.ComponentAlgorithmsInRangeResponse{
 		Status: &common.StatusResponse{},
 	}
@@ -297,6 +301,7 @@ func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Crypt
 
 // convertToComponentsVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
 func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
+	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
 	var response = &pb.ComponentsVersionsInRangeResponse{
 		Components: make([]*pb.ComponentsVersionsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
@@ -313,6 +318,7 @@ func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.V
 
 // convertToComponentVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentVersionsInRangeResponse struct.
 func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
+	s.Debugf("convertToComponentVersionInRangeOutput: %v", output)
 	response := &pb.ComponentVersionsInRangeResponse{
 		Status: &common.StatusResponse{},
 		Component: &pb.ComponentVersionsInRangeResponse_Component{

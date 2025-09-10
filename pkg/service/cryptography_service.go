@@ -21,13 +21,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
-	"strings"
-	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
@@ -88,16 +89,10 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
 	dtoCrypto, summary, err := cryptoUc.GetComponentsAlgorithms(dtoRequest)
 	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
+		s.Errorf("Failed to convert algorithms to 'AlgorithmResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
-	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.AlgorithmResponse{Status: &statusResp}, nil
-	}
-	telemetryRequestTime(ctx, c.config, requestStartTime)
 
 	// Set the status and respond with the data
 	statusResp := buildStatusResponse(ctx, s, summary)
@@ -106,28 +101,26 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	}
 	cryptoResponse, err := convertCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		s.Errorf("Failed to convert algorithms to algorithm response: %v", err)
 		statusResp = &common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: statusResp}, nil
 }
 
-// GetComponentsAlgorithms retrieves cryptographic algorithms for multiple components
+// GetComponentsAlgorithms retrieves cryptographic algorithms for multiple components.
 func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	if len(request.Components) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-
-	dtos, err := convertComponentsRequestToComponentDTO(request) // Convert to internal DTO for processing
+	// handle request
+	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsResponse {
+			return &pb.ComponentsAlgorithmsResponse{Status: status}
+		})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
-
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
 		s.Errorf("Failed to get a database connection from the pool: %v", err)
@@ -137,27 +130,30 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
-	results, summary, err := cryptoUc.GetComponentsAlgorithms(dtos)
+	results, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if results.Cryptography == nil {
+		return &pb.ComponentsAlgorithmsResponse{Status: statusResp}, nil
+	}
 
 	response, err := convertCryptoOutputToComponents(s, results) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
+		s.Errorf("Failed to convert algorithms to 'ComponentsAlgorithmsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
 	response.Status = statusResp
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
-// GetComponentAlgorithms retrieves cryptographic algorithms for a single component
+// GetComponentAlgorithms retrieves cryptographic algorithms for a single component.
 func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -180,12 +176,10 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
 	results, summary, err := cryptoUc.GetComponentsAlgorithms([]dtos.ComponentDTO{componentDTO})
 	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
+		s.Errorf("Failed to get cryptographic algorithms to 'ComponentAlgorithmsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
-
-	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
 	statusResp := buildStatusResponse(ctx, s, summary)
 	if results.Cryptography == nil {
@@ -198,6 +192,7 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
 	response.Status = statusResp
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
@@ -232,30 +227,34 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	cryptoResponse, err := convertCryptoMajorOutput(s, dtoCrypto) // Convert the internal data into a response object
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Cryptography == nil {
+		return &pb.AlgorithmsInRangeResponse{Status: statusResp}, nil
+	}
+
+	response, err := convertCryptoMajorOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		s.Errorf("Failed to convert algorithms to 'AlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: statusResp}, nil
+	return response, nil
 }
 
 func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	if len(request.Components) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	componentDTOS, err := convertComponentsRequestToComponentDTO(request) // Convert to internal DTO for processing
+	// handle request
+	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsInRangeResponse {
+			return &pb.ComponentsAlgorithmsInRangeResponse{Status: status}
+		})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -273,15 +272,19 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	telemetryRequestTime(ctx, c.config, requestStartTime)
+	// Set the status and respond with the data
+	statusRep := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Cryptography == nil {
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: buildStatusResponse(ctx, s, summary)}, nil
+	}
 	response, err := convertComponentsCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Problems converting algorithms to response: %v", err)
+		s.Errorf("Failed to convert algorithms in range to 'ComponentsAlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
+	response.Status = statusRep
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
@@ -306,19 +309,23 @@ func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, r
 	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange([]dtos.ComponentDTO{componentDTOS})
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Cryptography == nil {
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: statusResp}, nil
+	}
+
 	response, err := convertComponentCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		s.Errorf("Failed to convert algorithms in range to 'ComponentAlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -353,33 +360,35 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	versionsResponse, err := convertVersionsInRangeUsingCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Versions == nil {
+		return &pb.VersionsInRangeResponse{Status: statusResp}, nil
+	}
+
+	response, err := convertVersionsInRangeUsingCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		s.Errorf("Failed to convert versions in range to 'VersionsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	return &pb.VersionsInRangeResponse{Purls: versionsResponse.Purls, Status: statusResp}, nil
+	return response, nil
 }
 
-// GetComponentsVersionsInRange retrieves version information for multiple components within specified version ranges
-// showing which versions use cryptographic algorithms and which do not
+// showing which versions use cryptographic algorithms and which do not.
 func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsVersionsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	// Make sure we have Cryptography data to query
-	if len(request.Components) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	componentDTOS, err := convertComponentsRequestToComponentDTO(request) // Convert to internal DTO for processing
+	// handle request
+	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+		func(status *common.StatusResponse) *pb.ComponentsVersionsInRangeResponse {
+			return &pb.ComponentsVersionsInRangeResponse{Status: status}
+		})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -397,20 +406,23 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Versions == nil {
+		return &pb.ComponentsVersionsInRangeResponse{Status: statusResp}, nil
+	}
 	response, err := convertToComponentsVersionInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		s.Errorf("Failed to convert versions in range to 'ComponentsVersionsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
-// GetComponentVersionsInRange retrieves version information for a single component within a specified version range
-// showing which versions use cryptographic algorithms and which do not
+// showing which versions use cryptographic algorithms and which do not.
 func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -436,15 +448,20 @@ func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, req
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Versions == nil {
+		return &pb.ComponentVersionsInRangeResponse{Status: statusResp}, nil
+	}
+
 	response, err := convertToComponentVersionInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to convert cryptography data to response: %v", err)
+		s.Errorf("Failed to convert versions in range to 'ComponentVersionsInRangeResponse' %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -479,30 +496,34 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
-	ecResponse, err := convertECOutput(s, dtoEC) // Convert the internal data into a response object
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoEC.Hints == nil {
+		return &pb.HintsInRangeResponse{Status: statusResp}, nil
+	}
+
+	response, err := convertECOutput(s, dtoEC) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to convert cryptographic response: %v", err)
+		s.Errorf("Failed to convert hints in range to 'HintsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing cryptography data")
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	return &pb.HintsInRangeResponse{Purls: ecResponse.Purls, Status: statusResp}, nil
+	return response, nil
 }
 
 func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsHintsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	if len(request.Components) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	componentDTOS, err := convertComponentsRequestToComponentDTO(request) // Convert to internal DTO for processing
+	// handle request
+	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+		func(status *common.StatusResponse) *pb.ComponentsHintsInRangeResponse {
+			return &pb.ComponentsHintsInRangeResponse{Status: status}
+		})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -519,15 +540,18 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem getting hints in range")
 	}
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoEC.Hints == nil {
+		return &pb.ComponentsHintsInRangeResponse{Status: statusResp}, nil
+	}
 	response, err := convertToComponentsHintsInRangeOutput(s, dtoEC) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed convert hints to response output: %v", err)
+		s.Errorf("Failed to convert hints in range to 'ComponentsHintsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problems getting hints in range")
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -555,15 +579,20 @@ func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, reques
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("failed to get hints in range")
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoEC.Hints == nil {
+		return &pb.ComponentHintsInRangeResponse{Status: statusResp}, nil
+	}
+
 	response, err := convertToComponentHintsInRangeOutput(s, dtoEC) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Problems coverting cryptography data to response output: %v", err)
+		s.Errorf("Failed to convert hints in range to 'ComponentHintsInRangeResponse' %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problems encountered extracting hints in range data")
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -597,30 +626,34 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
 
-	ecResponse, err := convertHintsOutput(s, dtoEC) // Convert the internal data into a response object
+	if dtoEC.Hints == nil {
+		return &pb.HintsResponse{Status: statusResp}, nil
+	}
+
+	response, err := convertHintsOutput(s, dtoEC) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to convert to hints output: %v", err)
+		s.Errorf("Failed to convert encryption hints to 'HintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
+	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	return &pb.HintsResponse{Purls: ecResponse.Purls, Status: statusResp}, nil
+	return response, nil
 }
 
 func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsEncryptionHintsResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
-	//handle request
-	componentDTOS, resp, err := handleComponentsRequest(request,
+	// handle request
+	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
 		func(status *common.StatusResponse) *pb.ComponentsEncryptionHintsResponse {
 			return &pb.ComponentsEncryptionHintsResponse{Status: status}
 		})
 	if err != nil {
-		setHttpCodeOnTrailer(ctx, s, "400")
 		return resp, nil
 	}
 
@@ -639,21 +672,19 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-
-	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
 	statusResp := buildStatusResponse(ctx, s, summary)
-
 	if encryptionHints.Hints == nil {
 		return &pb.ComponentsEncryptionHintsResponse{Status: statusResp}, nil
 	}
 	response, err := convertEncryptionHintsToComponentsEncryptionOutput(encryptionHints) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to convert to hints output: %v", err)
+		s.Errorf("Failed to convert encryption hints to 'ComponentsEncryptionHintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 	response.Status = statusResp
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
@@ -682,38 +713,36 @@ func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, req
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-
-	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
 	statusResp := buildStatusResponse(ctx, s, summary)
-
 	// Check for nil hints first
 	if encryptionHints.Hints == nil {
 		return &pb.ComponentEncryptionHintsResponse{Status: statusResp}, nil
 	}
-
 	response, err := convertEncryptionHintsToComponentEncryptionOutput(encryptionHints) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to convert to hints output: %v", err)
+		s.Errorf("Failed to convert encryption hints to 'ComponentEncryptionHintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 	response.Status = statusResp
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
-func handleComponentsRequest[T any](request *common.ComponentsRequest, createResponse func(*common.StatusResponse) T) ([]dtos.ComponentDTO, T, error) {
+func handleComponentsRequest[T any](ctx context.Context, request *common.ComponentsRequest, createResponse func(*common.StatusResponse) T) ([]dtos.ComponentDTO, T, error) {
+	s := ctxzap.Extract(ctx).Sugar()
 	var zero T
 	componentDTOS, err := convertComponentsRequestToComponentDTO(request)
 	if err != nil {
+		setHTTPCodeOnTrailer(ctx, s, "400")
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
 		return []dtos.ComponentDTO{}, createResponse(&statusResp), errors.New(err.Error())
 	}
-
 	return componentDTOS, zero, nil
 }
 
-// buildErrorMessages creates error messages for each type of PURL failure
+// buildErrorMessages creates error messages for each type of PURL failure.
 func buildErrorMessages(summary models.QuerySummary) []string {
 	var messages []string
 
@@ -734,7 +763,7 @@ func buildErrorMessages(summary models.QuerySummary) []string {
 	return messages
 }
 
-// determineStatusAndHTTPCode applies the exact same logic as before
+// determineStatusAndHTTPCode applies the exact same logic as before.
 func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummary) (common.StatusCode, string) {
 	// Calculate failure statistics
 	totalFailedToParse := len(summary.PurlsFailedToParse)
@@ -777,12 +806,12 @@ func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary mode
 		statusResp.Message = strings.Join(messages, " | ")
 	}
 	status, httpStatusCode := determineStatusAndHTTPCode(s, summary)
-	setHttpCodeOnTrailer(ctx, s, httpStatusCode)
+	setHTTPCodeOnTrailer(ctx, s, httpStatusCode)
 	statusResp.Status = status
 	return &statusResp
 }
 
-func setHttpCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code string) {
+func setHTTPCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code string) {
 	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", code))
 	if err != nil {
 		s.Errorf("error setting x-http-code to trailer: %v\n", err)

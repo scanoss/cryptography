@@ -16,9 +16,9 @@
 
 package dtos
 
-// ComponentDTO represents a software component with its Package URL and version information
+// ComponentDTO represents a software component with its Package URL and version information.
 type ComponentDTO struct {
-	Purl        string `json:"purl"`        // Package URL identifier
+	Purl        string `json:"purl"`                  // Package URL identifier
 	Requirement string `json:"requirement,omitempty"` // Version requirement specification
 	Version     string `json:"version,omitempty"`     // Specific version of the component
 }
