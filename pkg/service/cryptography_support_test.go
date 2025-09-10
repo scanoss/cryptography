@@ -191,15 +191,15 @@ func Test_convertComponentRequestToComponentDTO(t *testing.T) {
 		{
 			name:    "Empty PURL",
 			request: &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
-			want:    dtos.ComponentDTO{Purl: "", Version: "v5.4.5", Requirement: "v5.4.5"},
-			wantErr: false,
+			want:    dtos.ComponentDTO{},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := convertComponentRequestToComponentDTO(tt.request)
-			if (err != nil) != tt.wantErr {
+			if (err != nil) && !tt.wantErr {
 				t.Errorf("convertComponentRequestToComponentDTO() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

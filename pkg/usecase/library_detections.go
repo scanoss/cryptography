@@ -57,6 +57,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 
 	out := dtos.ECOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 
 	for _, component := range components {
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
@@ -71,37 +72,38 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 }
 
 // GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
-func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsOutput, models.QuerySummary, error) {
-	if len(request.Purls) == 0 {
+func (d ECDetectionUseCase) GetDetections(components []dtos.ComponentDTO) (dtos.HintsOutput, models.QuerySummary, error) {
+	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.HintsOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
 	out := dtos.HintsOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	// Prepare purls to query
-	for _, reqPurl := range request.Purls {
-		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+	for _, component := range components {
+		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
 			//	d.s.Logf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
 			continue
 		}
 
-		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
+		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
+			d.s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, reqPurl.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, component.Requirement)
 		if errQ != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
-		item := dtos.HintsOutputItem{Purl: reqPurl.Purl, Version: res.Version}
+		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement}
 		uses, err1 := d.usage.GetLibraryUsageByURLHashes([]string{res.URLHash})
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
+			d.s.Errorf("error getting algorithms usage for purl '%s': %s", component.Purl, err)
 		}
 		// avoid duplicate detections (if any)
 		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
@@ -120,7 +122,7 @@ func (d ECDetectionUseCase) GetDetections(request dtos.CryptoInput) (dtos.HintsO
 			}
 		}
 		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, component.Purl)
 		}
 		out.Hints = append(out.Hints, item)
 	}

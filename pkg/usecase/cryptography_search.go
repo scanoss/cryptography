@@ -130,6 +130,7 @@ func (d CryptoUseCase) processInputPurls(components []dtos.ComponentDTO) ([]Inte
 	var purlsToQuery []utils.PurlReq
 	mapPurls := make(map[string]bool)
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	for _, c := range components {
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {

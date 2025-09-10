@@ -55,6 +55,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 	}
 	out := dtos.VersionsInRangeOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	// Prepare purls to query
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)

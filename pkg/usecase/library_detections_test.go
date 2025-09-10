@@ -211,22 +211,14 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	var cryptoRequest = `{
-			   "purls": [
-				 {
-				   "purl": "pkg:github/pineappleea/pineapple-src",
-				   "requirement":"5.4.7"
-				   
-				 }
-			   ]
-			   }`
-	hintsUc := NewECDetection(ctx, s, conn, myConfig)
-
-	requestDto, err := dtos.ParseCryptoInput(s, []byte(cryptoRequest))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	var componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl:        "pkg:github/pineappleea/pineapple-src",
+			Requirement: "5.4.7",
+		},
 	}
-	libraries, summary, err := hintsUc.GetDetections(requestDto)
+	hintsUc := NewECDetection(ctx, s, conn, myConfig)
+	libraries, summary, err := hintsUc.GetDetections(componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
@@ -239,64 +231,36 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		len(summary.PurlsNotFound) > 0 {
 		t.Fatalf("Expected to get at least 1 Hint")
 	}
-	cryptoRequest = `{
-			   "purls": [
-				 {
-				   "purl": "pkg:github/pineappleea/pineapple-src",
-				   "requirement":"v5.4.6"
-				   
-				 }
-			   ]
-			   }`
-
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(cryptoRequest))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl:        "pkg:github/pineappleea/pineapple-src",
+			Requirement: "5.4.6",
+		},
 	}
-	libraries, summary, err = hintsUc.GetDetections(requestDto)
+	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
 	if libraries.Hints[0].Version != "" {
 		t.Errorf("Did not receive expected version (5.4.7 expected and received %s)", libraries.Hints[0].Version)
 	}
-
-	var unExistentRequirement = `{
-					"purls": [
-						{
-						  "purl":"pkg:github/scanoss/engine"
-						}
-				  ]
-				}
-			`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentRequirement))
-
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl: "pkg:github/scanoss/engine",
+		},
 	}
-
-	libraries, summary, err = hintsUc.GetDetections(requestDto)
-
+	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 
-	var unExistentHints = `{
-		"purls": [
-			{
-			  "purl":"pkg:github/scanoss/engine",
-			  "requirement":">=1.0"
-			}
-	  ]
+	componentDTOS = []dtos.ComponentDTO{
+		dtos.ComponentDTO{
+			Purl:        "pkg:github/scanoss/engine",
+			Requirement: ">=1.0",
+		},
 	}
-`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(unExistentHints))
-
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
-	}
-
-	libraries, summary, err = hintsUc.GetDetections(requestDto)
+	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
 
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
@@ -306,18 +270,8 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Fatalf("Expected to not find information for purl")
 	}
 
-	var emptyRequest = `{
-		"purls": [
-			 ]
-	}
-`
-	requestDto, err = dtos.ParseCryptoInput(s, []byte(emptyRequest))
-
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
-	}
-
-	libraries, summary, err = hintsUc.GetDetections(requestDto)
+	componentDTOS = []dtos.ComponentDTO{}
+	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
 
 	if err == nil {
 		t.Fatalf("expected to get an error: %v", err)

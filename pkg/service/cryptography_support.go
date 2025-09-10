@@ -169,9 +169,12 @@ func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 
 // convertComponentsRequestToComponentDTO converts a ComponentsRequest to a slice of ComponentDTO
 func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) ([]dtos.ComponentDTO, error) {
+	if request.Components == nil {
+		return nil, errors.New("'components' field is required but was not provided")
+	}
 	var components []dtos.ComponentDTO
 	if len(request.Components) <= 0 {
-		return nil, errors.New("no components supplied")
+		return nil, errors.New("'components' array cannot be empty, at least one component must be provided")
 	}
 	for _, req := range request.Components {
 		components = append(components, buildComponentDTO(req.Purl, req.Requirement))
@@ -181,6 +184,9 @@ func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) (
 
 // convertComponentRequestToComponentDTO converts a single ComponentRequest to ComponentDTO
 func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dtos.ComponentDTO, error) {
+	if request.Purl == "" {
+		return dtos.ComponentDTO{}, errors.New("no purl supplied. A PURL is required")
+	}
 	componentDTO, err := convertComponentsRequestToComponentDTO(&common.ComponentsRequest{
 		Components: []*common.ComponentRequest{request},
 	})
@@ -221,7 +227,7 @@ func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutp
 			Purl:        output.Cryptography[0].Purl,
 			Version:     output.Cryptography[0].Version,
 			Requirement: output.Cryptography[0].Requirement,
-			Algorithms:  make([]*pb.Algorithm, 0, len(output.Cryptography[0].Algorithms)),
+			Algorithms:  make([]*pb.Algorithm, 0),
 		},
 		Status: &common.StatusResponse{},
 	}
@@ -385,6 +391,71 @@ func convertToComponentHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOu
 			}
 		}
 		s.Debugf("convertToComponentHintsInRangeOutput : Converted %v hint to component ", output.Hints)
+	}
+	return response, nil
+}
+
+// convertEncryptionHintsToComponentsEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
+func convertEncryptionHintsToComponentsEncryptionOutput(output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
+	if output.Hints == nil {
+		return nil, errors.New("no encryption hints found")
+	}
+	var response = &pb.ComponentsEncryptionHintsResponse{
+		Components: make([]*pb.ComponentHints, 0, len(output.Hints)),
+		Status:     &common.StatusResponse{},
+	}
+	for _, hint := range output.Hints {
+		hints := make([]*pb.Hint, 0, len(hint.Detections))
+		for _, detection := range hint.Detections {
+			hints = append(hints, &pb.Hint{
+				Id:          detection.ID,
+				Name:        detection.Name,
+				Purl:        detection.Purl,
+				Description: detection.Description,
+				Category:    detection.Category,
+				Url:         detection.URL,
+			})
+		}
+		response.Components = append(response.Components, &pb.ComponentHints{
+			Purl:        hint.Purl,
+			Version:     hint.Version,
+			Requirement: hint.Requirement,
+			Hints:       hints,
+		})
+	}
+	return response, nil
+}
+
+// convertEncryptionHintsToComponentsEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
+func convertEncryptionHintsToComponentEncryptionOutput(output dtos.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
+	if output.Hints == nil {
+		return nil, errors.New("no encryption hints found")
+	}
+	var response = &pb.ComponentEncryptionHintsResponse{
+		Component: &pb.ComponentHints{
+			Purl:        "",
+			Version:     "",
+			Requirement: "",
+			Hints:       make([]*pb.Hint, 0, len(output.Hints)),
+		},
+		Status: &common.StatusResponse{},
+	}
+	for _, hint := range output.Hints {
+		hints := make([]*pb.Hint, 0, len(hint.Detections))
+		for _, detection := range hint.Detections {
+			hints = append(hints, &pb.Hint{
+				Id:          detection.ID,
+				Name:        detection.Name,
+				Purl:        detection.Purl,
+				Description: detection.Description,
+				Category:    detection.Category,
+				Url:         detection.URL,
+			})
+		}
+		response.Component.Purl = hint.Purl
+		response.Component.Version = hint.Version
+		response.Component.Requirement = hint.Requirement
+		response.Component.Hints = hints
 	}
 	return response, nil
 }

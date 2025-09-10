@@ -56,6 +56,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 	}
 	out := dtos.CryptoInRangeOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	// Prepare purls to query
 	for _, c := range components {
 		purl, err := purlhelper.PurlFromString(c.Purl)
