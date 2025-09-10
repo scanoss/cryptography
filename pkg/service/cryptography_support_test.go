@@ -546,7 +546,7 @@ func Test_convertComponentsCryptoInRangeOutput(t *testing.T) {
 			want: &pb.ComponentsAlgorithmsInRangeResponse{
 				Components: []*pb.ComponentsAlgorithmsInRangeResponse_Component{},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 
@@ -768,7 +768,7 @@ func Test_convertToComponentsVersionInRangeOutput(t *testing.T) {
 			want: &pb.ComponentsVersionsInRangeResponse{
 				Components: []*pb.ComponentsVersionsInRangeResponse_Component{},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "Component with empty version lists",
@@ -905,7 +905,7 @@ func Test_convertToComponentVersionInRangeOutput(t *testing.T) {
 					VersionsWithout: []string{},
 				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "Component with empty version lists",

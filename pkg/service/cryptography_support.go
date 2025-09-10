@@ -196,6 +196,9 @@ func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dt
 // convertCryptoOutputToComponents converts an internal Crypto Output structure
 // into a ComponentsAlgorithmsResponse.
 func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
+	if output.Cryptography == nil {
+		return nil, errors.New("no cryptography found")
+	}
 	s.Debugf("convertCryptoOutputToComponents: %v", output)
 	response := &pb.ComponentsAlgorithmsResponse{
 		Components: make([]*pb.ComponentAlgorithms, 0, len(output.Cryptography)),
@@ -224,6 +227,9 @@ func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOut
 // into a ComponentAlgorithmsResponse for single component queries.
 func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
 	s.Debugf("convertCryptoOutputToComponent: %v", output)
+	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+		return nil, errors.New("no cryptography found")
+	}
 	response := &pb.ComponentAlgorithmsResponse{
 		Component: &pb.ComponentAlgorithms{
 			Purl:        output.Cryptography[0].Purl,
@@ -247,6 +253,9 @@ func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutp
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
 func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
+	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+		return nil, errors.New("no cryptography found")
+	}
 	var response = &pb.ComponentsAlgorithmsInRangeResponse{
 		Components: make([]*pb.ComponentsAlgorithmsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
@@ -271,6 +280,9 @@ func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Cryp
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentAlgorithmsInRangeResponse.
 func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentCryptoInRangeOutput: %v", output)
+	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+		return nil, errors.New("no cryptography found")
+	}
 	var response = &pb.ComponentAlgorithmsInRangeResponse{
 		Status: &common.StatusResponse{},
 	}
@@ -302,6 +314,9 @@ func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Crypt
 // convertToComponentsVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
 func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
+	if (output.Versions == nil) || (len(output.Versions) == 0) {
+		return nil, errors.New("no versions found")
+	}
 	var response = &pb.ComponentsVersionsInRangeResponse{
 		Components: make([]*pb.ComponentsVersionsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
@@ -319,6 +334,9 @@ func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.V
 // convertToComponentVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentVersionsInRangeResponse struct.
 func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentVersionInRangeOutput: %v", output)
+	if (output.Versions == nil) || (len(output.Versions) == 0) {
+		return nil, errors.New("no versions found")
+	}
 	response := &pb.ComponentVersionsInRangeResponse{
 		Status: &common.StatusResponse{},
 		Component: &pb.ComponentVersionsInRangeResponse_Component{
@@ -338,6 +356,9 @@ func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.Ve
 
 // convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
 func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
+	if (output.Hints == nil) || (len(output.Hints) == 0) {
+		return nil, errors.New("no hints found")
+	}
 	var response = &pb.ComponentsHintsInRangeResponse{
 		Status:     &common.StatusResponse{},
 		Components: make([]*pb.ComponentsHintsInRangeResponse_Component, 0, len(output.Hints)),
@@ -369,6 +390,9 @@ func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECO
 
 // convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
 func convertToComponentHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
+	if (output.Hints == nil) || (len(output.Hints) == 0) {
+		return nil, errors.New("no hints found")
+	}
 	var response = &pb.ComponentHintsInRangeResponse{
 		Status:    &common.StatusResponse{},
 		Component: &pb.ComponentHintsInRangeResponse_Component{},
