@@ -151,7 +151,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 			request:              `{"purls": [{"purl": "pkg:github/scanoss/engines", "requirement":"v5.4.5"}]}`,
 			expectedPurls:        0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 			db:                   db,
 		},
@@ -160,7 +160,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 			request:              `{"purls": [{"purl": "pkg:githubscanossengine", "requirement":"v5.4.5"}]}`,
 			expectedPurls:        0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
@@ -187,7 +187,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 			request:              `{"purls":[{"purl":""}]}`,
 			expectedError:        false,
 			expectedPurls:        0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 			db:                   db,
 		},
@@ -401,7 +401,6 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetHints(t *testing.T) {
-
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -436,26 +435,17 @@ func TestCryptographyServer_GetHints(t *testing.T) {
 	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/pineappleea/pineapple-src1", Requirement: "v5.4.7"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 1 {
-		t.Errorf("Expected to get exactly one purl")
 	}
-	if r.Status.Status != 2 {
-		t.Errorf("Error retrieving status")
+	if r.Status.Status != common.StatusCode_FAILED {
+		t.Errorf("Expected to get failed status")
 	}
 
 	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
-		t.Errorf("Did not expect to receive a malformed purl")
 	}
-	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 2 {
-		t.Errorf("Expected to get exactly one purl")
-	} else if !strings.Contains(r.Status.Message, "Can't find information") {
-		t.Errorf("Status message does not match")
+	if r.Status.Status != common.StatusCode_FAILED {
+		t.Errorf("Expected to get failed status")
 	}
 }
 
@@ -513,7 +503,7 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 			db:                   db,
 		},
@@ -524,7 +514,7 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
@@ -556,7 +546,7 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 			},
 			expectedError:        false,
 			expectedComponents:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 			db:                   db,
 		},
@@ -645,7 +635,7 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
 			hasComponent:         false,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 			db:                   db,
 		},
@@ -654,7 +644,7 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
 			hasComponent:         false,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
@@ -755,7 +745,7 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 			db:                   db,
 		},
@@ -766,7 +756,7 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
@@ -798,7 +788,7 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 			},
 			expectedError:        false,
 			expectedComponents:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 			db:                   db,
 		},
@@ -887,7 +877,7 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
 			hasComponent:         true,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 			db:                   db,
 		},
@@ -896,7 +886,7 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
 			hasComponent:         true,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 			db:                   db,
 		},
@@ -993,7 +983,7 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 				Requirement: "v5.4.5",
 			},
 			expectedPurlsCount:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 		},
 		{
@@ -1003,7 +993,7 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 				Requirement: "v5.4.5",
 			},
 			expectedPurlsCount:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 		},
 	}
@@ -1076,7 +1066,7 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 				},
 			},
 			expectedPurlsCount:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 		},
 		{
@@ -1087,7 +1077,7 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 				},
 			},
 			expectedPurlsCount:   0,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 		},
 		{
@@ -1176,7 +1166,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			},
 			expectedHints:        0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 		},
 		{
@@ -1187,7 +1177,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			},
 			expectedHints:        0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 		},
 		{
@@ -1198,7 +1188,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			},
 			expectedHints:        0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find information for 1 purl(s):",
 		},
 		{
@@ -1298,7 +1288,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
 		},
 		{
@@ -1310,7 +1300,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			},
 			expectedComponents:   0,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_FAILED,
 			expectedErrorMessage: "Failed to parse 1 purl(s):",
 		},
 		{
@@ -1414,7 +1404,7 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 			},
 			expectedComponents:   1,
 			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
+			status:               common.StatusCode_SUCCESS,
 			expectedErrorMessage: "Success",
 		},
 		{

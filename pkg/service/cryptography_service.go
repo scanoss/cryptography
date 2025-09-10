@@ -98,36 +98,18 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
-	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	if dtoCrypto.Cryptography != nil {
-		cryptoResponse, err := convertCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
-		if err != nil {
-			s.Errorf("Failed to covnert parsed dependencies: %v", err)
-			statusResp = common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		}
-		return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
-	}
 
-	return &pb.AlgorithmResponse{Status: &statusResp}, nil
+	// Set the status and respond with the data
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if dtoCrypto.Cryptography == nil {
+		return &pb.AlgorithmResponse{Status: statusResp}, nil
+	}
+	cryptoResponse, err := convertCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
+	if err != nil {
+		s.Errorf("Failed to covnert parsed dependencies: %v", err)
+		statusResp = &common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+	}
+	return &pb.AlgorithmResponse{Purls: cryptoResponse.Purls, Status: statusResp}, nil
 }
 
 // GetComponentsAlgorithms retrieves cryptographic algorithms for multiple components
@@ -170,28 +152,8 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-
-	response.Status = &statusResp
+	statusResp := buildStatusResponse(ctx, s, summary)
+	response.Status = statusResp
 	return response, nil
 }
 
@@ -225,42 +187,18 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
+	statusResp := buildStatusResponse(ctx, s, summary)
+	if results.Cryptography == nil {
+		return &pb.ComponentAlgorithmsResponse{Status: statusResp}, nil
 	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-
-	if results.Cryptography != nil {
-		response, err := convertCryptoOutputToComponent(s, results) // Convert the internal data into a response object
-		if err != nil {
-			s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
-			statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-			return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
-		}
-		response.Status = &statusResp
-		return response, nil
-	}
-	err = grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", "404"))
+	response, err := convertCryptoOutputToComponent(s, results) // Convert the internal data into a response object
 	if err != nil {
-		s.Debugf("error setting x-http-code to trailer: %v\n", err)
+		s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
-	return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
+	response.Status = statusResp
+	return response, nil
 }
 
 func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
@@ -302,28 +240,8 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-
-	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: &statusResp}, nil
+	statusResp := buildStatusResponse(ctx, s, summary)
+	return &pb.AlgorithmsInRangeResponse{Purls: cryptoResponse.Purls, Status: statusResp}, nil
 }
 
 func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
@@ -355,35 +273,15 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	response, err := convertComponentsCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
-		s.Errorf("Failed to covnert parsed dependencies: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
+		s.Errorf("Problems converting algorithms to response: %v", err)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -420,27 +318,7 @@ func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, r
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -483,28 +361,8 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-
-	return &pb.VersionsInRangeResponse{Purls: versionsResponse.Purls, Status: &statusResp}, nil
+	statusResp := buildStatusResponse(ctx, s, summary)
+	return &pb.VersionsInRangeResponse{Purls: versionsResponse.Purls, Status: statusResp}, nil
 }
 
 // GetComponentsVersionsInRange retrieves version information for multiple components within specified version ranges
@@ -547,27 +405,7 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -606,27 +444,7 @@ func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, req
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -669,28 +487,8 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-
-	return &pb.HintsInRangeResponse{Purls: ecResponse.Purls, Status: &statusResp}, nil
+	statusResp := buildStatusResponse(ctx, s, summary)
+	return &pb.HintsInRangeResponse{Purls: ecResponse.Purls, Status: statusResp}, nil
 }
 
 func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsHintsInRangeResponse, error) {
@@ -729,27 +527,7 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -785,27 +563,7 @@ func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, reques
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	// Set the status and respond with the data
-	statusResp := common.StatusResponse{Status: common.StatusCode_SUCCESS, Message: ResponseMessageSUCCESS}
-	var messages []string
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-	}
-	if len(messages) == 0 {
-		statusResp.Message = ResponseMessageSUCCESS
-	} else {
-		statusResp.Message = strings.Join(messages, "/")
-	}
-	response.Status = &statusResp
+	response.Status = buildStatusResponse(ctx, s, summary)
 	return response, nil
 }
 
@@ -862,7 +620,7 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 			return &pb.ComponentsEncryptionHintsResponse{Status: status}
 		})
 	if err != nil {
-		setHttpCodeOnTrailer(ctx, s)
+		setHttpCodeOnTrailer(ctx, s, "400")
 		return resp, nil
 	}
 
@@ -955,81 +713,77 @@ func handleComponentsRequest[T any](request *common.ComponentsRequest, createRes
 	return componentDTOS, zero, nil
 }
 
-// buildStatusResponse constructs a StatusResponse based on PURL processing results and sets appropriate HTTP status codes.
-func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary models.QuerySummary) *common.StatusResponse {
+// buildErrorMessages creates error messages for each type of PURL failure
+func buildErrorMessages(summary models.QuerySummary) []string {
 	var messages []string
 
 	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s", len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
+		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s",
+			len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
 	}
 
 	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s", len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
+		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s",
+			len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
 	}
 
 	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s", len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
+		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s",
+			len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
 	}
+	return messages
+}
 
-	statusResp := common.StatusResponse{
-		Status: common.StatusCode_SUCCESS,
-	}
-
-	httpStatusCode := "200"
-
-	statusResp.Message = ResponseMessageSUCCESS
-	if len(messages) > 0 {
-		statusResp.Message = strings.Join(messages, " | ")
-	}
-
-	// Calculate totals
+// determineStatusAndHTTPCode applies the exact same logic as before
+func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummary) (common.StatusCode, string) {
+	// Calculate failure statistics
 	totalFailedToParse := len(summary.PurlsFailedToParse)
 	totalNotFound := len(summary.PurlsNotFound)
 	totalWOInfo := len(summary.PurlsWOInfo)
 	totalFailed := totalFailedToParse + totalNotFound + totalWOInfo
 	totalSuccessful := summary.TotalPurls - totalFailed
-
+	totalPurls := summary.TotalPurls
+	// Log processing summary
 	s.Debugf("PURL Summary - Total: %d, Successful: %d, Failed to parse: %d, Not found: %d, No info: %d",
 		summary.TotalPurls, totalSuccessful, totalFailedToParse, totalNotFound, totalWOInfo)
 
-	// Status determination logic:
-	// 1. Check for partial failures with more missing info than parse errors
-	// 2. Check for complete parse failure (all PURLs malformed)
-	// 3. Check for partial parse failures
-	// 4. Check for complete info-missing failure (all PURLs lack data)
-	// 5. Default to success (all PURLs processed successfully)
 	switch {
-	case totalWOInfo > 0 && totalWOInfo >= totalFailedToParse && totalWOInfo < summary.TotalPurls:
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-		break
+	case totalFailed == 0:
+		// All PURLs succeeded
+		return common.StatusCode_SUCCESS, "200"
 
-	case totalFailedToParse >= summary.TotalPurls:
-		statusResp.Status = common.StatusCode_FAILED
-		httpStatusCode = "400"
-		break
-
-	case totalFailedToParse > 0 && totalFailedToParse < summary.TotalPurls:
-		statusResp.Status = common.StatusCode_SUCCEEDED_WITH_WARNINGS
-		break
-
-	case totalWOInfo >= summary.TotalPurls:
-		httpStatusCode = "404"
-		statusResp.Status = common.StatusCode_FAILED
-		break
+	case totalSuccessful == 0:
+		// All PURLs failed - determine HTTP code by failure type priority
+		httpStatusCode := "404" // Default to not found or no info
+		if totalFailedToParse > 0 && totalFailedToParse >= totalPurls {
+			httpStatusCode = "400" // Parse errors are client errors
+		}
+		return common.StatusCode_FAILED, httpStatusCode
 
 	default:
-		// All PURLs succeeded
-		statusResp.Status = common.StatusCode_SUCCESS
+		// Mixed results: some succeeded, some failed
+		return common.StatusCode_SUCCEEDED_WITH_WARNINGS, "200"
 	}
-	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", httpStatusCode))
-	if err != nil {
-		s.Debugf("error setting x-http-code to trailer: %v\n", err)
+}
+
+// buildStatusResponse constructs a StatusResponse based on PURL processing results and sets appropriate HTTP status codes.
+func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary models.QuerySummary) *common.StatusResponse {
+	var messages = buildErrorMessages(summary)
+	statusResp := common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: ResponseMessageSUCCESS,
 	}
+	if len(messages) > 0 {
+		statusResp.Message = strings.Join(messages, " | ")
+	}
+	status, httpStatusCode := determineStatusAndHTTPCode(s, summary)
+	setHttpCodeOnTrailer(ctx, s, httpStatusCode)
+	statusResp.Status = status
 	return &statusResp
 }
 
-func setHttpCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger) {
-	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", "400"))
+func setHttpCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code string) {
+	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", code))
 	if err != nil {
 		s.Errorf("error setting x-http-code to trailer: %v\n", err)
 	}
