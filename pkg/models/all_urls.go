@@ -141,7 +141,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameType(purlName, purlType, purlReq string)
 	}
 	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
 	// Pick one URL to return (checking for license details also)
-	return pickOneUrl(m.s, allUrls, purlName, purlType, purlReq)
+	return pickOneURL(m.s, allUrls, purlName, purlType, purlReq)
 }
 
 // GetUrlsByPurlNameTypeVersion searches for component details of the specified Purl Name/Type and version.
@@ -174,7 +174,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 	}
 	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
 	// Pick one URL to return (checking for license details also)
-	return pickOneUrl(m.s, allUrls, purlName, purlType, "")
+	return pickOneURL(m.s, allUrls, purlName, purlType, "")
 }
 
 func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string) ([]AllURL, error) {
@@ -227,9 +227,9 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	return filteredUrls, nil
 }
 
-// pickOneUrl takes the potential matching component/versions and selects the most appropriate one
+// pickOneURL takes the potential matching component/versions and selects the most appropriate one
 // obsolete in this application.
-func pickOneUrl(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType, purlReq string) (AllURL, error) {
+func pickOneURL(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType, purlReq string) (AllURL, error) {
 	if len(allUrls) == 0 {
 		s.Infof("No component match (in urls) found for %v, %v", purlName, purlType)
 		return AllURL{}, nil
@@ -297,6 +297,7 @@ func pickOneUrl(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType, purl
 	return url, nil // Return the best component match
 }
 
+// PickClosestUrls nolint: gocognit.
 func PickClosestUrls(s *zap.SugaredLogger, allUrls []AllURL, purlName, purlType, purlReq string) ([]AllURL, error) {
 	if len(allUrls) == 0 {
 		s.Infof("No component match (in urls) found for %v, %v", purlName, purlType)

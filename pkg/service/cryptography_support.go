@@ -169,7 +169,7 @@ func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 
 // convertComponentsRequestToComponentDTO converts a ComponentsRequest to a slice of ComponentDTO.
 func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) ([]dtos.ComponentDTO, error) {
-	if request.Components == nil {
+	if request == nil || request.Components == nil {
 		return nil, errors.New("'components' field is required but was not provided")
 	}
 	var components []dtos.ComponentDTO
@@ -184,7 +184,7 @@ func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) (
 
 // convertComponentRequestToComponentDTO converts a single ComponentRequest to ComponentDTO.
 func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dtos.ComponentDTO, error) {
-	if request.Purl == "" {
+	if request == nil || request.Purl == "" {
 		return dtos.ComponentDTO{}, errors.New("no purl supplied. A PURL is required")
 	}
 	componentDTO, err := convertComponentsRequestToComponentDTO(&common.ComponentsRequest{

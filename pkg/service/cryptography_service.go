@@ -21,19 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/models"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
-
 	"github.com/jmoiron/sqlx"
+	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
@@ -158,13 +150,12 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-
-	componentDTO, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentAlgorithmsResponse {
+		return &pb.ComponentAlgorithmsResponse{Status: status}
+	})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
-		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, errors.New(err.Error())
+		return resp, nil
 	}
-
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
 		s.Errorf("Failed to get a database connection from the pool: %v", err)
@@ -174,7 +165,7 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
-	results, summary, err := cryptoUc.GetComponentsAlgorithms([]dtos.ComponentDTO{componentDTO})
+	results, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms to 'ComponentAlgorithmsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -292,10 +283,11 @@ func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, r
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	componentDTOS, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentAlgorithmsInRangeResponse {
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: status}
+	})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -306,7 +298,7 @@ func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, r
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange([]dtos.ComponentDTO{componentDTOS})
+	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
@@ -427,10 +419,11 @@ func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, req
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	componentDTOS, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
+		return &pb.ComponentVersionsInRangeResponse{Status: status}
+	})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -441,7 +434,7 @@ func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, req
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	cryptoUc := usecase.NewVersionsUsingCrypto(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetVersionsInRangeUsingCrypto([]dtos.ComponentDTO{componentDTOS})
+	dtoCrypto, summary, err := cryptoUc.GetVersionsInRangeUsingCrypto(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 
@@ -559,10 +552,11 @@ func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, reques
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
-	componentDTOS, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
+		return &pb.ComponentHintsInRangeResponse{Status: status}
+	})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -573,7 +567,7 @@ func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, reques
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	dtoEC, summary, err := ecDetectionUC.GetDetectionsInRange([]dtos.ComponentDTO{componentDTOS})
+	dtoEC, summary, err := ecDetectionUC.GetDetectionsInRange(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
@@ -656,7 +650,6 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 	if err != nil {
 		return resp, nil
 	}
-
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
 		s.Errorf("Failed to get a database connection from the pool: %v", err)
@@ -692,11 +685,11 @@ func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, req
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
-	// Make sure we have Cryptography data to query
-	componentDTOS, err := convertComponentRequestToComponentDTO(request) // Convert to internal DTO for processing
+	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentEncryptionHintsResponse {
+		return &pb.ComponentEncryptionHintsResponse{Status: status}
+	})
 	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
-		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New(err.Error())
+		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -707,7 +700,7 @@ func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, req
 	defer gd.CloseSQLConnection(conn)
 	// Search the KB for information about each Cryptography
 	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	encryptionHints, summary, err := ecDetectionUC.GetDetections([]dtos.ComponentDTO{componentDTOS})
+	encryptionHints, summary, err := ecDetectionUC.GetDetections(componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get encryption hints: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
@@ -728,100 +721,4 @@ func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, req
 	response.Status = statusResp
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
-}
-
-func handleComponentsRequest[T any](ctx context.Context, request *common.ComponentsRequest, createResponse func(*common.StatusResponse) T) ([]dtos.ComponentDTO, T, error) {
-	s := ctxzap.Extract(ctx).Sugar()
-	var zero T
-	componentDTOS, err := convertComponentsRequestToComponentDTO(request)
-	if err != nil {
-		setHTTPCodeOnTrailer(ctx, s, "400")
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
-		return []dtos.ComponentDTO{}, createResponse(&statusResp), errors.New(err.Error())
-	}
-	return componentDTOS, zero, nil
-}
-
-// buildErrorMessages creates error messages for each type of PURL failure.
-func buildErrorMessages(summary models.QuerySummary) []string {
-	var messages []string
-
-	if len(summary.PurlsFailedToParse) > 0 {
-		messages = append(messages, fmt.Sprintf("Failed to parse %d purl(s):%s",
-			len(summary.PurlsFailedToParse), strings.Join(summary.PurlsFailedToParse, ",")))
-	}
-
-	if len(summary.PurlsNotFound) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find %d purl(s):%s",
-			len(summary.PurlsNotFound), strings.Join(summary.PurlsNotFound, ",")))
-	}
-
-	if len(summary.PurlsWOInfo) > 0 {
-		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s",
-			len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
-	}
-	return messages
-}
-
-// determineStatusAndHTTPCode applies the exact same logic as before.
-func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummary) (common.StatusCode, string) {
-	// Calculate failure statistics
-	totalFailedToParse := len(summary.PurlsFailedToParse)
-	totalNotFound := len(summary.PurlsNotFound)
-	totalWOInfo := len(summary.PurlsWOInfo)
-	totalFailed := totalFailedToParse + totalNotFound + totalWOInfo
-	totalSuccessful := summary.TotalPurls - totalFailed
-	totalPurls := summary.TotalPurls
-	// Log processing summary
-	s.Debugf("PURL Summary - Total: %d, Successful: %d, Failed to parse: %d, Not found: %d, No info: %d",
-		summary.TotalPurls, totalSuccessful, totalFailedToParse, totalNotFound, totalWOInfo)
-
-	switch {
-	case totalFailed == 0:
-		// All PURLs succeeded
-		return common.StatusCode_SUCCESS, "200"
-
-	case totalSuccessful == 0:
-		// All PURLs failed - determine HTTP code by failure type priority
-		httpStatusCode := "404" // Default to not found or no info
-		if totalFailedToParse > 0 && totalFailedToParse >= totalPurls {
-			httpStatusCode = "400" // Parse errors are client errors
-		}
-		return common.StatusCode_FAILED, httpStatusCode
-
-	default:
-		// Mixed results: some succeeded, some failed
-		return common.StatusCode_SUCCEEDED_WITH_WARNINGS, "200"
-	}
-}
-
-// buildStatusResponse constructs a StatusResponse based on PURL processing results and sets appropriate HTTP status codes.
-func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary models.QuerySummary) *common.StatusResponse {
-	var messages = buildErrorMessages(summary)
-	statusResp := common.StatusResponse{
-		Status:  common.StatusCode_SUCCESS,
-		Message: ResponseMessageSUCCESS,
-	}
-	if len(messages) > 0 {
-		statusResp.Message = strings.Join(messages, " | ")
-	}
-	status, httpStatusCode := determineStatusAndHTTPCode(s, summary)
-	setHTTPCodeOnTrailer(ctx, s, httpStatusCode)
-	statusResp.Status = status
-	return &statusResp
-}
-
-func setHTTPCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code string) {
-	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", code))
-	if err != nil {
-		s.Errorf("error setting x-http-code to trailer: %v\n", err)
-	}
-}
-
-// telemetryRequestTime records the crypto algorithms request time to telemetry.
-func telemetryRequestTime(ctx context.Context, config *myconfig.ServerConfig, requestStartTime time.Time) {
-	if config.Telemetry.Enabled {
-		elapsedTime := time.Since(requestStartTime).Milliseconds()     // Time taken to run the component name request
-		oltpMetrics.cryptoAlgorithmsHistogram.Record(ctx, elapsedTime) // Record algorithm request time
-	}
 }
