@@ -57,7 +57,7 @@ type ECDetectionItem struct {
 	Category    string
 }
 
-// NewCryptoUsageModel creates a new instance of the Crypto Usage Model.
+// NewECUsageModel creates a new instance of the Crypto Usage Model.
 func NewECUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQueryContext) *ECUsageModel {
 	return &ECUsageModel{ctx: ctx, s: s, q: q}
 }

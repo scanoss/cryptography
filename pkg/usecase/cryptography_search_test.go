@@ -62,9 +62,6 @@ func TestCryptographyUseCase(t *testing.T) {
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when parsing input json", err)
-	}
 	algorithms, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)

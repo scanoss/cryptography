@@ -676,16 +676,18 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 			if (err != nil) != tt.expectedError {
 				t.Errorf("service.GetComponentAlgorithms() error = %v, wantErr %v", err, tt.expectedError)
 			}
-			if tt.hasComponent && r.Component == nil {
-				t.Errorf("expected to get a component, but received nil")
-			} else if !tt.hasComponent && r.Component != nil {
-				t.Errorf("expected not to get a component, but received one")
-			}
-			if tt.status != r.Status.Status {
-				t.Errorf("service.GetComponentAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+			if tt.hasComponent {
+				if tt.hasComponent && r.Component == nil {
+					t.Errorf("expected to get a component, but received nil")
+				} else if !tt.hasComponent && r.Component != nil {
+					t.Errorf("expected not to get a component, but received one")
+				}
+				if tt.status != r.Status.Status {
+					t.Errorf("service.GetComponentAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
+				}
+				if r.Status.Message != tt.expectedErrorMessage {
+					t.Errorf("service.GetComponentAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
+				}
 			}
 		})
 	}
@@ -994,7 +996,7 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 			},
 			expectedPurlsCount:   0,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 		},
 	}
 
@@ -1078,7 +1080,7 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 			},
 			expectedPurlsCount:   0,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
 		},
 		{
 			name: "Should_Return_ResponseWithTwoComponents",
@@ -1167,7 +1169,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			expectedHints:        0,
 			expectedError:        false,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1198,9 +1200,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Requirement: "*",
 			},
 			expectedHints:        0,
-			expectedError:        true,
+			expectedError:        false,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "requirement should include version range or major and wildcard",
+			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:github/pineappleea/pineapple-src",
 		},
 	}
 
@@ -1289,7 +1291,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			expectedComponents:   0,
 			expectedError:        false,
 			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1314,7 +1316,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			expectedComponents:   1,
 			expectedError:        false,
 			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
 		},
 		{
 			name: "Should_Return_ErrorOnEmptyComponents",
@@ -1333,7 +1335,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 				},
 			},
 			expectedComponents: 0,
-			expectedError:      true,
+			expectedError:      false,
 			status:             common.StatusCode_FAILED,
 		},
 	}

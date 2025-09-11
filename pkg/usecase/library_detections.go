@@ -61,7 +61,9 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 
 	for _, component := range components {
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			return dtos.ECOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
+			d.s.Warnf("requirement should include version range or major and wildcard")
+			continue
 		}
 		if item, ok := d.processSinglePurl(component, &summary); ok {
 			out.Hints = append(out.Hints, *item)
@@ -199,25 +201,25 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
 	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
 	if err != nil {
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false
 	}
 
 	purlName, err := purlhelper.PurlNameFromString(componentDTO.Purl)
 	if err != nil {
 		d.s.Errorf("Failed to parse purl '%s': %s", componentDTO.Purl, err)
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false
 	}
 
 	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement)
 	if err != nil {
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false
 	}
 
 	if len(res) == 0 {
-		summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
+		summary.PurlsNotFound = append(summary.PurlsNotFound, componentDTO.Purl)
 		return nil, false
 	}
 

@@ -122,7 +122,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 					Requirement: "*",
 				},
 			},
-			expectedError: true,
+			expectedError: false,
 		},
 		{
 			name: "Should_ReturnError_RequirementIncludeWildcard",
@@ -132,7 +132,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 					Requirement: "v*",
 				},
 			},
-			expectedError: true,
+			expectedError: false,
 		},
 		{
 			name: "Should_Return_EmptyListOfPurls",

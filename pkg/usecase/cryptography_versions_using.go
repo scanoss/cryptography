@@ -47,7 +47,7 @@ func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sql
 	}
 }
 
-// GetVersionsUsingCryptoInRange takes the Crypto Input request, searches for Cryptographic and return versions that uses and does not use crypto.
+// GetVersionsInRangeUsingCrypto takes the Crypto Input request, searches for Cryptographic and return versions that use and does not use crypto.
 func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.ComponentDTO) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
@@ -60,7 +60,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
 			continue
 		}
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {

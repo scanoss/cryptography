@@ -33,9 +33,10 @@ type mockStatusResponse struct {
 
 func Test_handleComponentsRequest(t *testing.T) {
 	ctx := context.Background()
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	loggerErr := zlog.NewSugaredDevLogger()
+	s := ctxzap.Extract(ctx).Sugar()
+	if loggerErr != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", loggerErr)
 	}
 	defer zlog.SyncZap()
 
@@ -51,8 +52,6 @@ func Test_handleComponentsRequest(t *testing.T) {
 		request        *common.ComponentsRequest
 		wantComponents []dtos.ComponentDTO
 		wantResponse   *mockStatusResponse
-		wantErr        bool
-		expectedErrMsg string
 	}{
 		{
 			name: "valid components request",
@@ -72,15 +71,12 @@ func Test_handleComponentsRequest(t *testing.T) {
 				},
 			},
 			wantResponse: nil,
-			wantErr:      false,
 		},
 		{
 			name:           "nil request",
 			request:        nil,
 			wantComponents: []dtos.ComponentDTO{},
 			wantResponse:   &mockStatusResponse{status: common.StatusCode_FAILED, message: "'components' field is required but was not provided"},
-			wantErr:        true,
-			expectedErrMsg: "'components' field is required but was not provided",
 		},
 		{
 			name: "request with nil components",
@@ -89,8 +85,6 @@ func Test_handleComponentsRequest(t *testing.T) {
 			},
 			wantComponents: []dtos.ComponentDTO{},
 			wantResponse:   &mockStatusResponse{status: common.StatusCode_FAILED, message: "'components' field is required but was not provided"},
-			wantErr:        true,
-			expectedErrMsg: "'components' field is required but was not provided",
 		},
 		{
 			name: "request with empty components",
@@ -99,23 +93,14 @@ func Test_handleComponentsRequest(t *testing.T) {
 			},
 			wantComponents: []dtos.ComponentDTO{},
 			wantResponse:   &mockStatusResponse{status: common.StatusCode_FAILED, message: "'components' array cannot be empty, at least one component must be provided"},
-			wantErr:        true,
-			expectedErrMsg: "'components' array cannot be empty, at least one component must be provided",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotComponents, gotResponse, err := handleComponentsRequest(ctx, tt.request, createResponseFunc)
+			gotComponents, gotResponse := handleComponentsRequest(ctx, s, tt.request, createResponseFunc)
 
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("handleComponentsRequest() expected error but got nil")
-					return
-				}
-				if err.Error() != tt.expectedErrMsg {
-					t.Errorf("handleComponentsRequest() error = %v, want %v", err.Error(), tt.expectedErrMsg)
-				}
+			if tt.wantResponse != nil {
 				if gotResponse == nil {
 					t.Errorf("handleComponentsRequest() expected response but got nil")
 					return
@@ -127,10 +112,6 @@ func Test_handleComponentsRequest(t *testing.T) {
 					t.Errorf("handleComponentsRequest() response message = %v, want %v", gotResponse.message, tt.wantResponse.message)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("handleComponentsRequest() unexpected error = %v", err)
-					return
-				}
 				if gotResponse != nil {
 					t.Errorf("handleComponentsRequest() expected nil response but got %v", gotResponse)
 				}
@@ -163,6 +144,7 @@ func Test_handleComponentRequest(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
 
 	createResponseFunc := func(statusResp *common.StatusResponse) *mockStatusResponse {
 		return &mockStatusResponse{
@@ -172,12 +154,10 @@ func Test_handleComponentRequest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		request        *common.ComponentRequest
-		wantComponents []dtos.ComponentDTO
-		wantResponse   *mockStatusResponse
-		wantErr        bool
-		expectedErrMsg string
+		name         string
+		request      *common.ComponentRequest
+		wantResponse *mockStatusResponse
+		expectError  bool
 	}{
 		{
 			name: "valid component request",
@@ -185,23 +165,14 @@ func Test_handleComponentRequest(t *testing.T) {
 				Purl:        "pkg:npm/react",
 				Requirement: "^17.0.0",
 			},
-			wantComponents: []dtos.ComponentDTO{
-				{
-					Purl:        "pkg:npm/react",
-					Version:     "^17.0.0",
-					Requirement: "^17.0.0",
-				},
-			},
 			wantResponse: nil,
-			wantErr:      false,
+			expectError:  false,
 		},
 		{
-			name:           "nil request",
-			request:        nil,
-			wantComponents: []dtos.ComponentDTO{},
-			wantResponse:   &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
-			wantErr:        true,
-			expectedErrMsg: "no purl supplied. A PURL is required",
+			name:         "nil request",
+			request:      nil,
+			wantResponse: &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
+			expectError:  true,
 		},
 		{
 			name: "empty purl component request",
@@ -209,59 +180,29 @@ func Test_handleComponentRequest(t *testing.T) {
 				Purl:        "",
 				Requirement: "^17.0.0",
 			},
-			wantComponents: []dtos.ComponentDTO{},
-			wantResponse:   &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
-			wantErr:        true,
-			expectedErrMsg: "no purl supplied. A PURL is required",
+			wantResponse: &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
+			expectError:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotComponents, gotResponse, err := handleComponentRequest(ctx, tt.request, createResponseFunc)
+			gotResponse := guardComponentRequest(ctx, s, tt.request, createResponseFunc)
 
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("handleComponentRequest() expected error but got nil")
-					return
-				}
-				if err.Error() != tt.expectedErrMsg {
-					t.Errorf("handleComponentRequest() error = %v, want %v", err.Error(), tt.expectedErrMsg)
-				}
+			if tt.expectError {
 				if gotResponse == nil {
-					t.Errorf("handleComponentRequest() expected response but got nil")
+					t.Errorf("guardComponentRequest() expected response but got nil")
 					return
 				}
 				if gotResponse.status != tt.wantResponse.status {
-					t.Errorf("handleComponentRequest() response status = %v, want %v", gotResponse.status, tt.wantResponse.status)
+					t.Errorf("guardComponentRequest() response status = %v, want %v", gotResponse.status, tt.wantResponse.status)
 				}
 				if gotResponse.message != tt.wantResponse.message {
-					t.Errorf("handleComponentRequest() response message = %v, want %v", gotResponse.message, tt.wantResponse.message)
+					t.Errorf("guardComponentRequest() response message = %v, want %v", gotResponse.message, tt.wantResponse.message)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("handleComponentRequest() unexpected error = %v", err)
-					return
-				}
 				if gotResponse != nil {
-					t.Errorf("handleComponentRequest() expected nil response but got %v", gotResponse)
-				}
-			}
-
-			if len(gotComponents) != len(tt.wantComponents) {
-				t.Errorf("handleComponentRequest() components length = %v, want %v", len(gotComponents), len(tt.wantComponents))
-				return
-			}
-
-			for i, component := range gotComponents {
-				if component.Purl != tt.wantComponents[i].Purl {
-					t.Errorf("handleComponentRequest() component[%d].Purl = %v, want %v", i, component.Purl, tt.wantComponents[i].Purl)
-				}
-				if component.Version != tt.wantComponents[i].Version {
-					t.Errorf("handleComponentRequest() component[%d].Version = %v, want %v", i, component.Version, tt.wantComponents[i].Version)
-				}
-				if component.Requirement != tt.wantComponents[i].Requirement {
-					t.Errorf("handleComponentRequest() component[%d].Requirement = %v, want %v", i, component.Requirement, tt.wantComponents[i].Requirement)
+					t.Errorf("guardComponentRequest() expected nil response but got %v", gotResponse)
 				}
 			}
 		})

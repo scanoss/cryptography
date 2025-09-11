@@ -15,6 +15,11 @@ import (
 	"scanoss.com/cryptography/pkg/models"
 )
 
+const (
+	ResponseMessageSuccess = "Success"
+	ResponseMessageError   = "Internal error occurred"
+)
+
 // buildErrorMessages creates error messages for each type of PURL failure.
 func buildErrorMessages(summary models.QuerySummary) []string {
 	var messages []string
@@ -75,7 +80,7 @@ func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary mode
 	var messages = buildErrorMessages(summary)
 	statusResp := common.StatusResponse{
 		Status:  common.StatusCode_SUCCESS,
-		Message: ResponseMessageSUCCESS,
+		Message: ResponseMessageSuccess,
 	}
 	if len(messages) > 0 {
 		statusResp.Message = strings.Join(messages, " | ")
@@ -101,4 +106,26 @@ func telemetryRequestTime(ctx context.Context, config *myconfig.ServerConfig, re
 		elapsedTime := time.Since(requestStartTime).Milliseconds()     // Time taken to run the component name request
 		oltpMetrics.cryptoAlgorithmsHistogram.Record(ctx, elapsedTime) // Record algorithm request time
 	}
+}
+
+// resolveResponseStatus safely extracts status from a response interface, providing a fallback
+// when the response is nil. This prevents nil pointer dereferences in error handling.
+// This method is mainly used by single component calls that delegate to batch calls and need
+// to safely handle potentially nil responses from the underlying batch operations.
+func resolveResponseStatus(response interface{}) *common.StatusResponse {
+	defaultStatus := &common.StatusResponse{
+		Status:  common.StatusCode_FAILED,
+		Message: ResponseMessageError,
+	}
+	if response == nil {
+		return defaultStatus
+	}
+
+	if statusResp, ok := response.(interface{ GetStatus() *common.StatusResponse }); ok {
+		if status := statusResp.GetStatus(); status != nil {
+			return status
+		}
+	}
+	// Fallback if status cannot be extracted
+	return defaultStatus
 }

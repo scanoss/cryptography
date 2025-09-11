@@ -38,10 +38,6 @@ type cryptographyServer struct {
 	config *myconfig.ServerConfig
 }
 
-const (
-	ResponseMessageSUCCESS = "Success"
-)
-
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	setupMetrics()
@@ -55,6 +51,7 @@ func (c cryptographyServer) Echo(ctx context.Context, request *common.EchoReques
 	return &common.EchoResponse{Message: request.GetMessage()}, nil
 }
 
+// Deprecated: use GetComponentsAlgorithms instead.
 func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -106,11 +103,11 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsResponse {
 			return &pb.ComponentsAlgorithmsResponse{Status: status}
 		})
-	if err != nil {
+	if resp != nil {
 		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
@@ -147,46 +144,31 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 
 // GetComponentAlgorithms retrieves cryptographic algorithms for a single component.
 func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentAlgorithmsResponse {
-		return &pb.ComponentAlgorithmsResponse{Status: status}
-	})
-	if err != nil {
+	s.Info("Processing component algorithms request...")
+	resp := guardComponentRequest(ctx, s, request,
+		func(status *common.StatusResponse) *pb.ComponentAlgorithmsResponse {
+			return &pb.ComponentAlgorithmsResponse{Status: status}
+		})
+	if resp != nil {
 		return resp, nil
 	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	response, err := c.GetComponentsAlgorithms(ctx, &common.ComponentsRequest{
+		Components: []*common.ComponentRequest{
+			request,
+		},
+	})
 	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.ComponentAlgorithmsResponse{Status: resolveResponseStatus(response)}, err
 	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	cryptoUc := usecase.NewCrypto(ctx, s, conn, c.config)
-	results, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms to 'ComponentAlgorithmsResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
+
+	if len(response.Components) == 0 {
+		return &pb.ComponentAlgorithmsResponse{Status: resolveResponseStatus(response)}, nil
 	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	if results.Cryptography == nil {
-		return &pb.ComponentAlgorithmsResponse{Status: statusResp}, nil
-	}
-	response, err := convertCryptoOutputToComponent(s, results) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Problems encountered extracting Cryptography datat : %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return &pb.ComponentAlgorithmsResponse{Component: response.Components[0], Status: resolveResponseStatus(response)}, nil
 }
 
+// Deprecated: use GetComponentsAlgorithmsInRange instead.
 func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -240,11 +222,11 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsInRangeResponse {
 			return &pb.ComponentsAlgorithmsInRangeResponse{Status: status}
 		})
-	if err != nil {
+	if resp != nil {
 		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
@@ -280,47 +262,38 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 }
 
 func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentAlgorithmsInRangeResponse {
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: status}
-	})
-	if err != nil {
+	s.Info("Processing component algorithms request...")
+	resp := guardComponentRequest(ctx, s, request,
+		func(status *common.StatusResponse) *pb.ComponentAlgorithmsInRangeResponse {
+			return &pb.ComponentAlgorithmsInRangeResponse{Status: status}
+		})
+	if resp != nil {
 		return resp, nil
 	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	response, err := c.GetComponentsAlgorithmsInRange(ctx, &common.ComponentsRequest{
+		Components: []*common.ComponentRequest{ // ← Correct slice type
+			request,
+		},
+	})
 	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: resolveResponseStatus(response)}, err
 	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	cryptoUc := usecase.NewCryptoMajor(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetCryptoInRange(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
+	if len(response.Components) == 0 {
+		return &pb.ComponentAlgorithmsInRangeResponse{Status: resolveResponseStatus(response)}, nil
 	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	if dtoCrypto.Cryptography == nil {
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertComponentCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert algorithms in range to 'ComponentAlgorithmsInRangeResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	component := response.Components[0]
+	return &pb.ComponentAlgorithmsInRangeResponse{
+		Component: &pb.ComponentAlgorithmsInRangeResponse_Component{
+			Purl:       component.Purl,
+			Algorithms: component.Algorithms,
+			Versions:   component.Versions,
+		},
+		Status: resolveResponseStatus(response),
+	}, nil
 }
 
+// Deprecated: use GetComponentsVersionsInRange instead.
 func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -369,17 +342,16 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 	return response, nil
 }
 
-// showing which versions use cryptographic algorithms and which do not.
 func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsVersionsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsVersionsInRangeResponse {
 			return &pb.ComponentsVersionsInRangeResponse{Status: status}
 		})
-	if err != nil {
+	if resp != nil {
 		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
@@ -414,50 +386,39 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 	return response, nil
 }
 
-// showing which versions use cryptographic algorithms and which do not.
 func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
-		return &pb.ComponentVersionsInRangeResponse{Status: status}
-	})
-	if err != nil {
+	s.Info("Processing component to get versions in range...")
+	resp := guardComponentRequest(ctx, s, request,
+		func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
+			return &pb.ComponentVersionsInRangeResponse{Status: status}
+		})
+	if resp != nil {
 		return resp, nil
 	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	response, err := c.GetComponentsVersionsInRange(ctx, &common.ComponentsRequest{
+		Components: []*common.ComponentRequest{
+			request,
+		},
+	})
 	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.ComponentVersionsInRangeResponse{Status: resolveResponseStatus(response)}, err
 	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	cryptoUc := usecase.NewVersionsUsingCrypto(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetVersionsInRangeUsingCrypto(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
+	if len(response.Components) == 0 {
+		return &pb.ComponentVersionsInRangeResponse{Status: resolveResponseStatus(response)}, nil
 	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	if dtoCrypto.Versions == nil {
-		return &pb.ComponentVersionsInRangeResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertToComponentVersionInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert versions in range to 'ComponentVersionsInRangeResponse' %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	component := response.Components[0]
+	return &pb.ComponentVersionsInRangeResponse{
+		Component: &pb.ComponentVersionsInRangeResponse_Component{
+			Purl:            component.Purl,
+			VersionsWith:    component.VersionsWith,
+			VersionsWithout: component.VersionsWithout,
+		},
+		Status: resolveResponseStatus(response),
+	}, nil
 }
 
+// Deprecated: use GetComponentsHintsInRange instead.
 func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common.PurlRequest) (*pb.HintsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -511,11 +472,11 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsHintsInRangeResponse {
 			return &pb.ComponentsHintsInRangeResponse{Status: status}
 		})
-	if err != nil {
+	if resp != nil {
 		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
@@ -549,47 +510,38 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 }
 
 func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentHintsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
-		return &pb.ComponentHintsInRangeResponse{Status: status}
-	})
-	if err != nil {
+	s.Info("Processing component to get hints in range...")
+	resp := guardComponentRequest(ctx, s, request,
+		func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
+			return &pb.ComponentHintsInRangeResponse{Status: status}
+		})
+	if resp != nil {
 		return resp, nil
 	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	response, err := c.GetComponentsHintsInRange(ctx, &common.ComponentsRequest{
+		Components: []*common.ComponentRequest{
+			request,
+		},
+	})
 	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.ComponentHintsInRangeResponse{Status: resolveResponseStatus(response)}, err
 	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	dtoEC, summary, err := ecDetectionUC.GetDetectionsInRange(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("failed to get hints in range")
+	if len(response.Components) == 0 {
+		return &pb.ComponentHintsInRangeResponse{Status: resolveResponseStatus(response)}, nil
 	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	if dtoEC.Hints == nil {
-		return &pb.ComponentHintsInRangeResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertToComponentHintsInRangeOutput(s, dtoEC) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert hints in range to 'ComponentHintsInRangeResponse' %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problems encountered extracting hints in range data")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	component := response.Components[0]
+	return &pb.ComponentHintsInRangeResponse{
+		Component: &pb.ComponentHintsInRangeResponse_Component{
+			Purl:     component.Purl,
+			Versions: component.Versions,
+			Hints:    component.Hints,
+		},
+		Status: resolveResponseStatus(response),
+	}, nil
 }
 
+// Deprecated: use GetComponentsEncryptionHints instead.
 func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
@@ -643,11 +595,11 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
 	// handle request
-	componentDTOS, resp, err := handleComponentsRequest(ctx, request,
+	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsEncryptionHintsResponse {
 			return &pb.ComponentsEncryptionHintsResponse{Status: status}
 		})
-	if err != nil {
+	if resp != nil {
 		return resp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
@@ -682,43 +634,26 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 }
 
 func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing Crypto hints algorithms request...")
-	componentDTOS, resp, err := handleComponentRequest(ctx, request, func(status *common.StatusResponse) *pb.ComponentEncryptionHintsResponse {
-		return &pb.ComponentEncryptionHintsResponse{Status: status}
-	})
-	if err != nil {
+	s.Info("Processing component to get encryption hints...")
+	resp := guardComponentRequest(ctx, s, request,
+		func(status *common.StatusResponse) *pb.ComponentEncryptionHintsResponse {
+			return &pb.ComponentEncryptionHintsResponse{Status: status}
+		})
+	if resp != nil {
 		return resp, nil
 	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
+	response, err := c.GetComponentsEncryptionHints(ctx, &common.ComponentsRequest{
+		Components: []*common.ComponentRequest{
+			request,
+		},
+	})
 	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
+		return &pb.ComponentEncryptionHintsResponse{Status: resolveResponseStatus(response)}, err
 	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	encryptionHints, summary, err := ecDetectionUC.GetDetections(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get encryption hints: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
+	if len(response.Components) == 0 {
+		return &pb.ComponentEncryptionHintsResponse{Status: resolveResponseStatus(response)}, nil
 	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
-	// Check for nil hints first
-	if encryptionHints.Hints == nil {
-		return &pb.ComponentEncryptionHintsResponse{Status: statusResp}, nil
-	}
-	response, err := convertEncryptionHintsToComponentEncryptionOutput(encryptionHints) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert encryption hints to 'ComponentEncryptionHintsResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	component := response.Components[0]
+	return &pb.ComponentEncryptionHintsResponse{Component: component, Status: resolveResponseStatus(response)}, nil
 }

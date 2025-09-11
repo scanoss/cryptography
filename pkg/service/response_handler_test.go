@@ -216,7 +216,7 @@ func Test_buildStatusResponse(t *testing.T) {
 				PurlsWOInfo:        []string{},
 			},
 			wantStatus:  common.StatusCode_SUCCESS,
-			wantMessage: ResponseMessageSUCCESS,
+			wantMessage: ResponseMessageSuccess,
 		},
 		{
 			name: "response with single error",

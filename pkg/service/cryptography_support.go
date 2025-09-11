@@ -182,15 +182,12 @@ func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) (
 	return components, nil
 }
 
-// convertComponentRequestToComponentDTO converts a single ComponentRequest to ComponentDTO.
-func convertComponentRequestToComponentDTO(request *common.ComponentRequest) (dtos.ComponentDTO, error) {
+// validateComponentRequest converts a single ComponentRequest to ComponentDTO.
+func validateComponentRequest(request *common.ComponentRequest) error {
 	if request == nil || request.Purl == "" {
-		return dtos.ComponentDTO{}, errors.New("no purl supplied. A PURL is required")
+		return errors.New("no purl supplied. A PURL is required")
 	}
-	componentDTO, err := convertComponentsRequestToComponentDTO(&common.ComponentsRequest{
-		Components: []*common.ComponentRequest{request},
-	})
-	return componentDTO[0], err
+	return nil
 }
 
 // convertCryptoOutputToComponents converts an internal Crypto Output structure
@@ -223,33 +220,6 @@ func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOut
 	return response, nil
 }
 
-// convertCryptoOutputToComponent converts an internal Crypto Output structure
-// into a ComponentAlgorithmsResponse for single component queries.
-func convertCryptoOutputToComponent(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
-	s.Debugf("convertCryptoOutputToComponent: %v", output)
-	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
-		return nil, errors.New("no cryptography found")
-	}
-	response := &pb.ComponentAlgorithmsResponse{
-		Component: &pb.ComponentAlgorithms{
-			Purl:        output.Cryptography[0].Purl,
-			Version:     output.Cryptography[0].Version,
-			Requirement: output.Cryptography[0].Requirement,
-			Algorithms:  make([]*pb.Algorithm, 0),
-		},
-		Status: &common.StatusResponse{},
-	}
-	for _, component := range output.Cryptography {
-		for _, alg := range component.Algorithms {
-			response.Component.Algorithms = append(response.Component.Algorithms, &pb.Algorithm{
-				Algorithm: alg.Algorithm,
-				Strength:  alg.Strength,
-			})
-		}
-	}
-	return response, nil
-}
-
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
 func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
@@ -277,40 +247,6 @@ func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Cryp
 	return response, nil
 }
 
-// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentAlgorithmsInRangeResponse.
-func convertComponentCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
-	s.Debugf("convertComponentCryptoInRangeOutput: %v", output)
-	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
-		return nil, errors.New("no cryptography found")
-	}
-	var response = &pb.ComponentAlgorithmsInRangeResponse{
-		Status: &common.StatusResponse{},
-	}
-	if len(output.Cryptography) > 0 {
-		response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
-			Purl:       output.Cryptography[0].Purl,
-			Versions:   output.Cryptography[0].Versions,
-			Algorithms: make([]*pb.Algorithm, 0, len(output.Cryptography[0].Algorithms)),
-		}
-		for _, c := range output.Cryptography {
-			for _, alg := range c.Algorithms {
-				response.Component.Algorithms = append(response.Component.Algorithms, &pb.Algorithm{
-					Algorithm: alg.Algorithm,
-					Strength:  alg.Strength,
-				})
-			}
-		}
-
-		return response, nil
-	}
-	response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
-		Purl:       "",
-		Versions:   []string{},
-		Algorithms: []*pb.Algorithm{},
-	}
-	return response, nil
-}
-
 // convertToComponentsVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
 func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
@@ -327,29 +263,6 @@ func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.V
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		})
-	}
-	return response, nil
-}
-
-// convertToComponentVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentVersionsInRangeResponse struct.
-func convertToComponentVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
-	s.Debugf("convertToComponentVersionInRangeOutput: %v", output)
-	if (output.Versions == nil) || (len(output.Versions) == 0) {
-		return nil, errors.New("no versions found")
-	}
-	response := &pb.ComponentVersionsInRangeResponse{
-		Status: &common.StatusResponse{},
-		Component: &pb.ComponentVersionsInRangeResponse_Component{
-			Purl:            "",
-			VersionsWith:    []string{},
-			VersionsWithout: []string{},
-		},
-	}
-	// Take the first component if available (single component response)
-	if len(output.Versions) > 0 {
-		response.Component.Purl = output.Versions[0].Purl
-		response.Component.VersionsWith = output.Versions[0].VersionsWith
-		response.Component.VersionsWithout = output.Versions[0].VersionsWithout
 	}
 	return response, nil
 }
@@ -388,43 +301,6 @@ func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECO
 	return response, nil
 }
 
-// convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
-func convertToComponentHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
-	if (output.Hints == nil) || (len(output.Hints) == 0) {
-		return nil, errors.New("no hints found")
-	}
-	var response = &pb.ComponentHintsInRangeResponse{
-		Status:    &common.StatusResponse{},
-		Component: &pb.ComponentHintsInRangeResponse_Component{},
-	}
-	if len(output.Hints) == 0 {
-		s.Debugf("convertToComponentHintsInRangeOutput: No hints to convert")
-		return response, nil
-	}
-	if len(output.Hints) > 0 {
-		for _, hint := range output.Hints {
-			hints := make([]*pb.Hint, 0, len(hint.Detections))
-			for _, detection := range hint.Detections {
-				hints = append(hints, &pb.Hint{
-					Id:          detection.ID,
-					Name:        detection.Name,
-					Purl:        detection.Purl,
-					Description: detection.Description,
-					Category:    detection.Category,
-					Url:         detection.URL,
-				})
-			}
-			response.Component = &pb.ComponentHintsInRangeResponse_Component{
-				Purl:     hint.Purl,
-				Versions: hint.Versions,
-				Hints:    hints,
-			}
-		}
-		s.Debugf("convertToComponentHintsInRangeOutput : Converted %v hint to component ", output.Hints)
-	}
-	return response, nil
-}
-
 // convertEncryptionHintsToComponentsEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
 func convertEncryptionHintsToComponentsEncryptionOutput(output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
 	if output.Hints == nil {
@@ -452,40 +328,6 @@ func convertEncryptionHintsToComponentsEncryptionOutput(output dtos.HintsOutput)
 			Requirement: hint.Requirement,
 			Hints:       hints,
 		})
-	}
-	return response, nil
-}
-
-// convertEncryptionHintsToComponentsEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
-func convertEncryptionHintsToComponentEncryptionOutput(output dtos.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
-	if output.Hints == nil {
-		return nil, errors.New("no encryption hints found")
-	}
-	var response = &pb.ComponentEncryptionHintsResponse{
-		Component: &pb.ComponentHints{
-			Purl:        "",
-			Version:     "",
-			Requirement: "",
-			Hints:       make([]*pb.Hint, 0, len(output.Hints)),
-		},
-		Status: &common.StatusResponse{},
-	}
-	for _, hint := range output.Hints {
-		hints := make([]*pb.Hint, 0, len(hint.Detections))
-		for _, detection := range hint.Detections {
-			hints = append(hints, &pb.Hint{
-				Id:          detection.ID,
-				Name:        detection.Name,
-				Purl:        detection.Purl,
-				Description: detection.Description,
-				Category:    detection.Category,
-				Url:         detection.URL,
-			})
-		}
-		response.Component.Purl = hint.Purl
-		response.Component.Version = hint.Version
-		response.Component.Requirement = hint.Requirement
-		response.Component.Hints = hints
 	}
 	return response, nil
 }
