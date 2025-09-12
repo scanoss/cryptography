@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"scanoss.com/cryptography/pkg/protocol/rest"
 	"strings"
 	"time"
 
@@ -59,19 +60,18 @@ func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummar
 	switch {
 	case totalFailed == 0:
 		// All PURLs succeeded
-		return common.StatusCode_SUCCESS, "200"
+		return common.StatusCode_SUCCESS, rest.HTTPStatusOK
 
 	case totalSuccessful == 0:
 		// All PURLs failed - determine HTTP code by failure type priority
-		httpStatusCode := "404" // Default to not found or no info
 		if totalFailedToParse > 0 && totalFailedToParse >= totalPurls {
-			httpStatusCode = "400" // Parse errors are client errors
+			return common.StatusCode_FAILED, rest.HTTPStatusBadRequest
 		}
-		return common.StatusCode_FAILED, httpStatusCode
+		return common.StatusCode_FAILED, rest.HTTPStatusNotFound
 
 	default:
 		// Mixed results: some succeeded, some failed
-		return common.StatusCode_SUCCEEDED_WITH_WARNINGS, "200"
+		return common.StatusCode_SUCCEEDED_WITH_WARNINGS, rest.HTTPStatusOK
 	}
 }
 

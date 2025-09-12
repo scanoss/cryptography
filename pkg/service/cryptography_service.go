@@ -103,12 +103,12 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
+	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsResponse {
 			return &pb.ComponentsAlgorithmsResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil // TODO: Implement status Errors gRPC status.Errorf(codes.InvalidArgument, "Bad request")
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -146,12 +146,12 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component algorithms request...")
-	resp := guardComponentRequest(ctx, s, request,
+	errorResp := rejectIfInvalid(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentAlgorithmsResponse {
 			return &pb.ComponentAlgorithmsResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	response, err := c.GetComponentsAlgorithms(ctx, &common.ComponentsRequest{
 		Components: []*common.ComponentRequest{
@@ -161,7 +161,6 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 	if err != nil {
 		return &pb.ComponentAlgorithmsResponse{Status: resolveResponseStatus(response)}, err
 	}
-
 	if len(response.Components) == 0 {
 		return &pb.ComponentAlgorithmsResponse{Status: resolveResponseStatus(response)}, nil
 	}
@@ -222,12 +221,12 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
+	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsAlgorithmsInRangeResponse {
 			return &pb.ComponentsAlgorithmsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -264,12 +263,12 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component algorithms request...")
-	resp := guardComponentRequest(ctx, s, request,
+	errorResp := rejectIfInvalid(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentAlgorithmsInRangeResponse {
 			return &pb.ComponentAlgorithmsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	response, err := c.GetComponentsAlgorithmsInRange(ctx, &common.ComponentsRequest{
 		Components: []*common.ComponentRequest{ // ← Correct slice type
@@ -347,12 +346,12 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
+	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsVersionsInRangeResponse {
 			return &pb.ComponentsVersionsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -389,12 +388,12 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get versions in range...")
-	resp := guardComponentRequest(ctx, s, request,
+	errorResp := rejectIfInvalid(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
 			return &pb.ComponentVersionsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	response, err := c.GetComponentsVersionsInRange(ctx, &common.ComponentsRequest{
 		Components: []*common.ComponentRequest{
@@ -472,12 +471,12 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
-	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
+	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsHintsInRangeResponse {
 			return &pb.ComponentsHintsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -512,12 +511,12 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentHintsInRangeResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get hints in range...")
-	resp := guardComponentRequest(ctx, s, request,
+	errorResp := rejectIfInvalid(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
 			return &pb.ComponentHintsInRangeResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	response, err := c.GetComponentsHintsInRange(ctx, &common.ComponentsRequest{
 		Components: []*common.ComponentRequest{
@@ -595,12 +594,12 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
 	// handle request
-	componentDTOS, resp := handleComponentsRequest(ctx, s, request,
+	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentsEncryptionHintsResponse {
 			return &pb.ComponentsEncryptionHintsResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	conn, err := c.db.Connx(ctx) // Get a connection from the pool
 	if err != nil {
@@ -636,12 +635,12 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get encryption hints...")
-	resp := guardComponentRequest(ctx, s, request,
+	errorResp := rejectIfInvalid(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentEncryptionHintsResponse {
 			return &pb.ComponentEncryptionHintsResponse{Status: status}
 		})
-	if resp != nil {
-		return resp, nil
+	if errorResp != nil {
+		return errorResp, nil
 	}
 	response, err := c.GetComponentsEncryptionHints(ctx, &common.ComponentsRequest{
 		Components: []*common.ComponentRequest{
