@@ -49,37 +49,38 @@ func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, 
 }
 
 // GetCryptoInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
-	if len(request.Purls) == 0 {
+func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
 	out := dtos.CryptoInRangeOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	// Prepare purls to query
-	for _, reqPurl := range request.Purls {
-		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+	for _, c := range components {
+		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
+		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
 			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
-		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
+		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement)
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
 		}
 		_ = errQ
-		item := dtos.CryptoInRangeOutputItem{Purl: reqPurl.Purl, Versions: []string{}}
+		item := dtos.CryptoInRangeOutputItem{Purl: c.Purl, Versions: []string{}}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 
@@ -90,7 +91,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		}
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
+			d.s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}
 		// avoid duplicate algorithms
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
@@ -113,7 +114,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(request dtos.CryptoInput) (dtos.Cry
 		})
 
 		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, c.Purl)
 		}
 
 		out.Cryptography = append(out.Cryptography, item)

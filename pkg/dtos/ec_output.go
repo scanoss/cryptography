@@ -40,7 +40,8 @@ type HintsOutput struct {
 }
 
 type HintsOutputItem struct {
-	Purl       string           `json:"purl"`
-	Version    string           `json:"version"`
-	Detections []ECDetectedItem `json:"hints"`
+	Purl        string           `json:"purl"`
+	Version     string           `json:"version"`
+	Requirement string           `json:"requirement"`
+	Detections  []ECDetectedItem `json:"hints"`
 }

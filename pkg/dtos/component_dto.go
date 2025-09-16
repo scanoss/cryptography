@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2025 SCANOSS.COM
+ * Copyright (C) 2018-2025 SCANOSS.COM
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,11 +14,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package models
+package dtos
 
-type QuerySummary struct {
-	PurlsFailedToParse []string
-	PurlsWOInfo        []string
-	PurlsNotFound      []string
-	TotalPurls         int
+// ComponentDTO represents a software component with its Package URL and version information.
+type ComponentDTO struct {
+	Purl        string `json:"purl"`                  // Package URL identifier
+	Requirement string `json:"requirement,omitempty"` // Version requirement specification
+	Version     string `json:"version,omitempty"`     // Specific version of the component
 }

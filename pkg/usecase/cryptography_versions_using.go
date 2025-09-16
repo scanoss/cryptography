@@ -47,37 +47,38 @@ func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sql
 	}
 }
 
-// GetVersionsUsingCryptoInRange takes the Crypto Input request, searches for Cryptographic and return versions that uses and does not use crypto.
-func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoInput) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
-	if len(request.Purls) == 0 {
+// GetVersionsInRangeUsingCrypto takes the Crypto Input request, searches for Cryptographic and return versions that use and does not use crypto.
+func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.ComponentDTO) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
+	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
 	}
 	out := dtos.VersionsInRangeOutput{}
 	summary := models.QuerySummary{}
+	summary.TotalPurls = len(components)
 	// Prepare purls to query
-	for _, reqPurl := range request.Purls {
-		purl, err := purlhelper.PurlFromString(reqPurl.Purl)
+	for _, component := range components {
+		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
 			continue
 		}
-		if reqPurl.Requirement == "*" || strings.HasPrefix(reqPurl.Requirement, "v*") {
+		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
 			return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
-		purlName, err := purlhelper.PurlNameFromString(reqPurl.Purl) // Make sure we just have the bare minimum for a Purl Name
+		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, reqPurl.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, component.Requirement)
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
 		}
 
 		_ = errQ
-		item := dtos.VersionsInRangeUsingCryptoItem{Purl: reqPurl.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
+		item := dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
@@ -88,7 +89,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		}
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
 		if err1 != nil {
-			d.s.Infof("error getting algorithms usage for purl '%s': %s", reqPurl.Purl, err)
+			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err)
 		}
 
 		for _, alg := range uses {
@@ -105,7 +106,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(request dtos.CryptoIn
 		sort.Strings(item.VersionsWithout)
 
 		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, reqPurl.Purl)
+			summary.PurlsWOInfo = append(summary.PurlsWOInfo, component.Purl)
 		}
 		out.Versions = append(out.Versions, item)
 	}

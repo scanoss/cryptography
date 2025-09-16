@@ -4,6 +4,23 @@
 ### Added
 - Upcoming changes...
 
+## [0.6.0] - 2025-09-12
+### Added
+- Added gRPC GetComponentAlgorithms and REST endpoint GET /v2/cryptography/algorithms/component
+- Added gRPC GetComponentsAlgorithms and REST endpoint POST /v2/cryptography/algorithms/components
+- Added gRPC GetComponentAlgorithmsInRange and REST endpoint GET /v2/cryptography/algorithms/range/component
+- Added gRPC GetComponentsAlgorithmsInRange and REST endpoint POST /v2/cryptography/algorithms/range/components
+- Added gRPC GetComponentVersionsInRange and REST endpoint GET /v2/cryptography/algorithms/versions/range/component
+- Added gRPC GetComponentsVersionsInRange and REST endpoint POST /v2/cryptography/algorithms/versions/range/components
+- Added gRPC GetComponentHintsInRange and REST endpoint GET /v2/cryptography/hints/component
+- Added gRPC GetComponentsHintsInRange and REST endpoint POST /v2/cryptography/hints/components
+- Added a method to handle response status on cryptography_service.go
+- Implemented components request handler method
+- Implemented component request handler
+### Fixed
+- Fixes linter issues
+- Remove linter issues with deprecated methods
+
 ## [0.5.0] - 2025-09-04
 ### Changed
 - Removed `/api` prefix from REST endpoints

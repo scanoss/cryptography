@@ -46,7 +46,7 @@ func normalize(str string) string {
 	return str
 }
 
-// RunServer runs the gRPC Cryptography Server.
+// SupportTools runs the gRPC Cryptography Server.
 func SupportTools() error {
 	var defJSONPath string
 	var createLibrariesTable string
