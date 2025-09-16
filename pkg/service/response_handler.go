@@ -4,9 +4,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"scanoss.com/cryptography/pkg/protocol/rest"
 	"strings"
 	"time"
+
+	"scanoss.com/cryptography/pkg/protocol/rest"
 
 	common "github.com/scanoss/papi/api/commonv2"
 	"go.uber.org/zap"

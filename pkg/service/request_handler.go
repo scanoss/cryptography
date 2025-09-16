@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/protocol/rest"
 
@@ -13,7 +14,8 @@ import (
 // rejectIfInvalidComponents processes multiple components requests with generic response handling.
 // It converts the request to ComponentDTO format and handles errors appropriately.
 // Returns the converted DTOs, the response (if error occurred), and any error.
-func rejectIfInvalidComponents[T any](ctx context.Context, s *zap.SugaredLogger, request *common.ComponentsRequest, createResponse func(*common.StatusResponse) T) ([]dtos.ComponentDTO, T) {
+func rejectIfInvalidComponents[T any](ctx context.Context, s *zap.SugaredLogger, request *common.ComponentsRequest,
+	createResponse func(*common.StatusResponse) T) ([]dtos.ComponentDTO, T) {
 	componentDTOS, err := convertComponentsRequestToComponentDTO(request)
 	if err != nil {
 		s.Errorf("rejectIfInvalidComponents: %v, %v", request, err)
