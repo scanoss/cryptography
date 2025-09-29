@@ -16,9 +16,15 @@
 
 package models
 
+type PurlWOSemver struct {
+	Purl     string
+	Versions []string
+}
+
 type QuerySummary struct {
 	PurlsFailedToParse []string
 	PurlsWOInfo        []string
 	PurlsNotFound      []string
+	PurlsWOSemver      []PurlWOSemver
 	TotalPurls         int
 }

@@ -212,7 +212,7 @@ func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, su
 		return nil, false
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement, summary)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false

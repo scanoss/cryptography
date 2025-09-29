@@ -40,6 +40,12 @@ func buildErrorMessages(summary models.QuerySummary) []string {
 		messages = append(messages, fmt.Sprintf("Can't find information for %d purl(s):%s",
 			len(summary.PurlsWOInfo), strings.Join(summary.PurlsWOInfo, ",")))
 	}
+
+	if len(summary.PurlsWOSemver) > 0 {
+		for _, purlSemver := range summary.PurlsWOSemver {
+			messages = append(messages, fmt.Sprintf("Versions found for %s  are not semver compliant. Version found: '%s'", purlSemver.Purl, purlSemver.Versions[0]))
+		}
+	}
 	return messages
 }
 
@@ -68,6 +74,7 @@ func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummar
 		if totalFailedToParse > 0 && totalFailedToParse >= totalPurls {
 			return common.StatusCode_FAILED, rest.HTTPStatusBadRequest
 		}
+
 		return common.StatusCode_FAILED, rest.HTTPStatusNotFound
 
 	default:

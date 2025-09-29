@@ -19,6 +19,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -74,7 +75,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement, &summary)
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
@@ -94,6 +95,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}
 		// avoid duplicate algorithms
+		fmt.Printf("USES %v", uses)
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
