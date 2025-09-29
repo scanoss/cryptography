@@ -177,8 +177,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 	return pickOneURL(m.s, allUrls, purlName, purlType, "")
 }
 
-func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string) ([]AllURL, error) {
-	// TODO remove?
+func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string, summary *QuerySummary) ([]AllURL, error) {
 	if len(purlName) == 0 {
 		m.s.Infof("Please specify a valid Purl Name to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Name to query")
@@ -210,8 +209,12 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	if err != nil {
 		return []AllURL{}, fmt.Errorf("failed to analyze range: %v", err)
 	}
-
+	woSemver := []string{}
 	for _, u := range allUrls {
+		if u.SemVer == "" {
+			woSemver = append(woSemver, u.Version)
+			continue
+		}
 		// Analyze version
 		version, err := semver.NewVersion(u.SemVer)
 		if err != nil {
@@ -222,7 +225,13 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			filteredUrls = append(filteredUrls, u)
 		}
 	}
-	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
+	if len(woSemver) >= len(allUrls) {
+		summary.PurlsWOSemver = append(summary.PurlsWOSemver, PurlWOSemver{
+			Purl:     purlName,
+			Versions: woSemver,
+		})
+	}
+	m.s.Debugf("Found %d results for %v, %v.", len(filteredUrls), purlType, purlName)
 	// Pick one URL to return
 	return filteredUrls, nil
 }
