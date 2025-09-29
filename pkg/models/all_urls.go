@@ -225,7 +225,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			filteredUrls = append(filteredUrls, u)
 		}
 	}
-	if len(woSemver) >= len(allUrls) {
+	if len(woSemver) >= len(allUrls) && len(allUrls) > 0 {
 		summary.PurlsWOSemver = append(summary.PurlsWOSemver, PurlWOSemver{
 			Purl:     purlName,
 			Versions: woSemver,

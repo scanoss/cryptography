@@ -58,9 +58,9 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 	var componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
-			Requirement: ">v5.3",
+			Requirement: ">5.3.0",
 		},
 	}
 	cryptoUc := NewCryptoMajor(ctx, s, conn, myConfig)
@@ -91,9 +91,9 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("Expected to receive  2 versions")
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
-			Requirement: ">v5.4.5,<5.4.7",
+			Requirement: ">5.4.5,<5.4.7",
 		},
 	}
 	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
@@ -109,7 +109,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 	}
 
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">v5.4.5,<5.4.7",
 		},

@@ -1153,7 +1153,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			name: "Should_Return_ResponseWithHints",
 			request: &common.ComponentRequest{
 				Purl:        "pkg:github/pineappleea/pineapple-src",
-				Requirement: ">=0",
+				Requirement: ">=0.0.0",
 			},
 			expectedHints:        5,
 			expectedError:        false,
@@ -1164,7 +1164,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			name: "Should_Return_CantFindComponent",
 			request: &common.ComponentRequest{
 				Purl:        "pkg:github/scanoss/engines",
-				Requirement: ">=1.0",
+				Requirement: ">=1.0.0",
 			},
 			expectedHints:        0,
 			expectedError:        false,
@@ -1175,7 +1175,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			name: "Should_Return_FailedToParsePurl",
 			request: &common.ComponentRequest{
 				Purl:        "pkg:githubscanossengine",
-				Requirement: ">=1.0",
+				Requirement: ">=1.0.0",
 			},
 			expectedHints:        0,
 			expectedError:        false,
@@ -1186,7 +1186,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			name: "Should_Return_NoInfoForComponent",
 			request: &common.ComponentRequest{
 				Purl:        "pkg:github/scanoss/engine",
-				Requirement: ">=1.0",
+				Requirement: ">=1.0.0",
 			},
 			expectedHints:        0,
 			expectedError:        false,
@@ -1273,7 +1273,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			name: "Should_Return_ResponseWithOneComponent",
 			request: &common.ComponentsRequest{
 				Components: []*common.ComponentRequest{
-					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0"},
+					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0.0.0"},
 				},
 			},
 			expectedComponents:   1,
@@ -1285,7 +1285,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			name: "Should_Return_CantFindComponents",
 			request: &common.ComponentsRequest{
 				Components: []*common.ComponentRequest{
-					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
+					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0.0"},
 				},
 			},
 			expectedComponents:   0,
@@ -1297,7 +1297,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			name: "Should_Return_FailedToParsePurl",
 			request: &common.ComponentsRequest{
 				Components: []*common.ComponentRequest{
-					{Purl: "pkg:githubscanossengine", Requirement: ">=1.0"},
+					{Purl: "pkg:githubscanossengine", Requirement: ">=1.0.0"},
 				},
 			},
 			expectedComponents:   0,
@@ -1309,8 +1309,8 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			name: "Should_Return_ResponseWithMultipleComponents",
 			request: &common.ComponentsRequest{
 				Components: []*common.ComponentRequest{
-					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0"},
-					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
+					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0.0.0"},
+					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0.0"},
 				},
 			},
 			expectedComponents:   1,

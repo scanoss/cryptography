@@ -156,7 +156,7 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 	myConfig.Database.Trace = true
 	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
 
-	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", ">2.0")
+	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", ">2.0", &QuerySummary{})
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
@@ -165,16 +165,16 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 	}
 	fmt.Printf("All Urls Version: %#v\n", allUrls)
 
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "", &QuerySummary{})
 	if err == nil {
 		t.Errorf("expected error all_urls.GetUrlsByPurlNameTypeInRange() ")
 	}
 
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0", &QuerySummary{})
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0", &QuerySummary{})
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
