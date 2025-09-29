@@ -19,6 +19,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
 
@@ -66,6 +68,14 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
 			return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
+
+		if component.Requirement != "" {
+			if !utils.IsValidRequirement(component.Requirement) {
+				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", component.Purl, component.Requirement))
+				continue
+			}
+		}
+
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
@@ -82,7 +92,11 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
+		versionsWOsemver := []string{}
 		for _, url := range res {
+			if url.SemVer == "" {
+				versionsWOsemver = append(versionsWOsemver, url.URLHash)
+			}
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
 			nonDupVersions[url.SemVer] = false

@@ -59,7 +59,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	var componentDTOS = []dtos.ComponentDTO{
 		dtos.ComponentDTO{
 			Purl:        "pkg:github/pineappleea/pineapple-src",
-			Requirement: ">=0",
+			Requirement: ">=0.0.0",
 		},
 	}
 	hintsUc := NewECDetection(ctx, s, conn, myConfig)
@@ -91,7 +91,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 	componentDTOS = []dtos.ComponentDTO{
 		dtos.ComponentDTO{
 			Purl:        "pkg:github/scanoss/engine",
-			Requirement: ">=1.0",
+			Requirement: ">=1.0.0",
 		},
 	}
 	libraries, summary, err = hintsUc.GetDetectionsInRange(componentDTOS)
@@ -148,15 +148,15 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 			input: []dtos.ComponentDTO{
 				dtos.ComponentDTO{
 					Purl:        "pkg:github/pineappleea/pineapple-src",
-					Requirement: ">=0",
+					Requirement: ">=0.0.0",
 				},
 				dtos.ComponentDTO{
 					Purl:        "pkg:github/pineappleea/pineapple-src",
-					Requirement: ">=0",
+					Requirement: ">=0.0.0",
 				},
 				dtos.ComponentDTO{
 					Purl:        "pkg:github/scanoss/engine",
-					Requirement: ">=0",
+					Requirement: ">=0.0.0",
 				},
 			},
 			expectedError: false,

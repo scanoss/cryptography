@@ -57,13 +57,13 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 	var componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">v2.0.0",
 		},
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/dependencies",
-			Requirement: ">v0.0",
+			Requirement: ">v0.0.0",
 		},
 	}
 	versionsUc := NewVersionsUsingCrypto(ctx, s, conn, myConfig)
@@ -88,9 +88,9 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to get an 'Empty list' error")
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:githubscanossengine",
-			Requirement: ">v5.3",
+			Requirement: ">v5.3.0",
 		},
 	}
 	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
@@ -101,7 +101,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", len(summary.PurlsFailedToParse))
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: "*",
 		},
@@ -114,13 +114,13 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Not Expected to receive versions")
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
-			Requirement: ">5.3",
+			Requirement: ">5.3.0",
 		},
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:githubscanossminr",
-			Requirement: ">1.3",
+			Requirement: ">1.3.0",
 		},
 	}
 	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
@@ -131,9 +131,9 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", len(summary.PurlsFailedToParse))
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engines",
-			Requirement: ">5.3",
+			Requirement: ">5.3.0",
 		},
 	}
 	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
@@ -187,7 +187,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 	var componentDTOS = []dtos.ComponentDTO{
 		dtos.ComponentDTO{
 			Purl:        "pkg:github/scanoss/engine",
-			Requirement: ">5.3",
+			Requirement: ">5.3.0",
 		},
 	}
 

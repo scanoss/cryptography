@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
 
@@ -69,6 +70,14 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
 			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
 		}
+
+		if c.Requirement != "" {
+			if !utils.IsValidRequirement(c.Requirement) {
+				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", c.Purl, c.Requirement))
+				continue
+			}
+		}
+
 		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)

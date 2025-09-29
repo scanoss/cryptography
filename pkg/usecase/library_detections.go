@@ -19,6 +19,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
 
@@ -65,6 +67,13 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 			d.s.Warnf("requirement should include version range or major and wildcard")
 			continue
 		}
+		if component.Requirement != "" {
+			if !utils.IsValidRequirement(component.Requirement) {
+				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", component.Purl, component.Requirement))
+				continue
+			}
+		}
+
 		if item, ok := d.processSinglePurl(component, &summary); ok {
 			out.Hints = append(out.Hints, *item)
 		}
