@@ -4,6 +4,14 @@
 ### Added
 - Upcoming changes...
 
+## [0.7.0] - 2025-09-30
+### Added
+- Added semver validation for ranges endpoints
+- Added detailed response message about versions found in ranges endpoint responses
+
+### Changed
+- Enhanced response handling for ranges endpoints with query summaries
+
 ## [0.6.0] - 2025-09-12
 ### Added
 - Added gRPC GetComponentAlgorithms and REST endpoint GET /v2/cryptography/algorithms/component
@@ -56,6 +64,8 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.7.0]: https://github.com/scanoss/cryptography/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/scanoss/cryptography/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/scanoss/cryptography/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/scanoss/cryptography/releases/tag/v0.4.1....v0.4.2
 [0.4.1]: https://github.com/scanoss/cryptography/releases/tag/v0.4.0...v0.4.1
