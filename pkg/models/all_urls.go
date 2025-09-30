@@ -209,23 +209,33 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 	if err != nil {
 		return []AllURL{}, fmt.Errorf("failed to analyze range: %v", err)
 	}
+	// Track versions without semver for summary reporting
 	woSemver := []string{}
+
+	// Iterate through all URLs to filter versions within the specified range
 	for _, u := range allUrls {
+		// Skip entries without semver and collect them for reporting
 		if u.SemVer == "" {
 			woSemver = append(woSemver, u.Version)
 			continue
 		}
-		// Analyze version
+
+		// Parse the semver version string
 		version, err := semver.NewVersion(u.SemVer)
 		if err != nil {
+			// Skip invalid semver versions
 			continue
 		}
-		// Check if version is inside the range
+
+		// Check if the version satisfies the range constraint
 		if rangeSpec.Check(version) {
 			filteredUrls = append(filteredUrls, u)
 		}
 	}
-	if len(woSemver) >= len(allUrls) && len(allUrls) > 0 {
+
+	// If all/most versions lack semver and no filtered results exist,
+	// add this purl to the summary for reporting purposes
+	if len(woSemver) >= len(allUrls) && len(allUrls) > 0 && len(filteredUrls) == 0 {
 		summary.PurlsWOSemver = append(summary.PurlsWOSemver, PurlWOSemver{
 			Purl:     purlName,
 			Versions: woSemver,
