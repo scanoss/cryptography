@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
+
+	"scanoss.com/cryptography/pkg/utils"
 
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
@@ -92,11 +93,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
-		versionsWOsemver := []string{}
 		for _, url := range res {
-			if url.SemVer == "" {
-				versionsWOsemver = append(versionsWOsemver, url.URLHash)
-			}
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
 			nonDupVersions[url.SemVer] = false

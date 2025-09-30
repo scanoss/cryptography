@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
+
+	"scanoss.com/cryptography/pkg/utils"
 
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	myconfig "scanoss.com/cryptography/pkg/config"

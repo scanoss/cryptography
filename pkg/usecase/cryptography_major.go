@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/utils"
 	"sort"
 	"strings"
+
+	"scanoss.com/cryptography/pkg/utils"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
