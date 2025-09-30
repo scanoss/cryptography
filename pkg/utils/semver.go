@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"github.com/Masterminds/semver/v3"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // IsValidRequirement validates whether a version requirement string contains valid semantic version constraints.
