@@ -17,7 +17,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.75.0
-	modernc.org/sqlite v1.38.2
+	modernc.org/sqlite v1.39.0
 )
 
 require (
