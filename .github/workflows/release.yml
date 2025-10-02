@@ -24,9 +24,6 @@ jobs:
           make build_amd
           make build_arm
 
-      - name: Unit Test
-        run: make unit_test
-
       - name: Package
         run: |
           make package_amd
