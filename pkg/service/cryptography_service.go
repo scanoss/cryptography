@@ -84,7 +84,7 @@ func (c cryptographyServer) GetAlgorithms(ctx context.Context, request *common.P
 	}
 
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoCrypto.Cryptography == nil {
 		return &pb.AlgorithmResponse{Status: statusResp}, nil
 	}
@@ -126,7 +126,7 @@ func (c cryptographyServer) GetComponentsAlgorithms(ctx context.Context, request
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if results.Cryptography == nil {
 		return &pb.ComponentsAlgorithmsResponse{Status: statusResp}, nil
 	}
@@ -200,7 +200,7 @@ func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *c
 		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoCrypto.Cryptography == nil {
 		return &pb.AlgorithmsInRangeResponse{Status: statusResp}, nil
 	}
@@ -245,9 +245,9 @@ func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, 
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
-	statusRep := buildStatusResponse(ctx, s, summary)
+	statusRep := buildStatusResponse(ctx, s, summary, true)
 	if dtoCrypto.Cryptography == nil {
-		return &pb.ComponentsAlgorithmsInRangeResponse{Status: buildStatusResponse(ctx, s, summary)}, nil
+		return &pb.ComponentsAlgorithmsInRangeResponse{Status: buildStatusResponse(ctx, s, summary, true)}, nil
 	}
 	response, err := convertComponentsCryptoInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
 	if err != nil {
@@ -325,7 +325,7 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoCrypto.Versions == nil {
 		return &pb.VersionsInRangeResponse{Status: statusResp}, nil
 	}
@@ -370,7 +370,7 @@ func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, re
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoCrypto.Versions == nil {
 		return &pb.ComponentsVersionsInRangeResponse{Status: statusResp}, nil
 	}
@@ -450,7 +450,7 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoEC.Hints == nil {
 		return &pb.HintsInRangeResponse{Status: statusResp}, nil
 	}
@@ -493,7 +493,7 @@ func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, reque
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem getting hints in range")
 	}
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if dtoEC.Hints == nil {
 		return &pb.ComponentsHintsInRangeResponse{Status: statusResp}, nil
 	}
@@ -572,7 +572,7 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 
 	if dtoEC.Hints == nil {
 		return &pb.HintsResponse{Status: statusResp}, nil
@@ -617,7 +617,7 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary)
+	statusResp := buildStatusResponse(ctx, s, summary, true)
 	if encryptionHints.Hints == nil {
 		return &pb.ComponentsEncryptionHintsResponse{Status: statusResp}, nil
 	}
