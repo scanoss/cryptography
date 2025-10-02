@@ -4,6 +4,10 @@
 ### Added
 - Upcoming changes...
 
+## [0.7.1] - 2025-10-02
+### Bug
+- Fixed response status for batch operations
+
 ## [0.7.0] - 2025-09-30
 ### Added
 - Added semver validation for ranges endpoints
@@ -64,6 +68,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.7.1]: https://github.com/scanoss/cryptography/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scanoss/cryptography/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scanoss/cryptography/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/scanoss/cryptography/compare/v0.4.2...v0.5.0

@@ -52,7 +52,7 @@ func buildErrorMessages(summary models.QuerySummary) []string {
 // determineStatusAndHTTPCode analyzes the PURL processing results and determines the appropriate
 // status code and HTTP code based on the success/failure ratios.
 // Returns common.StatusCode and HTTP status code string.
-func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummary) (common.StatusCode, string) {
+func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummary, isBatchResponse bool) (common.StatusCode, string) {
 	// Calculate failure statistics
 	totalFailedToParse := len(summary.PurlsFailedToParse)
 	totalNotFound := len(summary.PurlsNotFound)
@@ -75,6 +75,10 @@ func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummar
 			return common.StatusCode_FAILED, rest.HTTPStatusBadRequest
 		}
 
+		if isBatchResponse {
+			return common.StatusCode_SUCCEEDED_WITH_WARNINGS, rest.HTTPStatusOK
+		}
+
 		return common.StatusCode_FAILED, rest.HTTPStatusNotFound
 
 	default:
@@ -84,7 +88,7 @@ func determineStatusAndHTTPCode(s *zap.SugaredLogger, summary models.QuerySummar
 }
 
 // buildStatusResponse constructs a StatusResponse based on PURL processing results and sets appropriate HTTP status codes.
-func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary models.QuerySummary) *common.StatusResponse {
+func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary models.QuerySummary, isBatchResponse bool) *common.StatusResponse {
 	var messages = buildErrorMessages(summary)
 	statusResp := common.StatusResponse{
 		Status:  common.StatusCode_SUCCESS,
@@ -93,7 +97,7 @@ func buildStatusResponse(ctx context.Context, s *zap.SugaredLogger, summary mode
 	if len(messages) > 0 {
 		statusResp.Message = strings.Join(messages, " | ")
 	}
-	status, httpStatusCode := determineStatusAndHTTPCode(s, summary)
+	status, httpStatusCode := determineStatusAndHTTPCode(s, summary, isBatchResponse)
 	setHTTPCodeOnTrailer(ctx, s, httpStatusCode)
 	statusResp.Status = status
 	return &statusResp
