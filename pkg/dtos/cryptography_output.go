@@ -47,9 +47,11 @@ type CryptoInRangeOutput struct {
 }
 
 type CryptoInRangeOutputItem struct {
-	Purl       string            `json:"purl"`
-	Versions   []string          `json:"versions"`
-	Algorithms []CryptoUsageItem `json:"algorithms"`
+	Purl        string            `json:"purl"`
+	Requirement string            `json:"requirement"`
+	Versions    []string          `json:"versions"`
+	Algorithms  []CryptoUsageItem `json:"algorithms"`
+	Status      Status            `json:"status"`
 }
 
 type VersionsInRangeOutput struct {

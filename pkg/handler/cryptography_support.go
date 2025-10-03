@@ -89,13 +89,16 @@ func convertCryptoMajorOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOut
 		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	var depResp pb.AlgorithmsInRangeResponse
-	err = json.Unmarshal(data, &depResp)
+	var response pb.AlgorithmsInRangeResponse
+	err = json.Unmarshal(data, &response)
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	return &depResp, nil
+	h := helper.NewAlgorithmInRangeResponseHelper(&response)
+	status, _ := h.DetermineResponseStatusAndHttpCode(output)
+	response.Status = status
+	return &response, nil
 }
 
 // convertVersionsInRangeUsingCryptoOutput converts an internal VersionsInRange Output structure into a DetectionsInRangeResponse struct.
@@ -261,7 +264,7 @@ func convertCryptoOutputToComponent(ctx context.Context, s *zap.SugaredLogger, o
 }
 
 // convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
-func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
+func convertComponentsCryptoInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
 	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
 		return nil, errors.New("no cryptography found")
@@ -284,6 +287,41 @@ func convertComponentsCryptoInRangeOutput(s *zap.SugaredLogger, output dtos.Cryp
 			Algorithms: algorithms,
 		})
 	}
+	h := helper.NewAlgorithmInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
+	return response, nil
+}
+
+// convertComponentsCryptoInRangeOutput converts an internal Crypto Range Output to ComponentsAlgorithmsInRangeResponse.
+func convertComponentCryptoInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
+	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+		return nil, errors.New("no cryptography found")
+	}
+	var response = &pb.ComponentAlgorithmsInRangeResponse{
+		Component: &pb.ComponentAlgorithmsInRangeResponse_Component{},
+		Status:    &common.StatusResponse{},
+	}
+	for i, c := range output.Cryptography {
+		var algorithms = make([]*pb.Algorithm, 0, len(output.Cryptography[i].Algorithms))
+		for _, alg := range c.Algorithms {
+			algorithms = append(algorithms, &pb.Algorithm{
+				Algorithm: alg.Algorithm,
+				Strength:  alg.Strength,
+			})
+		}
+		response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
+			Purl:       output.Cryptography[i].Purl,
+			Versions:   output.Cryptography[i].Versions,
+			Algorithms: algorithms,
+		}
+	}
+	h := helper.NewAlgorithmInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
 	return response, nil
 }
 

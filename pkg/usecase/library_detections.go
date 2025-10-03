@@ -220,7 +220,7 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 		return nil, false
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, componentDTO.Requirement, summary)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, componentDTO.Requirement)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false

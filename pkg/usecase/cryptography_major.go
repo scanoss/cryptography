@@ -36,63 +36,77 @@ import (
 )
 
 type CryptoMajorUseCase struct {
-	ctx         context.Context
-	s           *zap.SugaredLogger
-	conn        *sqlx.Conn
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
 
-func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoMajorUseCase {
-	return &CryptoMajorUseCase{ctx: ctx, s: s, conn: conn} //	allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-	//	cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-
+func NewCryptoMajor(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoMajorUseCase {
+	return &CryptoMajorUseCase{
+		allUrls:     models.NewAllURLModel(db),
+		cryptoUsage: models.NewCryptoUsageModel(db),
+	}
 }
 
 // GetCryptoInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, error) {
 	if len(components) == 0 {
-		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+		s.Info("Empty List of Purls supplied")
+		return dtos.CryptoInRangeOutput{}, errors.New("empty list of purls")
 	}
 	out := dtos.CryptoInRangeOutput{}
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
+	cryptoInRangeItems := []dtos.CryptoInRangeOutputItem{}
+	for _, component := range components {
+		cryptoInRangeItems = append(cryptoInRangeItems, dtos.CryptoInRangeOutputItem{
+			Status:      dtos.StatusSuccess,
+			Purl:        component.Purl,
+			Requirement: component.Requirement,
+		})
+	}
 	// Prepare purls to query
-	for _, c := range components {
+	for _, c := range cryptoInRangeItems {
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
+			c.Status = dtos.ComponentMalformed
+			out.Cryptography = append(out.Cryptography, c)
 			continue
+
 		}
 		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
-			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
+			c.Status = dtos.ComponentMalformed
+			out.Cryptography = append(out.Cryptography, c)
+			continue
 		}
 
 		if c.Requirement != "" {
 			if !utils.IsValidRequirement(c.Requirement) {
-				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", c.Purl, c.Requirement))
+				c.Status = dtos.ComponentMalformed
+				out.Cryptography = append(out.Cryptography, c)
 				continue
 			}
 		}
-
 		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
+			c.Status = dtos.ComponentMalformed
+			out.Cryptography = append(out.Cryptography, c)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, c.Requirement, &summary)
+		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, c.Requirement)
+		if err != nil {
+			s.Debugf("Failed to get cryptographic algorithms: %v", err)
+			c.Status = dtos.ComponentNotFound
+			out.Cryptography = append(out.Cryptography, c)
+			continue
+		}
 		if len(res) == 0 {
-			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
+			c.Status = dtos.ComponentNotFound
+			out.Cryptography = append(out.Cryptography, c)
 			continue
 		}
-		_ = errQ
-		item := dtos.CryptoInRangeOutputItem{Purl: c.Purl, Versions: []string{}}
+
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
-
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
@@ -100,34 +114,35 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		}
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
+			s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}
 		// avoid duplicate algorithms
 		fmt.Printf("USES %v", uses)
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
+		if len(uses) == 0 {
+			c.Status = dtos.ComponentWithoutInfo
+			out.Cryptography = append(out.Cryptography, c)
+			continue
+		}
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
 				nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
-				item.Algorithms = append(item.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
+				c.Algorithms = append(c.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
 		for k := range nonDupVersions {
-			item.Versions = append(item.Versions, k)
+			c.Versions = append(c.Versions, k)
 		}
 
-		sort.Slice(item.Versions, func(i, j int) bool {
-			versionA, _ := semver.NewVersion(item.Versions[i])
-			versionB, _ := semver.NewVersion(item.Versions[j])
+		sort.Slice(c.Versions, func(i, j int) bool {
+			versionA, _ := semver.NewVersion(c.Versions[i])
+			versionB, _ := semver.NewVersion(c.Versions[j])
 
 			return versionA.LessThan(versionB)
 		})
 
-		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, c.Purl)
-		}
-
-		out.Cryptography = append(out.Cryptography, item)
+		out.Cryptography = append(out.Cryptography, c)
 	}
-	return out, summary, nil
+	return out, nil
 }

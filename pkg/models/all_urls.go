@@ -174,7 +174,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(ctx context.Context, s *zap.
 	return pickOneURL(s, allUrls, purlName, purlType, "")
 }
 
-func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(ctx context.Context, s *zap.SugaredLogger, purlName, purlType, purlRange string, summary *QuerySummary) ([]AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(ctx context.Context, s *zap.SugaredLogger, purlName, purlType, purlRange string) ([]AllURL, error) {
 	if len(purlName) == 0 {
 		s.Infof("Please specify a valid Purl Name to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Name to query")
@@ -233,10 +233,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(ctx context.Context, s *zap.
 	// If all/most versions lack semver and no filtered results exist,
 	// add this purl to the summary for reporting purposes
 	if len(woSemver) >= len(allUrls) && len(allUrls) > 0 && len(filteredUrls) == 0 {
-		summary.PurlsWOSemver = append(summary.PurlsWOSemver, PurlWOSemver{
-			Purl:     purlName,
-			Versions: woSemver,
-		})
+		return []AllURL{}, errors.New("URLS has not valid semver")
 	}
 	s.Debugf("Found %d results for %v, %v.", len(filteredUrls), purlType, purlName)
 	// Pick one URL to return

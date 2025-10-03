@@ -150,7 +150,6 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 		c := &components[i]
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
-			c.Status = dtos.ComponentMalformed
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			componentCryptoMetadata = append(componentCryptoMetadata, ComponentCryptoMetadata{Purl: c.Purl, Status: dtos.ComponentMalformed, ComponentName: "", Requirement: c.Requirement, Version: c.Version})
 			continue
