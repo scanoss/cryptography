@@ -21,4 +21,5 @@ type ComponentDTO struct {
 	Purl        string `json:"purl"`                  // Package URL identifier
 	Requirement string `json:"requirement,omitempty"` // Version requirement specification
 	Version     string `json:"version,omitempty"`     // Specific version of the component
+	Status      Status `json:"status"`                // Processing status of the component
 }

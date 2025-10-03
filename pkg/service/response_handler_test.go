@@ -21,6 +21,7 @@ import (
 	common "github.com/scanoss/papi/api/commonv2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
+	"scanoss.com/cryptography/pkg/handler"
 	"scanoss.com/cryptography/pkg/models"
 	"testing"
 )
@@ -89,7 +90,7 @@ func Test_buildErrorMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildErrorMessages(tt.summary)
+			got := handler.buildErrorMessages(tt.summary)
 
 			if len(got) != len(tt.want) {
 				t.Errorf("buildErrorMessages() length = %d, want %d", len(got), len(tt.want))
@@ -185,7 +186,7 @@ func Test_determineStatusAndHTTPCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotStatus, gotHTTPCode := determineStatusAndHTTPCode(sugar, tt.summary)
+			gotStatus, gotHTTPCode := handler.determineStatusAndHTTPCode(sugar, tt.summary)
 
 			if gotStatus != tt.wantStatus {
 				t.Errorf("determineStatusAndHTTPCode() status = %v, want %v", gotStatus, tt.wantStatus)
@@ -216,7 +217,7 @@ func Test_buildStatusResponse(t *testing.T) {
 				PurlsWOInfo:        []string{},
 			},
 			wantStatus:  common.StatusCode_SUCCESS,
-			wantMessage: ResponseMessageSuccess,
+			wantMessage: handler.ResponseMessageSuccess,
 		},
 		{
 			name: "response with single error",
@@ -289,7 +290,7 @@ func Test_setHTTPCodeOnTrailer(t *testing.T) {
 
 			// This test mainly ensures the function doesn't panic
 			// and handles the trailer setting gracefully
-			setHTTPCodeOnTrailer(ctx, sugar, tt.code)
+			handler.setHTTPCodeOnTrailer(ctx, sugar, tt.code)
 		})
 	}
 }

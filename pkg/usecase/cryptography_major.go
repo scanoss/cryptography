@@ -26,7 +26,6 @@ import (
 	"scanoss.com/cryptography/pkg/utils"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 
@@ -45,14 +44,13 @@ type CryptoMajorUseCase struct {
 }
 
 func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoMajorUseCase {
-	return &CryptoMajorUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-	}
+	return &CryptoMajorUseCase{ctx: ctx, s: s, conn: conn} //	allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+	//	cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+
 }
 
 // GetCryptoInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -85,7 +83,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement, &summary)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, c.Requirement, &summary)
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
@@ -100,7 +98,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dt
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
 		}
-		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}

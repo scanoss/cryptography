@@ -25,7 +25,6 @@ import (
 
 	"scanoss.com/cryptography/pkg/utils"
 
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 
@@ -44,14 +43,13 @@ type VersionsUsingCrypto struct {
 }
 
 func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *VersionsUsingCrypto {
-	return &VersionsUsingCrypto{ctx: ctx, s: s, conn: conn,
-		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-	}
+	return &VersionsUsingCrypto{ctx: ctx, s: s, conn: conn} /*		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+			cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),*/
+
 }
 
 // GetVersionsInRangeUsingCrypto takes the Crypto Input request, searches for Cryptographic and return versions that use and does not use crypto.
-func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.ComponentDTO) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
+func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -82,7 +80,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, component.Requirement, &summary)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, component.Requirement, &summary)
 		if len(res) == 0 {
 			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
 			continue
@@ -98,7 +96,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 			mapVersionHash[url.URLHash] = url.SemVer
 			nonDupVersions[url.SemVer] = false
 		}
-		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err)
 		}

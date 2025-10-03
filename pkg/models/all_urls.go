@@ -20,11 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 	"sort"
 	"strings"
-
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
-	"go.uber.org/zap"
 
 	"github.com/Masterminds/semver/v3"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
@@ -33,9 +32,7 @@ import (
 )
 
 type AllUrlsModel struct {
-	ctx context.Context
-	s   *zap.SugaredLogger
-	q   *database.DBQueryContext
+	db *sqlx.DB
 }
 
 type AllURL struct {
@@ -50,13 +47,13 @@ type AllURL struct {
 }
 
 // NewAllURLModel creates a new instance of the All URL Model.
-func NewAllURLModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQueryContext) *AllUrlsModel {
-	return &AllUrlsModel{ctx: ctx, s: s, q: q}
+func NewAllURLModel(db *sqlx.DB) *AllUrlsModel {
+	return &AllUrlsModel{db: db}
 }
 
-func (m *AllUrlsModel) GetUrlsByPurlList(list []utils.PurlReq) ([]AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlList(ctx context.Context, s *zap.SugaredLogger, list []utils.PurlReq) ([]AllURL, error) {
 	if len(list) == 0 {
-		m.s.Infof("Please specify a valid Purl list to query")
+		s.Infof("Please specify a valid Purl list to query")
 		return []AllURL{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
@@ -73,19 +70,19 @@ func (m *AllUrlsModel) GetUrlsByPurlList(list []utils.PurlReq) ([]AllURL, error)
 		" and package_hash!= '' ORDER BY date DESC;"
 
 	var allUrls []AllURL
-	err := m.q.SelectContext(m.ctx, &allUrls, stmt)
+	err := m.db.SelectContext(ctx, &allUrls, stmt)
 	if err != nil {
-		m.s.Errorf("Failed to query a list of urls:  %v", err)
+		s.Errorf("Failed to query a list of urls:  %v", err)
 		return []AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	return allUrls, nil
 }
 
 // GetUrlsByPurlString searches for component details of the specified Purl string (and optional requirement).
-func (m *AllUrlsModel) GetUrlsByPurlString(purlString, purlReq string) (AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlString(ctx context.Context, s *zap.SugaredLogger, purlString, purlReq string) (AllURL, error) {
 	// TODO remove?
 	if len(purlString) == 0 {
-		m.s.Errorf("Please specify a valid Purl String to query")
+		s.Errorf("Please specify a valid Purl String to query")
 		return AllURL{}, errors.New("please specify a valid Purl String to query")
 	}
 	purl, err := purlhelper.PurlFromString(purlString)
@@ -97,7 +94,7 @@ func (m *AllUrlsModel) GetUrlsByPurlString(purlString, purlReq string) (AllURL, 
 		return AllURL{}, err
 	}
 	if len(purlReq) > 0 && strings.HasPrefix(purlReq, "file:") { // internal dependency requirement. Assume latest
-		m.s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", purlString, purlReq)
+		s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", purlString, purlReq)
 		purlReq = ""
 	}
 	if len(purl.Version) == 0 && len(purlReq) > 0 { // No version specified, but we might have a specific version in the Requirement
@@ -109,24 +106,24 @@ func (m *AllUrlsModel) GetUrlsByPurlString(purlString, purlReq string) (AllURL, 
 	}
 
 	if len(purl.Version) > 0 {
-		return m.GetUrlsByPurlNameTypeVersion(purlName, purl.Type, purl.Version)
+		return m.GetUrlsByPurlNameTypeVersion(ctx, s, purlName, purl.Type, purl.Version)
 	}
-	return m.GetUrlsByPurlNameType(purlName, purl.Type, purlReq)
+	return m.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, purlReq)
 }
 
 // GetUrlsByPurlNameType searches for component details of the specified Purl Name/Type (and optional requirement).
-func (m *AllUrlsModel) GetUrlsByPurlNameType(purlName, purlType, purlReq string) (AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlNameType(ctx context.Context, s *zap.SugaredLogger, purlName, purlType, purlReq string) (AllURL, error) {
 	// TODO remove?
 	if len(purlName) == 0 {
-		m.s.Errorf("Please specify a valid Purl Name to query")
+		s.Errorf("Please specify a valid Purl Name to query")
 		return AllURL{}, errors.New("please specify a valid Purl Name to query")
 	}
 	if len(purlType) == 0 {
-		m.s.Errorf("Please specify a valid Purl Type to query: %v", purlName)
+		s.Errorf("Please specify a valid Purl Type to query: %v", purlName)
 		return AllURL{}, errors.New("please specify a valid Purl Type to query")
 	}
 	var allUrls []AllURL
-	err := m.q.SelectContext(m.ctx, &allUrls,
+	err := m.db.SelectContext(ctx, &allUrls,
 		"SELECT package_hash AS url_hash, component, v.version_name AS version, v.semver AS semver, "+
 			"purl_name, mine_id FROM all_urls u "+
 			"LEFT JOIN mines m ON u.mine_id = m.id "+
@@ -136,31 +133,31 @@ func (m *AllUrlsModel) GetUrlsByPurlNameType(purlName, purlType, purlReq string)
 		purlType, purlName)
 
 	if err != nil {
-		m.s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
+		s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
 		return AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
-	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
+	s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
 	// Pick one URL to return (checking for license details also)
-	return pickOneURL(m.s, allUrls, purlName, purlType, purlReq)
+	return pickOneURL(s, allUrls, purlName, purlType, purlReq)
 }
 
 // GetUrlsByPurlNameTypeVersion searches for component details of the specified Purl Name/Type and version.
-func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVersion string) (AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(ctx context.Context, s *zap.SugaredLogger, purlName, purlType, purlVersion string) (AllURL, error) {
 	// TODO remove?
 	if len(purlName) == 0 {
-		m.s.Errorf("Please specify a valid Purl Name to query")
+		s.Errorf("Please specify a valid Purl Name to query")
 		return AllURL{}, errors.New("please specify a valid Purl Name to query")
 	}
 	if len(purlType) == 0 {
-		m.s.Errorf("Please specify a valid Purl Type to query")
+		s.Errorf("Please specify a valid Purl Type to query")
 		return AllURL{}, errors.New("please specify a valid Purl Type to query")
 	}
 	if len(purlVersion) == 0 {
-		m.s.Errorf("Please specify a valid Purl Version to query")
+		s.Errorf("Please specify a valid Purl Version to query")
 		return AllURL{}, errors.New("please specify a valid Purl Version to query")
 	}
 	var allUrls []AllURL
-	err := m.q.SelectContext(m.ctx, &allUrls,
+	err := m.db.SelectContext(ctx, &allUrls,
 		"SELECT package_hash AS url_hash, component, v.version_name AS version, v.semver AS semver, "+
 			"purl_name, mine_id FROM all_urls u "+
 			"LEFT JOIN mines m ON u.mine_id = m.id "+
@@ -169,30 +166,30 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeVersion(purlName, purlType, purlVers
 			"ORDER BY date DESC;",
 		purlType, purlName, purlVersion)
 	if err != nil {
-		m.s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
+		s.Errorf("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
 		return AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
-	m.s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
+	s.Debugf("Found %v results for %v, %v.", len(allUrls), purlType, purlName)
 	// Pick one URL to return (checking for license details also)
-	return pickOneURL(m.s, allUrls, purlName, purlType, "")
+	return pickOneURL(s, allUrls, purlName, purlType, "")
 }
 
-func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRange string, summary *QuerySummary) ([]AllURL, error) {
+func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(ctx context.Context, s *zap.SugaredLogger, purlName, purlType, purlRange string, summary *QuerySummary) ([]AllURL, error) {
 	if len(purlName) == 0 {
-		m.s.Infof("Please specify a valid Purl Name to query")
+		s.Infof("Please specify a valid Purl Name to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Name to query")
 	}
 	if len(purlType) == 0 {
-		m.s.Infof("Please specify a valid Purl Type to query")
+		s.Infof("Please specify a valid Purl Type to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Type to query")
 	}
 	if len(purlRange) == 0 {
-		m.s.Infof("Please specify a valid Purl Version range to query")
+		s.Infof("Please specify a valid Purl Version range to query")
 		return []AllURL{}, errors.New("please specify a valid Purl Version to query")
 	}
 	var allUrls []AllURL
 	var filteredUrls []AllURL
-	err := m.q.SelectContext(m.ctx, &allUrls,
+	err := m.db.SelectContext(ctx, &allUrls,
 		"SELECT package_hash AS url_hash, component, v.version_name AS version, v.semver AS semver, "+
 			"purl_name, mine_id FROM all_urls u "+
 			"LEFT JOIN mines m ON u.mine_id = m.id "+
@@ -202,7 +199,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			"ORDER BY date DESC;",
 		purlType, purlName)
 	if err != nil {
-		m.s.Infof("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
+		s.Infof("Failed to query all urls table for %v - %v: %v", purlType, purlName, err)
 		return []AllURL{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	rangeSpec, err := semver.NewConstraint(purlRange)
@@ -241,7 +238,7 @@ func (m *AllUrlsModel) GetUrlsByPurlNameTypeInRange(purlName, purlType, purlRang
 			Versions: woSemver,
 		})
 	}
-	m.s.Debugf("Found %d results for %v, %v.", len(filteredUrls), purlType, purlName)
+	s.Debugf("Found %d results for %v, %v.", len(filteredUrls), purlType, purlName)
 	// Pick one URL to return
 	return filteredUrls, nil
 }

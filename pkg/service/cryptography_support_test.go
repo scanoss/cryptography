@@ -17,6 +17,7 @@
 package service
 
 import (
+	"scanoss.com/cryptography/pkg/handler"
 	"testing"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -76,7 +77,7 @@ func Test_buildComponentDTO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildComponentDTO(tt.purl, tt.requirement)
+			got := handler.buildComponentDTO(tt.purl, tt.requirement)
 			if got.Purl != tt.want.Purl {
 				t.Errorf("buildComponentDTO().Purl = %v, want %v", got.Purl, tt.want.Purl)
 			}
@@ -143,7 +144,7 @@ func Test_convertComponentsRequestToComponentDTO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertComponentsRequestToComponentDTO(tt.request)
+			got, err := handler.convertComponentsRequestToComponentDTO(tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertComponentsRequestToComponentDTO() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -194,7 +195,7 @@ func Test_convertComponentRequestToComponentDTO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateComponentRequest(tt.request)
+			err := handler.validateComponentRequest(tt.request)
 			if (err != nil) && !tt.wantErr {
 				t.Errorf("validateComponentRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -305,7 +306,7 @@ func Test_convertCryptoOutputToComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertCryptoOutputToComponents(s, tt.output)
+			got, err := handler.convertCryptoOutputToComponents(s, tt.output)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertCryptoOutputToComponents() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -439,7 +440,7 @@ func Test_convertComponentsCryptoInRangeOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertComponentsCryptoInRangeOutput(s, tt.output)
+			got, err := handler.convertComponentsCryptoInRangeOutput(s, tt.output)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertComponentsCryptoInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -584,7 +585,7 @@ func Test_convertToComponentsVersionInRangeOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertToComponentsVersionInRangeOutput(s, tt.output)
+			got, err := handler.convertToComponentsVersionInRangeOutput(s, tt.output)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertToComponentsVersionInRangeOutput() error = %v, wantErr %v", err, tt.wantErr)
 				return

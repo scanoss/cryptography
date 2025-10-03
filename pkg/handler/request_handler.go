@@ -1,13 +1,11 @@
 // Package service provides cryptography service handlers and utilities for gRPC requests.
-package service
+package handler
 
 import (
 	"context"
-
-	"go.uber.org/zap"
-	"scanoss.com/cryptography/pkg/protocol/rest"
-
 	common "github.com/scanoss/papi/api/commonv2"
+	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
 )
 
@@ -19,7 +17,7 @@ func rejectIfInvalidComponents[T any](ctx context.Context, s *zap.SugaredLogger,
 	componentDTOS, err := convertComponentsRequestToComponentDTO(request)
 	if err != nil {
 		s.Errorf("rejectIfInvalidComponents: %v, %v", request, err)
-		setHTTPCodeOnTrailer(ctx, s, rest.HTTPStatusBadRequest)
+		setHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
 		return []dtos.ComponentDTO{}, createResponse(&statusResp)
 	}
@@ -37,7 +35,7 @@ func rejectIfInvalid[T any](ctx context.Context, s *zap.SugaredLogger, request *
 	err := validateComponentRequest(request)
 	if err != nil {
 		s.Errorf("rejectIfInvalid: %v, %v", request, err)
-		setHTTPCodeOnTrailer(ctx, s, rest.HTTPStatusBadRequest)
+		setHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
 		return createResponse(&statusResp)
 	}

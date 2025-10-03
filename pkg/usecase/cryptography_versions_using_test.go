@@ -68,7 +68,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	versionsUc := NewVersionsUsingCrypto(ctx, s, conn, myConfig)
 
-	versions, summary, err := versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err := versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -83,7 +83,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 
 	componentDTOS = []dtos.ComponentDTO{}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err == nil {
 		t.Fatalf("Expected to get an 'Empty list' error")
 	}
@@ -93,7 +93,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">v5.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if len(versions.Versions) != 0 {
 		t.Fatalf("Not Expected to receive versions")
 	}
@@ -106,7 +106,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: "*",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err == nil {
 		t.Fatalf("An invalid range error was expected")
 	}
@@ -123,7 +123,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">1.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
@@ -136,7 +136,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">5.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
@@ -148,7 +148,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(componentDTOS)
+	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
@@ -192,7 +192,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 	}
 
 	cryptoUc := NewCryptoMajor(ctx, s, conn, myConfig)
-	algorithms, summary, err := cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, summary, err := cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -207,7 +207,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to get at least 1 algorithm")
 	}
 
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">v5.4.5,<5.4.7",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, summary, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}

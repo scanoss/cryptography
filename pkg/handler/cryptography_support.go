@@ -14,11 +14,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package service
+package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"scanoss.com/cryptography/pkg/helper"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -43,8 +45,8 @@ func setupMetrics() {
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
 }
 
-// convertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct. TODO: Remove this method when legacy request be removed.
-func convertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.PurlRequest) ([]dtos.ComponentDTO, error) {
+// ConvertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct. TODO: Remove this method when legacy request be removed.
+func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.PurlRequest) ([]dtos.ComponentDTO, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
 		s.Errorf("Problem marshalling Cryptography request input: %v", err)
@@ -62,20 +64,21 @@ func convertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.Purl
 	return components, nil
 }
 
-// convertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct.
-func convertCryptoOutput(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
+// ConvertCryptoOutput converts an internal Crypto Output structure into a Crypto Response struct.
+func ConvertCryptoOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	data, err := json.Marshal(output)
 	if err != nil {
-		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	var depResp pb.AlgorithmResponse
-	err = json.Unmarshal(data, &depResp)
+	var response pb.AlgorithmResponse
+	err = json.Unmarshal(data, &response)
 	if err != nil {
-		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	return &depResp, nil
+	h := helper.NewAlgorithmResponseHelper(&response)
+	status, _ := h.DetermineResponseStatusAndHttpCode(output)
+	response.Status = status
+	return &response, nil
 }
 
 // convertCryptoOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
@@ -192,7 +195,7 @@ func validateComponentRequest(request *common.ComponentRequest) error {
 
 // convertCryptoOutputToComponents converts an internal Crypto Output structure
 // into a ComponentsAlgorithmsResponse.
-func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
+func convertCryptoOutputToComponents(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
 	if output.Cryptography == nil {
 		return nil, errors.New("no cryptography found")
 	}
@@ -217,6 +220,43 @@ func convertCryptoOutputToComponents(s *zap.SugaredLogger, output dtos.CryptoOut
 			Algorithms:  algorithms,
 		})
 	}
+	h := helper.NewAlgorithmResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
+	return response, nil
+}
+
+// into a ComponentsAlgorithmsResponse.
+func convertCryptoOutputToComponent(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
+	if output.Cryptography == nil {
+		return nil, errors.New("no cryptography found")
+	}
+	s.Debugf("convertCryptoOutputToComponents: %v", output)
+	response := &pb.ComponentAlgorithmsResponse{
+		Component: &pb.ComponentAlgorithms{},
+		Status:    &common.StatusResponse{},
+	}
+
+	for _, component := range output.Cryptography {
+		algorithms := make([]*pb.Algorithm, 0, len(component.Algorithms))
+		for _, alg := range component.Algorithms {
+			algorithms = append(algorithms, &pb.Algorithm{
+				Algorithm: alg.Algorithm,
+				Strength:  alg.Strength,
+			})
+		}
+		response.Component = &pb.ComponentAlgorithms{
+			Purl:        component.Purl,
+			Version:     component.Version,
+			Requirement: component.Requirement,
+			Algorithms:  algorithms,
+		}
+	}
+	h := helper.NewAlgorithmResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
 	return response, nil
 }
 

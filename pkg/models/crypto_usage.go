@@ -18,18 +18,16 @@ package models
 
 import (
 	"context"
+	_ "context"
 	"errors"
 	"fmt"
-	"strings"
-
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
+	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type CryptoUsageModel struct {
-	ctx context.Context
-	s   *zap.SugaredLogger
-	q   *database.DBQueryContext
+	db *sqlx.DB
 }
 
 type CryptoUsage struct {
@@ -50,13 +48,13 @@ type CryptoItem struct {
 }
 
 // NewCryptoUsageModel creates a new instance of the Crypto Usage Model.
-func NewCryptoUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQueryContext) *CryptoUsageModel {
-	return &CryptoUsageModel{ctx: ctx, s: s, q: q}
+func NewCryptoUsageModel(db *sqlx.DB) *CryptoUsageModel {
+	return &CryptoUsageModel{db}
 }
 
-func (m *CryptoUsageModel) GetCryptoUsageByURLHashes(urlHashes []string) ([]CryptoUsage, error) {
+func (m *CryptoUsageModel) GetCryptoUsageByURLHashes(ctx context.Context, s *zap.SugaredLogger, urlHashes []string) ([]CryptoUsage, error) {
 	if len(urlHashes) == 0 {
-		m.s.Infof("Please specify a valid Purl list to query")
+		s.Infof("Please specify a valid Purl list to query")
 		return []CryptoUsage{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
@@ -67,16 +65,16 @@ func (m *CryptoUsageModel) GetCryptoUsageByURLHashes(urlHashes []string) ([]Cryp
 	inStmt = "(" + inStmt + ")"
 
 	if inStmt == "()" {
-		m.s.Errorf("No hashes to query")
+		s.Errorf("No hashes to query")
 		return []CryptoUsage{}, errors.New("no hashes to query")
 	}
 	stmt := "SELECT url_hash AS url_hash, algorithm_name, strength " +
 		"FROM component_crypto c " +
 		"WHERE url_hash in " + inStmt
 	var usages []CryptoUsage
-	err := m.q.SelectContext(m.ctx, &usages, stmt)
+	err := m.db.SelectContext(ctx, &usages, stmt)
 	if err != nil {
-		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
+		s.Errorf("Failed to query cryptoUsage:  %v", err)
 		return []CryptoUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	return usages, nil

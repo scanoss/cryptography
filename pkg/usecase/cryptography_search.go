@@ -19,11 +19,11 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/package-url/packageurl-go"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
@@ -33,9 +33,6 @@ import (
 )
 
 type CryptoUseCase struct {
-	ctx         context.Context
-	s           *zap.SugaredLogger
-	conn        *sqlx.Conn
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
@@ -44,75 +41,94 @@ type CryptoWorkerStruct struct {
 	Purl    string
 	Version string
 }
-type InternalQuery struct {
-	CompletePurl    string
-	PurlName        string
-	Requirement     string
-	SelectedVersion string
-	SelectedURLS    []models.AllURL
+type ComponentCryptoMetadata struct {
+	Purl          string
+	ComponentName string
+	Requirement   string
+	Version       string
+	Status        dtos.Status
+	SelectedURLS  []models.AllURL
 }
 
-func NewCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoUseCase {
-	return &CryptoUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+func NewCrypto(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoUseCase {
+	return &CryptoUseCase{
+		allUrls:     models.NewAllURLModel(db),
+		cryptoUsage: models.NewCryptoUsageModel(db),
 	}
 }
 
 // GetComponentsAlgorithms takes a list of ComponentDTO objects, searches for cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoUseCase) GetComponentsAlgorithms(components []dtos.ComponentDTO) (dtos.CryptoOutput, models.QuerySummary, error) {
+func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.CryptoOutput, error) {
 	if len(components) == 0 {
-		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+		s.Info("Empty List of Purls supplied")
+		return dtos.CryptoOutput{}, errors.New("empty list of purls")
 	}
-	query, purlsToQuery, mapPurls, summary := d.processInputPurls(components)
+	componentCryptoMetadata, mapPurls, _ := d.processInputPurls(s, components)
+	s.Debugf("Component Cryptography Metadata: %v", componentCryptoMetadata)
+	// Only query with SUCCESS status components
+	var successPurlsToQuery []utils.PurlReq
+	for _, cm := range componentCryptoMetadata {
+		if cm.Status == dtos.StatusSuccess {
+			successPurlsToQuery = append(successPurlsToQuery, utils.PurlReq{
+				Purl:    cm.ComponentName,
+				Version: cm.Version,
+			})
+		}
+	}
 
-	// URLs by PurlList
-	urls, err := d.allUrls.GetUrlsByPurlList(purlsToQuery)
-	if err != nil {
-		d.s.Warnf("Failed to get list of urls from (%v): %s", purlsToQuery, err)
+	// URLs by PurlList (only SUCCESS components)
+	var urls []models.AllURL
+	var err error
+	if len(successPurlsToQuery) > 0 {
+		urls, err = d.allUrls.GetUrlsByPurlList(ctx, s, successPurlsToQuery)
+		if err != nil {
+			s.Warnf("Failed to get list of urls from (%v): %s", successPurlsToQuery, err)
+		}
+		d.processUrls(urls, componentCryptoMetadata)
 	}
-	urlSummary := d.processUrls(urls, mapPurls)
-	summary.PurlsNotFound = append(summary.PurlsNotFound, urlSummary.PurlsNotFound...)
-	if len(urls) == 0 {
-		return dtos.CryptoOutput{}, summary, nil
-	}
+
+	// summary.PurlsNotFound = append(summary.PurlsNotFound, urlSummary.PurlsNotFound...)
 
 	purlMap := d.buildPurlMap(urls)
-	urlHashes, err := d.collectURLHashes(query, purlMap)
+	urlHashes, err := d.collectURLHashes(s, componentCryptoMetadata, purlMap)
 	if err != nil {
-		return dtos.CryptoOutput{}, models.QuerySummary{}, err
+		return dtos.CryptoOutput{}, err
 	}
-
-	usage, err := d.cryptoUsage.GetCryptoUsageByURLHashes(urlHashes)
-	if err != nil {
-		return dtos.CryptoOutput{}, models.QuerySummary{}, errors.New("error retrieving url hashes")
+	var usage []models.CryptoUsage
+	if len(urlHashes) > 0 {
+		usage, err = d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, urlHashes)
+		if err != nil {
+			return dtos.CryptoOutput{}, errors.New("error retrieving url hashes")
+		}
 	}
 
 	mapCrypto := d.buildCryptoMap(usage)
-	output, purlsWOInfo := d.processCryptoOutput(query, mapCrypto, mapPurls)
+	output := d.processCryptoOutput(componentCryptoMetadata, mapCrypto, mapPurls)
 
-	summary.PurlsWOInfo = append(summary.PurlsWOInfo, purlsWOInfo...)
-
-	return output, summary, nil
+	return output, nil
 }
 
-func (d CryptoUseCase) processUrls(urls []models.AllURL, mapPurls map[string]bool) models.QuerySummary {
-	summary := models.QuerySummary{}
+func (d CryptoUseCase) processUrls(urls []models.AllURL, componentCryptoMetadata []ComponentCryptoMetadata) {
+	// Build a map from PurlName to list of URLs for easy lookup
+	urlsByPurl := make(map[string][]models.AllURL)
 	for _, u := range urls {
-		mapPurls[u.PurlName] = true
+		urlsByPurl[u.PurlName] = append(urlsByPurl[u.PurlName], u)
 	}
-	for k, v := range mapPurls {
-		if !v {
-			summary.PurlsNotFound = append(summary.PurlsNotFound, k)
+	// Update component metadata with matched URLs
+	for i := range componentCryptoMetadata {
+		if componentCryptoMetadata[i].Status == dtos.StatusSuccess {
+			if matchedUrls, found := urlsByPurl[componentCryptoMetadata[i].ComponentName]; found {
+				componentCryptoMetadata[i].SelectedURLS = matchedUrls
+			} else {
+				componentCryptoMetadata[i].Status = dtos.ComponentNotFound
+			}
 		}
 	}
-	return summary
 }
 
-func (d CryptoUseCase) processPurlVersion(purl packageurl.PackageURL, requirement string) string {
+func (d CryptoUseCase) processPurlVersion(s *zap.SugaredLogger, purl packageurl.PackageURL, requirement string) string {
 	if len(requirement) > 0 && strings.HasPrefix(requirement, "file:") {
-		d.s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", purl, requirement)
+		s.Debugf("Removing 'local' requirement for purl: %v (req: %v)", purl, requirement)
 		return ""
 	}
 
@@ -125,31 +141,33 @@ func (d CryptoUseCase) processPurlVersion(purl packageurl.PackageURL, requiremen
 	return purl.Version
 }
 
-func (d CryptoUseCase) processInputPurls(components []dtos.ComponentDTO) ([]InternalQuery, []utils.PurlReq, map[string]bool, models.QuerySummary) {
-	var query []InternalQuery
-	var purlsToQuery []utils.PurlReq
+func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos.ComponentDTO) ([]ComponentCryptoMetadata, map[string]bool, models.QuerySummary) {
+	var componentCryptoMetadata []ComponentCryptoMetadata
 	mapPurls := make(map[string]bool)
 	summary := models.QuerySummary{}
 	summary.TotalPurls = len(components)
-	for _, c := range components {
+	for i := range components {
+		c := &components[i]
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
+			c.Status = dtos.ComponentMalformed
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+			componentCryptoMetadata = append(componentCryptoMetadata, ComponentCryptoMetadata{Purl: c.Purl, Status: dtos.ComponentMalformed, ComponentName: "", Requirement: c.Requirement, Version: c.Version})
 			continue
 		}
 		purlName, err := purlhelper.PurlNameFromString(c.Purl)
 		if err != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+			componentCryptoMetadata = append(componentCryptoMetadata, ComponentCryptoMetadata{Purl: c.Purl, Status: dtos.ComponentMalformed, ComponentName: "", Requirement: c.Requirement, Version: c.Version})
 			continue
 		}
-		version := d.processPurlVersion(purl, c.Requirement)
-
-		d.s.Debugf("Purl to query: %v, Name: %s, Version: %s", purl, purlName, version)
-		purlsToQuery = append(purlsToQuery, utils.PurlReq{Purl: purlName, Version: version})
+		version := d.processPurlVersion(s, purl, c.Requirement)
+		s.Debugf("Purl to query: %v, Name: %s, Version: %s", purl, purlName, version)
 		mapPurls[purlName] = false
-		query = append(query, InternalQuery{CompletePurl: c.Purl, SelectedVersion: version, Requirement: c.Requirement, PurlName: purlName})
+		componentCryptoMetadata = append(componentCryptoMetadata, ComponentCryptoMetadata{Purl: c.Purl, Version: version, Status: dtos.StatusSuccess, Requirement: c.Requirement, ComponentName: purlName})
 	}
-	return query, purlsToQuery, mapPurls, summary
+	fmt.Printf("COMPONENT METADATA: %v", componentCryptoMetadata)
+	return componentCryptoMetadata, mapPurls, summary
 }
 
 func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.AllURL {
@@ -160,20 +178,32 @@ func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.Al
 	return purlMap
 }
 
-func (d CryptoUseCase) collectURLHashes(query []InternalQuery, purlMap map[string][]models.AllURL) ([]string, error) {
+func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMetadata []ComponentCryptoMetadata, purlMap map[string][]models.AllURL) ([]string, error) {
 	var urlHashes []string
-	for i := range query {
-		selectedURLs, err := models.PickClosestUrls(d.s, purlMap[query[i].PurlName], query[i].PurlName, "", query[i].Requirement)
+	for i := range componentCryptoMetadata {
+		// Skip malformed components
+		if componentCryptoMetadata[i].Status != dtos.StatusSuccess {
+			continue
+		}
+
+		urls := componentCryptoMetadata[i].SelectedURLS
+		selectedURLs, err := models.PickClosestUrls(s, urls, componentCryptoMetadata[i].ComponentName, "", componentCryptoMetadata[i].Requirement)
 		if err != nil {
 			return nil, err
 		}
-
-		query[i].SelectedURLS = selectedURLs
+		componentCryptoMetadata[i].SelectedURLS = selectedURLs
 		if len(selectedURLs) > 0 {
-			query[i].SelectedVersion = selectedURLs[0].Version
+			componentCryptoMetadata[i].Version = selectedURLs[0].Version
 			for _, url := range selectedURLs {
 				urlHashes = append(urlHashes, url.URLHash)
 			}
+		} else {
+
+			// No URLs found for this component
+			if componentCryptoMetadata[i].Status != dtos.ComponentMalformed {
+				componentCryptoMetadata[i].Status = dtos.ComponentNotFound
+			}
+			componentCryptoMetadata[i].SelectedURLS = []models.AllURL{}
 		}
 	}
 	return urlHashes, nil
@@ -190,22 +220,14 @@ func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]m
 	return mapCrypto
 }
 
-func (d CryptoUseCase) processCryptoOutput(query []InternalQuery, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) (dtos.CryptoOutput, []string) {
-	retV := dtos.CryptoOutput{}
-	var purlsWOInfo []string
+func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutput {
+	output := dtos.CryptoOutput{}
 
-	for _, q := range query {
-		item := d.buildCryptoOutputItem(q, mapCrypto, mapPurls)
-		retV.Cryptography = append(retV.Cryptography, item)
+	for _, c := range componentCryptoMetadata {
+		item := d.buildCryptoOutputItem(c, mapCrypto, mapPurls)
+		output.Cryptography = append(output.Cryptography, item)
 	}
-
-	for k, v := range mapPurls {
-		if !v {
-			purlsWOInfo = append(purlsWOInfo, k)
-		}
-	}
-
-	return retV, purlsWOInfo
+	return output
 }
 
 func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutItem *dtos.CryptoOutputItem, algorithms map[string]bool) {
@@ -221,22 +243,31 @@ func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutIte
 	}
 }
 
-func (d CryptoUseCase) buildCryptoOutputItem(q InternalQuery, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutputItem {
+func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutputItem {
 	cryptoOutItem := dtos.CryptoOutputItem{
-		Version:     q.SelectedVersion,
+		Version:     q.Version,
 		Requirement: q.Requirement,
-		Purl:        q.CompletePurl,
+		Purl:        q.Purl,
+		Status:      q.Status,
 	}
 
-	algorithms := make(map[string]bool)
-	foundInfo := false
+	if q.Status == dtos.StatusSuccess {
+		algorithms := make(map[string]bool)
+		foundInfo := false
 
-	for _, url := range q.SelectedURLS {
-		if items := mapCrypto[url.URLHash]; len(items) > 0 {
-			d.processAlgorithms(items, &cryptoOutItem, algorithms)
-			foundInfo = true
+		for _, url := range q.SelectedURLS {
+			if items := mapCrypto[url.URLHash]; len(items) > 0 {
+				d.processAlgorithms(items, &cryptoOutItem, algorithms)
+				foundInfo = true
+			}
 		}
+
+		// Update status based on whether we found crypto info
+		if !foundInfo {
+			cryptoOutItem.Status = dtos.ComponentWithoutInfo
+		}
+		mapPurls[q.ComponentName] = foundInfo
 	}
-	mapPurls[q.PurlName] = foundInfo
+
 	return cryptoOutItem
 }

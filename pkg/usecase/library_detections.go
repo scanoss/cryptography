@@ -30,7 +30,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
@@ -45,14 +44,13 @@ type ECDetectionUseCase struct {
 }
 
 func NewECDetection(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *ECDetectionUseCase {
-	return &ECDetectionUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls: models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		usage:   models.NewECUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-	}
+	return &ECDetectionUseCase{ctx: ctx, s: s, conn: conn} /*	allUrls: models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+		usage:   models.NewECUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),*/
+
 }
 
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO) (dtos.ECOutput, models.QuerySummary, error) {
+func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.ECOutput, models.QuerySummary, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.ECOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -75,7 +73,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 			}
 		}
 
-		if item, ok := d.processSinglePurl(component, &summary); ok {
+		if item, ok := d.processSinglePurl(ctx, s, component, &summary); ok {
 			out.Hints = append(out.Hints, *item)
 		}
 	}
@@ -84,7 +82,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO)
 }
 
 // GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
-func (d ECDetectionUseCase) GetDetections(components []dtos.ComponentDTO) (dtos.HintsOutput, models.QuerySummary, error) {
+func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.HintsOutput, models.QuerySummary, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
 		return dtos.HintsOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
@@ -107,7 +105,7 @@ func (d ECDetectionUseCase) GetDetections(components []dtos.ComponentDTO) (dtos.
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, component.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, component.Requirement)
 		if errQ != nil {
 			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
 			continue
@@ -208,7 +206,7 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 }
 
 // processSinglePurl processes a single PURL and returns whether to continue processing.
-func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
+func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, componentDTO dtos.ComponentDTO, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
 	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
@@ -222,7 +220,7 @@ func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, su
 		return nil, false
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement, summary)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, componentDTO.Requirement, summary)
 	if err != nil {
 		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
 		return nil, false

@@ -16,6 +16,15 @@
 
 package dtos
 
+type Status string
+
+const (
+	ComponentNotFound    Status = "COMPONENT_NOT_FOUND"
+	ComponentMalformed   Status = "COMPONENT_MALFORMED"
+	ComponentWithoutInfo Status = "COMPONENT_WITHOUT_INFO"
+	StatusSuccess        Status = "SUCCESS"
+)
+
 type CryptoOutput struct {
 	Cryptography []CryptoOutputItem `json:"purls"`
 }
@@ -24,6 +33,7 @@ type CryptoOutputItem struct {
 	Purl        string            `json:"purl"`
 	Version     string            `json:"version"`
 	Requirement string            `json:"requirement"`
+	Status      Status            `json:"status"`
 	Algorithms  []CryptoUsageItem `json:"algorithms"`
 }
 
