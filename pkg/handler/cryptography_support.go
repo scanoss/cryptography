@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"scanoss.com/cryptography/pkg/helper"
 	"strings"
 
@@ -109,13 +110,16 @@ func convertVersionsInRangeUsingCryptoOutput(s *zap.SugaredLogger, output dtos.V
 		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.VersionsInRangeResponse{}, errors.New("problem marshalling Versions output")
 	}
-	var depResp pb.VersionsInRangeResponse
-	err = json.Unmarshal(data, &depResp)
+	var response pb.VersionsInRangeResponse
+	err = json.Unmarshal(data, &response)
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.VersionsInRangeResponse{}, errors.New("problem unmarshalling Versions output")
 	}
-	return &depResp, nil
+	h := helper.NewVersionsInRangeResponseHelper(&response)
+	status, _ := h.DetermineResponseStatusAndHttpCode(output)
+	response.Status = status
+	return &response, nil
 }
 
 // convertCryptoOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
@@ -326,11 +330,8 @@ func convertComponentCryptoInRangeOutput(ctx context.Context, s *zap.SugaredLogg
 }
 
 // convertToComponentsVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
-func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
+func convertToComponentsVersionInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
-	if (output.Versions == nil) || (len(output.Versions) == 0) {
-		return nil, errors.New("no versions found")
-	}
 	var response = &pb.ComponentsVersionsInRangeResponse{
 		Components: make([]*pb.ComponentsVersionsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
@@ -342,6 +343,35 @@ func convertToComponentsVersionInRangeOutput(s *zap.SugaredLogger, output dtos.V
 			VersionsWithout: v.VersionsWithout,
 		})
 	}
+	fmt.Printf("convertToComponentsVersionInRangeOutput: %v", response)
+	h := helper.NewVersionsInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
+	return response, nil
+}
+
+// convertToComponentVersionInRangeOutput converts an internal VersionsInRange Output structure into a ComponentsVersionsInRangeResponse struct.
+func convertToComponentVersionInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
+	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
+	if (output.Versions == nil) || (len(output.Versions) == 0) {
+		return nil, errors.New("no versions found")
+	}
+	var response = &pb.ComponentVersionsInRangeResponse{
+		Component: &pb.ComponentVersionsInRangeResponse_Component{},
+		Status:    &common.StatusResponse{},
+	}
+	for _, v := range output.Versions {
+		response.Component = &pb.ComponentVersionsInRangeResponse_Component{
+			Purl:            v.Purl,
+			VersionsWith:    v.VersionsWith,
+			VersionsWithout: v.VersionsWithout,
+		}
+	}
+	h := helper.NewVersionsInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
 	return response, nil
 }
 

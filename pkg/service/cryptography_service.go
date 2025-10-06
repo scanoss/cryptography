@@ -34,6 +34,7 @@ type cryptographyServer struct {
 	config                  *myconfig.ServerConfig
 	algorithmHandler        *handler.CryptographyAlgorithmHandler
 	algorithmInRangeHandler *handler.AlgorithmInRangeHandler
+	versionsInRangeHandler  *handler.VersionsInRangeHandler
 }
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
@@ -42,6 +43,7 @@ func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.Crypto
 	return &cryptographyServer{db: db, config: config,
 		algorithmHandler:        handler.NewCryptographyAlgorithmHandler(db, config),
 		algorithmInRangeHandler: handler.NewAlgorithmInRangeHandler(db, config),
+		versionsInRangeHandler:  handler.NewVersionsInRangeHandler(db, config),
 	}
 }
 
@@ -83,132 +85,24 @@ func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, r
 	return c.algorithmInRangeHandler.GetComponentAlgorithmsInRange(ctx, request)
 }
 
-/*
+// *************************************** Versions in range handlers ***************************************/
+
 // Deprecated: use GetComponentsVersionsInRange instead.
 func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	// Make sure we have Cryptography data to query
-	reqPurls := request.GetPurls()
-	if len(reqPurls) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.VersionsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	componentDTOS, err := convertPurlRequestToComponentDTO(s, request) // Convert to internal DTO for processing
-	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.VersionsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.VersionsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	cryptoUc := usecase.NewVersionsUsingCrypto(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetVersionsInRangeUsingCrypto(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
-	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-	if dtoCrypto.Versions == nil {
-		return &pb.VersionsInRangeResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertVersionsInRangeUsingCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert versions in range to 'VersionsInRangeResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.versionsInRangeHandler.GetVersionsInRange(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsVersionsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	// handle request
-	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentsVersionsInRangeResponse {
-			return &pb.ComponentsVersionsInRangeResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	cryptoUc := usecase.NewVersionsUsingCrypto(ctx, s, conn, c.config)
-	dtoCrypto, summary, err := cryptoUc.GetVersionsInRangeUsingCrypto(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
-	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-	if dtoCrypto.Versions == nil {
-		return &pb.ComponentsVersionsInRangeResponse{Status: statusResp}, nil
-	}
-	response, err := convertToComponentsVersionInRangeOutput(s, dtoCrypto) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert versions in range to 'ComponentsVersionsInRangeResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.versionsInRangeHandler.GetComponentsVersionsInRange(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing component to get versions in range...")
-	errorResp := rejectIfInvalid(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
-			return &pb.ComponentVersionsInRangeResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	response, err := c.GetComponentsVersionsInRange(ctx, &common.ComponentsRequest{
-		Components: []*common.ComponentRequest{
-			request,
-		},
-	})
-	if err != nil {
-		return &pb.ComponentVersionsInRangeResponse{Status: resolveResponseStatus(response)}, err
-	}
-	if len(response.Components) == 0 {
-		return &pb.ComponentVersionsInRangeResponse{Status: resolveResponseStatus(response)}, nil
-	}
-	component := response.Components[0]
-	return &pb.ComponentVersionsInRangeResponse{
-		Component: &pb.ComponentVersionsInRangeResponse_Component{
-			Purl:            component.Purl,
-			VersionsWith:    component.VersionsWith,
-			VersionsWithout: component.VersionsWithout,
-		},
-		Status: resolveResponseStatus(response),
-	}, nil
+	return c.versionsInRangeHandler.GetComponentVersionsInRange(ctx, request)
 }
 
+// *************************************** Hints in range handlers ***************************************/
+
+/*
 // Deprecated: use GetComponentsHintsInRange instead.
 func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common.PurlRequest) (*pb.HintsInRangeResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time

@@ -72,7 +72,6 @@ func (h AlgorithmResponseHelper) DetermineResponseStatusAndHttpCode(output inter
 			Status:  common.StatusCode_FAILED,
 			Message: ResponseMessageError,
 		}, http.StatusInternalServerError
-
 	}
 	return &common.StatusResponse{
 		Status:  common.StatusCode_FAILED,
