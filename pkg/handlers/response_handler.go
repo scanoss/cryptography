@@ -1,5 +1,5 @@
 // Package service provides cryptography service handlers and utilities for gRPC requests.
-package handler
+package handlers
 
 import (
 	"context"

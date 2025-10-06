@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"context"
@@ -17,7 +17,7 @@ type AlgorithmInRangeHandler struct {
 	CryptoMajorUseCase usecase.CryptoMajorUseCase
 }
 
-// NewCryptographyAlgorithmHandler creates a new instance of Cryptography Server.
+// NewAlgorithmInRangeHandler creates a new instance of AlgorithmInRangeHandler.
 func NewAlgorithmInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *AlgorithmInRangeHandler {
 	//setupMetrics()
 	return &AlgorithmInRangeHandler{

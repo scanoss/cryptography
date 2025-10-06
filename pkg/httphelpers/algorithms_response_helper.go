@@ -1,4 +1,4 @@
-package helper
+package httphelpers
 
 import (
 	common "github.com/scanoss/papi/api/commonv2"
@@ -7,18 +7,17 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 )
 
-type AlgorithmInRangeResponseHelper struct {
+type AlgorithmResponseHelper struct {
 	response interface{}
 }
 
-// Constructor that returns the interface type
-func NewAlgorithmInRangeResponseHelper(response interface{}) Response {
-	return &AlgorithmInRangeResponseHelper{
+func NewAlgorithmResponseHelper(response interface{}) Response {
+	return &AlgorithmResponseHelper{
 		response: response,
 	}
 }
 
-func (h AlgorithmInRangeResponseHelper) algorithmsInRangeResponseStatus(output dtos.CryptoInRangeOutput) (*common.StatusResponse, int) {
+func (h AlgorithmResponseHelper) algorithmsResponseStatus(output dtos.CryptoOutput) (*common.StatusResponse, int) {
 	total := len(output.Cryptography)
 	malformed := 0
 	withOutInfo := 0
@@ -37,7 +36,7 @@ func (h AlgorithmInRangeResponseHelper) algorithmsInRangeResponseStatus(output d
 	return determineStatusForBatchAction(malformed, withOutInfo, notFound, total)
 }
 
-func (h AlgorithmInRangeResponseHelper) componentAlgorithmInRangeStatus(output dtos.CryptoInRangeOutput) (*common.StatusResponse, int) {
+func (h AlgorithmResponseHelper) componentAlgorithmsResponseStatus(output dtos.CryptoOutput) (*common.StatusResponse, int) {
 	malformed := 0
 	withOutInfo := 0
 	notFound := 0
@@ -54,19 +53,19 @@ func (h AlgorithmInRangeResponseHelper) componentAlgorithmInRangeStatus(output d
 	return determineStatusForSingleAction(malformed, withOutInfo, notFound)
 }
 
-func (h AlgorithmInRangeResponseHelper) DetermineResponseStatusAndHttpCode(output interface{}) (*common.StatusResponse, int) {
+func (h AlgorithmResponseHelper) DetermineResponseStatusAndHttpCode(output interface{}) (*common.StatusResponse, int) {
 	switch h.response.(type) {
-	case *pb.AlgorithmsInRangeResponse:
-		if cryptoOutput, ok := output.(dtos.CryptoInRangeOutput); ok {
-			return h.algorithmsInRangeResponseStatus(cryptoOutput)
+	case *pb.AlgorithmResponse:
+		if cryptoOutput, ok := output.(dtos.CryptoOutput); ok {
+			return h.algorithmsResponseStatus(cryptoOutput)
 		}
-	case *pb.ComponentsAlgorithmsInRangeResponse:
-		if cryptoOutput, ok := output.(dtos.CryptoInRangeOutput); ok {
-			return h.algorithmsInRangeResponseStatus(cryptoOutput)
+	case *pb.ComponentsAlgorithmsResponse:
+		if cryptoOutput, ok := output.(dtos.CryptoOutput); ok {
+			return h.algorithmsResponseStatus(cryptoOutput)
 		}
-	case *pb.ComponentAlgorithmsInRangeResponse:
-		if cryptoOutput, ok := output.(dtos.CryptoInRangeOutput); ok {
-			return h.componentAlgorithmInRangeStatus(cryptoOutput)
+	case *pb.ComponentAlgorithmsResponse:
+		if cryptoOutput, ok := output.(dtos.CryptoOutput); ok {
+			return h.componentAlgorithmsResponseStatus(cryptoOutput)
 		}
 	default:
 		return &common.StatusResponse{

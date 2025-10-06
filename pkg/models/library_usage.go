@@ -20,16 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
+	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type ECUsageModel struct {
-	ctx context.Context
-	s   *zap.SugaredLogger
-	q   *database.DBQueryContext
+	db *sqlx.DB
 }
 
 type ECUsage struct {
@@ -58,13 +55,13 @@ type ECDetectionItem struct {
 }
 
 // NewECUsageModel creates a new instance of the Crypto Usage Model.
-func NewECUsageModel(ctx context.Context, s *zap.SugaredLogger, q *database.DBQueryContext) *ECUsageModel {
-	return &ECUsageModel{ctx: ctx, s: s, q: q}
+func NewECUsageModel(db *sqlx.DB) *ECUsageModel {
+	return &ECUsageModel{db: db}
 }
 
-func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage, error) {
+func (m *ECUsageModel) GetLibraryUsageByURLHashes(ctx context.Context, s *zap.SugaredLogger, urlHashes []string) ([]ECUsage, error) {
 	if len(urlHashes) == 0 {
-		m.s.Errorf("Please specify a valid Purl list to query")
+		s.Errorf("Please specify a valid Purl list to query")
 		return []ECUsage{}, errors.New("please specify a valid Purl list to query")
 	}
 	var purlNames []string
@@ -77,16 +74,16 @@ func (m *ECUsageModel) GetLibraryUsageByURLHashes(urlHashes []string) ([]ECUsage
 	inStmt = "(" + inStmt + ")"
 
 	if inStmt == "()" {
-		m.s.Errorf("No hashes to query")
+		s.Errorf("No hashes to query")
 		return []ECUsage{}, errors.New("no hashes to query")
 	}
 	stmt := "SELECT url_hash AS url_hash, det_id as id ,name,description, url, category, purl " +
 		"FROM crypto_libraries ec, component_crypto_library cc " +
 		"WHERE url_hash in " + inStmt + " and cc.det_id=ec.id;"
 	var usages []ECUsage
-	err := m.q.SelectContext(m.ctx, &usages, stmt)
+	err := m.db.SelectContext(ctx, &usages, stmt)
 	if err != nil {
-		m.s.Errorf("Failed to query cryptoUsage:  %v", err)
+		s.Errorf("Failed to query cryptoUsage:  %v", err)
 		return []ECUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
 	}
 	return usages, nil

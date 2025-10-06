@@ -18,7 +18,7 @@ package service
 
 import (
 	"context"
-	"scanoss.com/cryptography/pkg/handler"
+	"scanoss.com/cryptography/pkg/handlers"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -99,7 +99,7 @@ func Test_handleComponentsRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotComponents, gotResponse := handler.rejectIfInvalidComponents(ctx, s, tt.request, createResponseFunc)
+			gotComponents, gotResponse := handlers.rejectIfInvalidComponents(ctx, s, tt.request, createResponseFunc)
 
 			if tt.wantResponse != nil {
 				if gotResponse == nil {
@@ -188,7 +188,7 @@ func Test_handleComponentRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotResponse := handler.rejectIfInvalid(ctx, s, tt.request, createResponseFunc)
+			gotResponse := handlers.rejectIfInvalid(ctx, s, tt.request, createResponseFunc)
 
 			if tt.expectError {
 				if gotResponse == nil {

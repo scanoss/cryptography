@@ -25,25 +25,27 @@ import (
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	"scanoss.com/cryptography/pkg/handler"
+	"scanoss.com/cryptography/pkg/handlers"
 )
 
 type cryptographyServer struct {
 	pb.CryptographyServer
 	db                      *sqlx.DB
 	config                  *myconfig.ServerConfig
-	algorithmHandler        *handler.CryptographyAlgorithmHandler
-	algorithmInRangeHandler *handler.AlgorithmInRangeHandler
-	versionsInRangeHandler  *handler.VersionsInRangeHandler
+	algorithmHandler        *handlers.CryptographyAlgorithmHandler
+	algorithmInRangeHandler *handlers.AlgorithmInRangeHandler
+	versionsInRangeHandler  *handlers.VersionsInRangeHandler
+	hintsInRangeHandler     *handlers.HintsRangeHandler
 }
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	//setupMetrics()
 	return &cryptographyServer{db: db, config: config,
-		algorithmHandler:        handler.NewCryptographyAlgorithmHandler(db, config),
-		algorithmInRangeHandler: handler.NewAlgorithmInRangeHandler(db, config),
-		versionsInRangeHandler:  handler.NewVersionsInRangeHandler(db, config),
+		algorithmHandler:        handlers.NewCryptographyAlgorithmHandler(db, config),
+		algorithmInRangeHandler: handlers.NewAlgorithmInRangeHandler(db, config),
+		versionsInRangeHandler:  handlers.NewVersionsInRangeHandler(db, config),
+		hintsInRangeHandler:     handlers.NewHintsInRangeHandler(db, config),
 	}
 }
 
@@ -102,130 +104,20 @@ func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, req
 
 // *************************************** Hints in range handlers ***************************************/
 
-/*
 // Deprecated: use GetComponentsHintsInRange instead.
 func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common.PurlRequest) (*pb.HintsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	// Make sure we have Cryptography data to query
-	reqPurls := request.GetPurls()
-	if len(reqPurls) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	dtoRequest, err := convertPurlRequestToComponentDTO(s, request) // Convert to internal DTO for processing
-	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	dtoEC, summary, err := ecDetectionUC.GetDetectionsInRange(dtoRequest)
-	if err != nil {
-		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
-	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-	if dtoEC.Hints == nil {
-		return &pb.HintsInRangeResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertECOutput(s, dtoEC) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert hints in range to 'HintsInRangeResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing cryptography data")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.hintsInRangeHandler.GetHintsInRange(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsHintsInRangeResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing crypto algorithms request...")
-	// handle request
-	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentsHintsInRangeResponse {
-			return &pb.ComponentsHintsInRangeResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	dtoEC, summary, err := ecDetectionUC.GetDetectionsInRange(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get hints in range: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem getting hints in range")
-	}
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-	if dtoEC.Hints == nil {
-		return &pb.ComponentsHintsInRangeResponse{Status: statusResp}, nil
-	}
-	response, err := convertToComponentsHintsInRangeOutput(s, dtoEC) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert hints in range to 'ComponentsHintsInRangeResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problems getting hints in range")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.hintsInRangeHandler.GetComponentsHintsInRange(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentHintsInRangeResponse, error) {
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing component to get hints in range...")
-	errorResp := rejectIfInvalid(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
-			return &pb.ComponentHintsInRangeResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	response, err := c.GetComponentsHintsInRange(ctx, &common.ComponentsRequest{
-		Components: []*common.ComponentRequest{
-			request,
-		},
-	})
-	if err != nil {
-		return &pb.ComponentHintsInRangeResponse{Status: resolveResponseStatus(response)}, err
-	}
-	if len(response.Components) == 0 {
-		return &pb.ComponentHintsInRangeResponse{Status: resolveResponseStatus(response)}, nil
-	}
-	component := response.Components[0]
-	return &pb.ComponentHintsInRangeResponse{
-		Component: &pb.ComponentHintsInRangeResponse_Component{
-			Purl:     component.Purl,
-			Versions: component.Versions,
-			Hints:    component.Hints,
-		},
-		Status: resolveResponseStatus(response),
-	}, nil
+	return c.hintsInRangeHandler.GetComponentHintsInRange(ctx, request)
 }
 
+/*
 // Deprecated: use GetComponentsEncryptionHints instead.
 func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
 	requestStartTime := time.Now() // Capture the scan start time

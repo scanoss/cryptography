@@ -1,4 +1,4 @@
-package helper
+package httphelpers
 
 import (
 	common "github.com/scanoss/papi/api/commonv2"

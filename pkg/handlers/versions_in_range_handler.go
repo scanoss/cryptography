@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"context"
@@ -79,7 +79,7 @@ func (c VersionsInRangeHandler) GetComponentsVersionsInRange(ctx context.Context
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	
+
 	response, err := convertToComponentsVersionInRangeOutput(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert versions in range to 'ComponentsVersionsInRangeResponse': %v", err)

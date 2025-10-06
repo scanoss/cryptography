@@ -14,14 +14,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package handler
+package handlers
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/helper"
+	"scanoss.com/cryptography/pkg/httphelpers"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -76,7 +76,7 @@ func ConvertCryptoOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.
 	if err != nil {
 		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	h := helper.NewAlgorithmResponseHelper(&response)
+	h := httphelpers.NewAlgorithmResponseHelper(&response)
 	status, _ := h.DetermineResponseStatusAndHttpCode(output)
 	response.Status = status
 	return &response, nil
@@ -96,7 +96,7 @@ func convertCryptoMajorOutput(s *zap.SugaredLogger, output dtos.CryptoInRangeOut
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	h := helper.NewAlgorithmInRangeResponseHelper(&response)
+	h := httphelpers.NewAlgorithmInRangeResponseHelper(&response)
 	status, _ := h.DetermineResponseStatusAndHttpCode(output)
 	response.Status = status
 	return &response, nil
@@ -116,7 +116,7 @@ func convertVersionsInRangeUsingCryptoOutput(s *zap.SugaredLogger, output dtos.V
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.VersionsInRangeResponse{}, errors.New("problem unmarshalling Versions output")
 	}
-	h := helper.NewVersionsInRangeResponseHelper(&response)
+	h := httphelpers.NewVersionsInRangeResponseHelper(&response)
 	status, _ := h.DetermineResponseStatusAndHttpCode(output)
 	response.Status = status
 	return &response, nil
@@ -130,13 +130,16 @@ func convertECOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.HintsInRan
 		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.HintsInRangeResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	var depResp pb.HintsInRangeResponse
-	err = json.Unmarshal(data, &depResp)
+	var response pb.HintsInRangeResponse
+	err = json.Unmarshal(data, &response)
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.HintsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	return &depResp, nil
+	h := httphelpers.NewHintsInRangeResponseHelper(&response)
+	status, _ := h.DetermineResponseStatusAndHttpCode(output)
+	response.Status = status
+	return &response, nil
 }
 
 // convertCryptoOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
@@ -227,7 +230,7 @@ func convertCryptoOutputToComponents(ctx context.Context, s *zap.SugaredLogger, 
 			Algorithms:  algorithms,
 		})
 	}
-	h := helper.NewAlgorithmResponseHelper(response)
+	h := httphelpers.NewAlgorithmResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -260,7 +263,7 @@ func convertCryptoOutputToComponent(ctx context.Context, s *zap.SugaredLogger, o
 			Algorithms:  algorithms,
 		}
 	}
-	h := helper.NewAlgorithmResponseHelper(response)
+	h := httphelpers.NewAlgorithmResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -291,7 +294,7 @@ func convertComponentsCryptoInRangeOutput(ctx context.Context, s *zap.SugaredLog
 			Algorithms: algorithms,
 		})
 	}
-	h := helper.NewAlgorithmInRangeResponseHelper(response)
+	h := httphelpers.NewAlgorithmInRangeResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -322,7 +325,7 @@ func convertComponentCryptoInRangeOutput(ctx context.Context, s *zap.SugaredLogg
 			Algorithms: algorithms,
 		}
 	}
-	h := helper.NewAlgorithmInRangeResponseHelper(response)
+	h := httphelpers.NewAlgorithmInRangeResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -344,7 +347,7 @@ func convertToComponentsVersionInRangeOutput(ctx context.Context, s *zap.Sugared
 		})
 	}
 	fmt.Printf("convertToComponentsVersionInRangeOutput: %v", response)
-	h := helper.NewVersionsInRangeResponseHelper(response)
+	h := httphelpers.NewVersionsInRangeResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -368,7 +371,7 @@ func convertToComponentVersionInRangeOutput(ctx context.Context, s *zap.SugaredL
 			VersionsWithout: v.VersionsWithout,
 		}
 	}
-	h := helper.NewVersionsInRangeResponseHelper(response)
+	h := httphelpers.NewVersionsInRangeResponseHelper(response)
 	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
 	setHTTPCodeOnTrailer(ctx, s, httpCode)
 	response.Status = status
@@ -376,7 +379,7 @@ func convertToComponentVersionInRangeOutput(ctx context.Context, s *zap.SugaredL
 }
 
 // convertToComponentsHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
-func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
+func convertToComponentsHintsInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
 	if (output.Hints == nil) || (len(output.Hints) == 0) {
 		return nil, errors.New("no hints found")
 	}
@@ -406,6 +409,47 @@ func convertToComponentsHintsInRangeOutput(s *zap.SugaredLogger, output dtos.ECO
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
+	h := httphelpers.NewHintsInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
+	return response, nil
+}
+
+// convertToComponentHintsInRangeOutput converts an internal Crypto in Major Output structure into a Crypto Response struct.
+func convertToComponentHintsInRangeOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
+	if (output.Hints == nil) || (len(output.Hints) == 0) {
+		return nil, errors.New("no hints found")
+	}
+	var response = &pb.ComponentHintsInRangeResponse{
+		Status:    &common.StatusResponse{},
+		Component: &pb.ComponentHintsInRangeResponse_Component{},
+	}
+	if len(output.Hints) > 0 {
+		for _, hint := range output.Hints {
+			hints := make([]*pb.Hint, 0, len(hint.Detections))
+			for _, detection := range hint.Detections {
+				hints = append(hints, &pb.Hint{
+					Id:          detection.ID,
+					Name:        detection.Name,
+					Purl:        detection.Purl,
+					Description: detection.Description,
+					Category:    detection.Category,
+					Url:         detection.URL,
+				})
+			}
+			response.Component = &pb.ComponentHintsInRangeResponse_Component{
+				Purl:     hint.Purl,
+				Versions: hint.Versions,
+				Hints:    hints,
+			}
+		}
+		s.Debugf("Converted %d hints to components", len(output.Hints))
+	}
+	h := httphelpers.NewHintsInRangeResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
 	return response, nil
 }
 

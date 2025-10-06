@@ -24,6 +24,7 @@ type ECOutputItem struct {
 	Purl       string           `json:"purl"`
 	Versions   []string         `json:"versions"`
 	Detections []ECDetectedItem `json:"hints"`
+	Status     Status           `json:"status"`
 }
 
 type ECDetectedItem struct {
