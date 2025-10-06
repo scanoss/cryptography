@@ -36,6 +36,7 @@ type cryptographyServer struct {
 	algorithmInRangeHandler *handlers.AlgorithmInRangeHandler
 	versionsInRangeHandler  *handlers.VersionsInRangeHandler
 	hintsInRangeHandler     *handlers.HintsRangeHandler
+	encryptionHintsHandler  *handlers.EncryptionHintsHandler
 }
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
@@ -46,6 +47,7 @@ func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.Crypto
 		algorithmInRangeHandler: handlers.NewAlgorithmInRangeHandler(db, config),
 		versionsInRangeHandler:  handlers.NewVersionsInRangeHandler(db, config),
 		hintsInRangeHandler:     handlers.NewHintsInRangeHandler(db, config),
+		encryptionHintsHandler:  handlers.NewEncryptionHintsHandler(db, config),
 	}
 }
 
@@ -117,121 +119,17 @@ func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, reques
 	return c.hintsInRangeHandler.GetComponentHintsInRange(ctx, request)
 }
 
-/*
+// *************************************** Encryption hints handlers ***************************************/
+
 // Deprecated: use GetComponentsEncryptionHints instead.
 func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing Crypto hints algorithms request...")
-	// Make sure we have Cryptography data to query
-	reqPurls := request.GetPurls()
-	if len(reqPurls) == 0 {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "No purls in request data supplied"}
-		return &pb.HintsResponse{Status: &statusResp}, errors.New("no purl data supplied")
-	}
-	componentDTOS, err := convertPurlRequestToComponentDTO(s, request) // Convert to internal DTO for processing
-	if err != nil {
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
-		return &pb.HintsResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.HintsResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	dtoEC, summary, err := ecDetectionUC.GetDetections(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get encryption hints: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
-	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-
-	if dtoEC.Hints == nil {
-		return &pb.HintsResponse{Status: statusResp}, nil
-	}
-
-	response, err := convertHintsOutput(s, dtoEC) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert encryption hints to 'HintsResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.encryptionHintsHandler.GetEncryptionHints(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsEncryptionHintsResponse, error) {
-	requestStartTime := time.Now() // Capture the scan start time
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing Crypto hints algorithms request...")
-	// handle request
-	componentDTOS, errorResp := rejectIfInvalidComponents(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentsEncryptionHintsResponse {
-			return &pb.ComponentsEncryptionHintsResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	conn, err := c.db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		s.Errorf("Failed to get a database connection from the pool: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Failed to get database pool connection"}
-		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problem getting database pool connection")
-	}
-	defer gd.CloseSQLConnection(conn)
-	// Search the KB for information about each Cryptography
-	ecDetectionUC := usecase.NewECDetection(ctx, s, conn, c.config)
-	encryptionHints, summary, err := ecDetectionUC.GetDetections(componentDTOS)
-	if err != nil {
-		s.Errorf("Failed to get encryption hints: %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
-		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
-	}
-	// Set the status and respond with the data
-	statusResp := buildStatusResponse(ctx, s, summary, true)
-	if encryptionHints.Hints == nil {
-		return &pb.ComponentsEncryptionHintsResponse{Status: statusResp}, nil
-	}
-	response, err := convertEncryptionHintsToComponentsEncryptionOutput(encryptionHints) // Convert the internal data into a response object
-	if err != nil {
-		s.Errorf("Failed to convert encryption hints to 'ComponentsEncryptionHintsResponse': %v", err)
-		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
-	}
-	response.Status = statusResp
-	telemetryRequestTime(ctx, c.config, requestStartTime)
-	return response, nil
+	return c.encryptionHintsHandler.GetComponentsEncryptionHints(ctx, request)
 }
 
 func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
-	s := ctxzap.Extract(ctx).Sugar()
-	s.Info("Processing component to get encryption hints...")
-	errorResp := rejectIfInvalid(ctx, s, request,
-		func(status *common.StatusResponse) *pb.ComponentEncryptionHintsResponse {
-			return &pb.ComponentEncryptionHintsResponse{Status: status}
-		})
-	if errorResp != nil {
-		return errorResp, nil
-	}
-	response, err := c.GetComponentsEncryptionHints(ctx, &common.ComponentsRequest{
-		Components: []*common.ComponentRequest{
-			request,
-		},
-	})
-	if err != nil {
-		return &pb.ComponentEncryptionHintsResponse{Status: resolveResponseStatus(response)}, err
-	}
-	if len(response.Components) == 0 {
-		return &pb.ComponentEncryptionHintsResponse{Status: resolveResponseStatus(response)}, nil
-	}
-	component := response.Components[0]
-	return &pb.ComponentEncryptionHintsResponse{Component: component, Status: resolveResponseStatus(response)}, nil
+	return c.encryptionHintsHandler.GetComponentEncryptionHints(ctx, request)
 }
-*/

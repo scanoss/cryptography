@@ -16,7 +16,7 @@ type CryptographyAlgorithmHandler struct {
 	cryptoUseCase usecase.CryptoUseCase
 }
 
-// NewCryptographyAlgorithmHandler creates a new instance of Cryptography Server.
+// NewCryptographyAlgorithmHandler creates a new instance of CryptographyAlgorithmHandler.
 func NewCryptographyAlgorithmHandler(db *sqlx.DB, config *myconfig.ServerConfig) *CryptographyAlgorithmHandler {
 	//setupMetrics()
 	return &CryptographyAlgorithmHandler{

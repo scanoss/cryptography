@@ -150,13 +150,16 @@ func convertHintsOutput(s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.Hint
 		s.Errorf("Problem marshalling Cryptography request output: %v", err)
 		return &pb.HintsResponse{}, errors.New("problem marshalling Cryptography output")
 	}
-	var depResp pb.HintsResponse
-	err = json.Unmarshal(data, &depResp)
+	var response pb.HintsResponse
+	err = json.Unmarshal(data, &response)
 	if err != nil {
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.HintsResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	return &depResp, nil
+	h := httphelpers.NewEncryptionHintsResponseHelper(&response)
+	status, _ := h.DetermineResponseStatusAndHttpCode(output)
+	response.Status = status
+	return &response, nil
 }
 
 // buildComponentDTO creates a ComponentDTO from a PURL string and requirement specification.
@@ -454,7 +457,7 @@ func convertToComponentHintsInRangeOutput(ctx context.Context, s *zap.SugaredLog
 }
 
 // convertEncryptionHintsToComponentsEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
-func convertEncryptionHintsToComponentsEncryptionOutput(output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
+func convertEncryptionHintsToComponentsEncryptionOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
 	if output.Hints == nil {
 		return nil, errors.New("no encryption hints found")
 	}
@@ -481,5 +484,44 @@ func convertEncryptionHintsToComponentsEncryptionOutput(output dtos.HintsOutput)
 			Hints:       hints,
 		})
 	}
+	h := httphelpers.NewEncryptionHintsResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
+	return response, nil
+}
+
+// convertEncryptionHintsToComponentEncryptionOutput converts internal HintsOutput to ComponentsEncryptionHintsResponse.
+func convertEncryptionHintsToComponentEncryptionOutput(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
+	if output.Hints == nil {
+		return nil, errors.New("no encryption hints found")
+	}
+	var response = &pb.ComponentEncryptionHintsResponse{
+		Component: &pb.ComponentHints{},
+		Status:    &common.StatusResponse{},
+	}
+	for _, hint := range output.Hints {
+		hints := make([]*pb.Hint, 0, len(hint.Detections))
+		for _, detection := range hint.Detections {
+			hints = append(hints, &pb.Hint{
+				Id:          detection.ID,
+				Name:        detection.Name,
+				Purl:        detection.Purl,
+				Description: detection.Description,
+				Category:    detection.Category,
+				Url:         detection.URL,
+			})
+		}
+		response.Component = &pb.ComponentHints{
+			Purl:        hint.Purl,
+			Version:     hint.Version,
+			Requirement: hint.Requirement,
+			Hints:       hints,
+		}
+	}
+	h := httphelpers.NewEncryptionHintsResponseHelper(response)
+	status, httpCode := h.DetermineResponseStatusAndHttpCode(output)
+	setHTTPCodeOnTrailer(ctx, s, httpCode)
+	response.Status = status
 	return response, nil
 }
