@@ -29,20 +29,42 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 )
 
-// Structure for storing OTEL metrics.
+// metricsCounters stores OpenTelemetry metrics for the handlers package.
+//
+// This structure holds metric instruments used to record telemetry data
+// about handler performance and request processing times.
 type metricsCounters struct {
-	cryptoAlgorithmsHistogram metric.Int64Histogram // milliseconds
+	cryptoAlgorithmsHistogram metric.Int64Histogram // Histogram for recording crypto algorithms request times in milliseconds
 }
 
 var oltpMetrics = metricsCounters{}
 
-// setupMetrics configures all the metrics recorders for the platform.
+// setupMetrics configures all OpenTelemetry metric instruments for the handlers package.
+//
+// This function initializes histogram metrics for tracking request durations.
+// It should be called once during handler initialization to set up the metrics infrastructure.
 func setupMetrics() {
 	meter := otel.Meter("scanoss.com/cryptography")
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
 }
 
-// ConvertPurlRequestInput converts a Purl Request structure into an internal Crypto Input struct. TODO: Remove this method when legacy request be removed.
+// ConvertPurlRequestToComponentDTO converts a legacy PurlRequest to ComponentDTO slice.
+//
+// This function supports the deprecated PurlRequest format by transforming it into
+// the internal ComponentDTO representation. It marshals the request to JSON and
+// parses it into the DTO format.
+//
+// Deprecated: This function supports legacy API compatibility and should not be used
+// for new code. Use convertComponentsRequestToComponentDTO for the current API format.
+// This function will be removed when the legacy PurlRequest format is fully deprecated.
+//
+// Parameters:
+//   - s: Structured logger for error logging
+//   - request: Legacy PurlRequest containing purl and requirement information
+//
+// Returns:
+//   - []dtos.ComponentDTO: Slice of converted component DTOs
+//   - error: Non-nil if marshalling or parsing fails
 func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.PurlRequest) ([]dtos.ComponentDTO, error) {
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -62,6 +84,17 @@ func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.Purl
 }
 
 // buildComponentDTO creates a ComponentDTO from a PURL string and requirement specification.
+//
+// This function constructs an internal ComponentDTO by parsing the purl and requirement.
+// If the purl contains a version (e.g., "pkg:npm/foo@1.0.0"), it extracts the version
+// and uses it as the requirement. Otherwise, it uses the provided requirement parameter.
+//
+// Parameters:
+//   - purl: Package URL string, optionally including version with @ separator
+//   - requirement: Version requirement specification (e.g., "^4.17.0", ">=1.0.0")
+//
+// Returns:
+//   - dtos.ComponentDTO: Internal component representation with purl, version, and requirement
 func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 	p := purl
 	req := requirement
@@ -83,6 +116,17 @@ func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 }
 
 // convertComponentsRequestToComponentDTO converts a ComponentsRequest to a slice of ComponentDTO.
+//
+// This function transforms the gRPC ComponentsRequest format into internal ComponentDTO
+// representations. It validates that the request and components are non-nil and non-empty,
+// then converts each component using buildComponentDTO.
+//
+// Parameters:
+//   - request: ComponentsRequest containing multiple component specifications
+//
+// Returns:
+//   - []dtos.ComponentDTO: Slice of converted component DTOs
+//   - error: Non-nil if request is nil, components are nil, or components array is empty
 func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) ([]dtos.ComponentDTO, error) {
 	if request == nil || request.Components == nil {
 		return nil, errors.New("'components' field is required but was not provided")
@@ -97,7 +141,16 @@ func convertComponentsRequestToComponentDTO(request *common.ComponentsRequest) (
 	return components, nil
 }
 
-// validateComponentRequest converts a single ComponentRequest to ComponentDTO.
+// validateComponentRequest validates that a ComponentRequest contains required fields.
+//
+// This function ensures that the request is non-nil and contains a non-empty purl field.
+// It is used as a guard clause before processing single component requests.
+//
+// Parameters:
+//   - request: ComponentRequest to validate
+//
+// Returns:
+//   - error: Non-nil if request is nil or purl is empty, nil if validation passes
 func validateComponentRequest(request *common.ComponentRequest) error {
 	if request == nil || request.Purl == "" {
 		return errors.New("no purl supplied. A PURL is required")
