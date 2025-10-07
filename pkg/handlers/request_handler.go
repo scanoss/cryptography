@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/httpresponsehelper"
 )
 
 // rejectIfInvalidComponents processes multiple components requests with generic response handling.
@@ -17,7 +18,7 @@ func rejectIfInvalidComponents[T any](ctx context.Context, s *zap.SugaredLogger,
 	componentDTOS, err := convertComponentsRequestToComponentDTO(request)
 	if err != nil {
 		s.Errorf("rejectIfInvalidComponents: %v, %v", request, err)
-		setHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
+		httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
 		return []dtos.ComponentDTO{}, createResponse(&statusResp)
 	}
@@ -35,7 +36,7 @@ func rejectIfInvalid[T any](ctx context.Context, s *zap.SugaredLogger, request *
 	err := validateComponentRequest(request)
 	if err != nil {
 		s.Errorf("rejectIfInvalid: %v, %v", request, err)
-		setHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
+		httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
 		return createResponse(&statusResp)
 	}

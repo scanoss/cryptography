@@ -10,6 +10,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
 )
 
@@ -49,7 +50,7 @@ func (c AlgorithmInRangeHandler) GetAlgorithmsInRange(ctx context.Context, reque
 		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
 
-	response, err := convertCryptoMajorOutput(s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToAlgorithmsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert algorithms to 'AlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -74,12 +75,10 @@ func (c AlgorithmInRangeHandler) GetComponentsAlgorithmsInRange(ctx context.Cont
 	output, err := c.CryptoMajorUseCase.GetCryptoInRange(ctx, s, dtos)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	fmt.Printf("OUTPUT: %v\n", output)
-	response, err := convertComponentsCryptoInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentsAlgorithmsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert algorithms in range to 'ComponentsAlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}
@@ -107,7 +106,7 @@ func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Conte
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	response, err := convertComponentCryptoInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentAlgorithmsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert algorithms in range to 'ComponentsAlgorithmsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}

@@ -10,6 +10,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
 )
 
@@ -48,7 +49,7 @@ func (c HintsRangeHandler) GetHintsInRange(ctx context.Context, request *common.
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
 
-	response, err := convertECOutput(s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToHintsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert hints in range to 'HintsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -78,7 +79,7 @@ func (c HintsRangeHandler) GetComponentsHintsInRange(ctx context.Context, reques
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
 	fmt.Printf("OUTPUT: %v\n", output)
-	response, err := convertToComponentsHintsInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentsHintsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert hints in range to 'ComponentsHintsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -105,7 +106,7 @@ func (c HintsRangeHandler) GetComponentHintsInRange(ctx context.Context, request
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
-	response, err := convertToComponentHintsInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentHintsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert hints in range to 'ComponentsHintsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}

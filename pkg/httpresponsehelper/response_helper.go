@@ -1,8 +1,13 @@
-package httphelpers
+package httpresponsehelper
 
 import (
+	"context"
 	common "github.com/scanoss/papi/api/commonv2"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"net/http"
+	"strconv"
 )
 
 const (
@@ -10,8 +15,8 @@ const (
 	ResponseMessageError   = "Internal error occurred"
 )
 
-type Response interface {
-	DetermineResponseStatusAndHttpCode(output interface{}) (*common.StatusResponse, int)
+type Response[T any] interface {
+	WithStatus(ctx context.Context, s *zap.SugaredLogger, output interface{}) T
 }
 
 func determineStatusForSingleAction(malformed int, withOutInfo int, notFound int) (*common.StatusResponse, int) {
@@ -86,4 +91,13 @@ func determineStatusForBatchAction(malformed int, withOutInfo int, notFound int,
 		return &response, httpCode
 	}
 	return &response, httpCode
+}
+
+// SetHTTPCodeOnTrailer sets the HTTP status code in the gRPC trailer metadata.
+// This allows clients to determine the appropriate HTTP response code for the request.
+func SetHTTPCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code int) {
+	err := grpc.SetTrailer(ctx, metadata.Pairs("x-http-code", strconv.Itoa(code)))
+	if err != nil {
+		s.Errorf("error setting x-http-code to trailer: %v\n", err)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
 )
 
@@ -41,19 +42,17 @@ func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request
 		return &pb.AlgorithmResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
 	}
 
-	componentCrypto, err := c.cryptoUseCase.GetComponentsAlgorithms(ctx, s, dtoRequest)
+	output, err := c.cryptoUseCase.GetComponentsAlgorithms(ctx, s, dtoRequest)
 	if err != nil {
 		s.Errorf("Failed to convert algorithms to 'AlgorithmResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: &statusResp}, nil
 	}
-
-	response, err := ConvertCryptoOutput(ctx, s, componentCrypto) // Convert the internal data into a response object
+	response, err := responsebuilder.ToAlgorithmResponse(ctx, s, output)
 	if err != nil {
 		statusResp := &common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: statusResp}, nil
 	}
-
 	return response, nil
 }
 
@@ -76,7 +75,7 @@ func (c CryptographyAlgorithmHandler) GetComponentsAlgorithms(ctx context.Contex
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
-	response, err := convertCryptoOutputToComponents(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentsAlgorithmsResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert algorithms to 'ComponentsAlgorithmsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -104,7 +103,7 @@ func (c CryptographyAlgorithmHandler) GetComponentAlgorithms(ctx context.Context
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
-	response, err := convertCryptoOutputToComponent(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentAlgorithmsResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert algorithms to 'ComponentsAlgorithmsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}

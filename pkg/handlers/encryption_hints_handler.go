@@ -10,6 +10,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
 )
 
@@ -46,7 +47,7 @@ func (c EncryptionHintsHandler) GetEncryptionHints(ctx context.Context, request 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-	response, err := convertHintsOutput(s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToHintsResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert encryption hints to 'HintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -77,7 +78,7 @@ func (c EncryptionHintsHandler) GetComponentsEncryptionHints(ctx context.Context
 		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 
-	response, err := convertEncryptionHintsToComponentsEncryptionOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentsEncryptionHintsResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert encryption hints to 'ComponentsEncryptionHintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -104,7 +105,7 @@ func (c EncryptionHintsHandler) GetComponentEncryptionHints(ctx context.Context,
 		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
 
-	response, err := convertEncryptionHintsToComponentEncryptionOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentEncryptionHintsResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert encryption hints to 'ComponentsEncryptionHintsResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}

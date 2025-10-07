@@ -10,6 +10,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
 )
 
@@ -40,15 +41,13 @@ func (c VersionsInRangeHandler) GetVersionsInRange(ctx context.Context, request 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problem parsing Cryptography input data"}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, errors.New("problem parsing Cryptography input data")
 	}
-
-	dtoCrypto, err := c.versionInRangeUseCase.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	output, err := c.versionInRangeUseCase.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
-
-	response, err := convertVersionsInRangeUsingCryptoOutput(s, dtoCrypto) // Convert the internal data into a response object
+	response, err := responsebuilder.ToVersionsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert versions in range to 'VersionsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -80,7 +79,7 @@ func (c VersionsInRangeHandler) GetComponentsVersionsInRange(ctx context.Context
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
 
-	response, err := convertToComponentsVersionInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentsVersionsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert versions in range to 'ComponentsVersionsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
@@ -107,7 +106,7 @@ func (c VersionsInRangeHandler) GetComponentVersionsInRange(ctx context.Context,
 		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
 	}
 
-	response, err := convertToComponentVersionInRangeOutput(ctx, s, output) // Convert the internal data into a response object
+	response, err := responsebuilder.ToComponentVersionsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert versions in range to 'ComponentsVersionsInRangeResponse': %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
