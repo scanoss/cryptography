@@ -16,13 +16,22 @@
 
 package dtos
 
+import pb "github.com/scanoss/papi/api/cryptographyv2"
+
+type ComponentStatus struct {
+	Message string
+	Error   *pb.ErrorCode
+	Status  Status
+}
+
 type Status string
 
 const (
 	ComponentNotFound    Status = "COMPONENT_NOT_FOUND"
-	ComponentMalformed   Status = "COMPONENT_MALFORMED"
+	InvalidPurl          Status = "INVALID_PURL"
 	ComponentWithoutInfo Status = "COMPONENT_WITHOUT_INFO"
-	StatusSuccess        Status = "SUCCESS"
+	Success              Status = "SUCCESS"
+	InvalidSemver        Status = "INVALID_SEMVER"
 )
 
 type CryptoOutput struct {
@@ -33,7 +42,7 @@ type CryptoOutputItem struct {
 	Purl        string            `json:"purl"`
 	Version     string            `json:"version"`
 	Requirement string            `json:"requirement"`
-	Status      Status            `json:"status"`
+	Status      ComponentStatus   `json:"status"`
 	Algorithms  []CryptoUsageItem `json:"algorithms"`
 }
 

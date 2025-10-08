@@ -44,7 +44,7 @@ func (h EncryptionHintsResponseHelper[T]) componentsEncryptionHintsResponseStatu
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++
@@ -61,7 +61,7 @@ func (h EncryptionHintsResponseHelper[T]) componentEncryptionHintsResponseStatus
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++

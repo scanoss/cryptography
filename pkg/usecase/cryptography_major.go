@@ -57,7 +57,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 	cryptoInRangeItems := []dtos.CryptoInRangeOutputItem{}
 	for _, component := range components {
 		cryptoInRangeItems = append(cryptoInRangeItems, dtos.CryptoInRangeOutputItem{
-			Status:      dtos.StatusSuccess,
+			Status:      dtos.Success,
 			Purl:        component.Purl,
 			Requirement: component.Requirement,
 		})
@@ -67,20 +67,20 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			c.Status = dtos.ComponentMalformed
+			c.Status = dtos.InvalidPurl
 			out.Cryptography = append(out.Cryptography, c)
 			continue
 
 		}
 		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
-			c.Status = dtos.ComponentMalformed
+			c.Status = dtos.InvalidPurl
 			out.Cryptography = append(out.Cryptography, c)
 			continue
 		}
 
 		if c.Requirement != "" {
 			if !utils.IsValidRequirement(c.Requirement) {
-				c.Status = dtos.ComponentMalformed
+				c.Status = dtos.InvalidPurl
 				out.Cryptography = append(out.Cryptography, c)
 				continue
 			}
@@ -88,7 +88,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			c.Status = dtos.ComponentMalformed
+			c.Status = dtos.InvalidPurl
 			out.Cryptography = append(out.Cryptography, c)
 			continue
 		}

@@ -45,7 +45,7 @@ func (h VersionsInRangeResponseHelper[T]) versionsInRangeResponseStatus(output d
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++
@@ -62,7 +62,7 @@ func (h VersionsInRangeResponseHelper[T]) componentVersionsInRangeResponseStatus
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++

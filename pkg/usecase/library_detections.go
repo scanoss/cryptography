@@ -57,13 +57,13 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 
 	for _, component := range components {
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.ComponentMalformed})
+			out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.InvalidPurl})
 			s.Warnf("requirement should include version range or major and wildcard")
 			continue
 		}
 		if component.Requirement != "" {
 			if !utils.IsValidRequirement(component.Requirement) {
-				out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.ComponentMalformed})
+				out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.InvalidPurl})
 				continue
 			}
 		}
@@ -84,19 +84,19 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.ComponentMalformed, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
 			continue
 		}
 
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.ComponentMalformed, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, component.Requirement)
 		if errQ != nil {
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.ComponentMalformed, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
 			continue
 		}
 
@@ -115,7 +115,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 		// avoid duplicate detections (if any)
 		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
-		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: dtos.StatusSuccess}
+		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: dtos.Success}
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
@@ -204,18 +204,18 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, componentDTO dtos.ComponentDTO) *dtos.ECOutputItem {
 	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
 	if err != nil {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentMalformed}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
 	}
 
 	purlName, err := purlhelper.PurlNameFromString(componentDTO.Purl)
 	if err != nil {
 		s.Errorf("Failed to parse purl '%s': %s", componentDTO.Purl, err)
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentMalformed}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
 	}
 
 	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, componentDTO.Requirement)
 	if err != nil {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentMalformed}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
 	}
 
 	if len(res) == 0 {
@@ -226,6 +226,6 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 	if len(hashes) == 0 {
 		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentWithoutInfo}
 	}
-	item.Status = dtos.StatusSuccess
+	item.Status = dtos.Success
 	return &item
 }

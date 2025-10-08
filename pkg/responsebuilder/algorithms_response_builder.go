@@ -18,11 +18,11 @@ package responsebuilder
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/httpresponsehelper"
 )
@@ -42,18 +42,61 @@ import (
 //   - *pb.AlgorithmResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
 func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
-	data, err := json.Marshal(output)
-	if err != nil {
-		return &pb.AlgorithmResponse{}, errors.New("problem marshalling Cryptography output")
+	if output.Cryptography == nil {
+		return nil, errors.New("no cryptography found")
 	}
-	var response pb.AlgorithmResponse
-	err = json.Unmarshal(data, &response)
-	if err != nil {
-		return &pb.AlgorithmResponse{}, errors.New("problem unmarshalling Cryptography output")
+	s.Debugf("convertCryptoOutputToComponents: %v", output)
+	response := &pb.AlgorithmResponse{
+		Purls:  make([]*pb.AlgorithmResponse_Purls, 0, len(output.Cryptography)),
+		Status: &common.StatusResponse{},
 	}
-	response = *httpresponsehelper.NewAlgorithmResponseHelper(&response).WithStatus(ctx, s, output)
-	return &response, nil
+	for _, component := range output.Cryptography {
+		algorithms := make([]*pb.Algorithm, 0, len(component.Algorithms))
+		for _, alg := range component.Algorithms {
+			algorithms = append(algorithms, &pb.Algorithm{
+				Algorithm: alg.Algorithm,
+				Strength:  alg.Strength,
+			})
+		}
+		compAlgorithms := &pb.AlgorithmResponse_Purls{
+			Purl:       component.Purl,
+			Version:    component.Version,
+			Algorithms: algorithms,
+		}
+		if component.Status.Status != dtos.Success {
+			compAlgorithms.ErrorMessage = component.Status.Message
+			compAlgorithms.ErrorCode = *component.Status.Error
+		}
+		response.Purls = append(response.Purls, compAlgorithms)
+	}
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms retrieved successfully.",
+	}
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	return response, nil
+}
 
+func getComponentAlgorithms(cryptoOutputItem dtos.CryptoOutputItem) *pb.ComponentAlgorithms {
+	algorithms := make([]*pb.Algorithm, 0, len(cryptoOutputItem.Algorithms))
+	for _, alg := range cryptoOutputItem.Algorithms {
+		algorithms = append(algorithms, &pb.Algorithm{
+			Algorithm: alg.Algorithm,
+			Strength:  alg.Strength,
+		})
+	}
+	componentAlgorithms := &pb.ComponentAlgorithms{
+		Purl:        cryptoOutputItem.Purl,
+		Version:     cryptoOutputItem.Version,
+		Requirement: cryptoOutputItem.Requirement,
+		Algorithms:  algorithms,
+	}
+
+	if cryptoOutputItem.Status.Status != dtos.Success {
+		componentAlgorithms.ErrorMessage = cryptoOutputItem.Status.Message
+		componentAlgorithms.ErrorCode = *cryptoOutputItem.Status.Error
+	}
+	return componentAlgorithms
 }
 
 // ToComponentsAlgorithmsResponse converts CryptoOutput into a ComponentsAlgorithmsResponse.
@@ -84,21 +127,13 @@ func ToComponentsAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, o
 		Status:     &common.StatusResponse{},
 	}
 	for _, component := range output.Cryptography {
-		algorithms := make([]*pb.Algorithm, 0, len(component.Algorithms))
-		for _, alg := range component.Algorithms {
-			algorithms = append(algorithms, &pb.Algorithm{
-				Algorithm: alg.Algorithm,
-				Strength:  alg.Strength,
-			})
-		}
-		response.Components = append(response.Components, &pb.ComponentAlgorithms{
-			Purl:        component.Purl,
-			Version:     component.Version,
-			Requirement: component.Requirement,
-			Algorithms:  algorithms,
-		})
+		response.Components = append(response.Components, getComponentAlgorithms(component))
 	}
-	response = httpresponsehelper.NewAlgorithmResponseHelper(response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms retrieved successfully.",
+	}
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -130,22 +165,13 @@ func ToComponentAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, ou
 		Component: &pb.ComponentAlgorithms{},
 		Status:    &common.StatusResponse{},
 	}
-
 	for _, component := range output.Cryptography {
-		algorithms := make([]*pb.Algorithm, 0, len(component.Algorithms))
-		for _, alg := range component.Algorithms {
-			algorithms = append(algorithms, &pb.Algorithm{
-				Algorithm: alg.Algorithm,
-				Strength:  alg.Strength,
-			})
-		}
-		response.Component = &pb.ComponentAlgorithms{
-			Purl:        component.Purl,
-			Version:     component.Version,
-			Requirement: component.Requirement,
-			Algorithms:  algorithms,
-		}
+		response.Component = getComponentAlgorithms(component)
 	}
-	response = httpresponsehelper.NewAlgorithmResponseHelper(response).WithStatus(ctx, s, output)
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms retrieved successfully.",
+	}
 	return response, nil
 }

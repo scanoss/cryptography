@@ -45,7 +45,7 @@ func (h HintsInRangeResponseHelper[T]) componentsHintsInRangeResponseStatus(outp
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++
@@ -62,7 +62,7 @@ func (h HintsInRangeResponseHelper[T]) componentHintsInRangeResponseStatus(outpu
 		switch c.Status {
 		case dtos.ComponentNotFound:
 			notFound++
-		case dtos.ComponentMalformed:
+		case dtos.InvalidPurl:
 			malformed++
 		case dtos.ComponentWithoutInfo:
 			withOutInfo++

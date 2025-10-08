@@ -59,24 +59,24 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentMalformed, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
 			continue
 		}
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentMalformed, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
 			continue
 		}
 
 		if component.Requirement != "" {
 			if !utils.IsValidRequirement(component.Requirement) {
-				out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentMalformed, VersionsWith: []string{}, VersionsWithout: []string{}})
+				out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
 				continue
 			}
 		}
 
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentMalformed, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, component.Requirement)
@@ -86,7 +86,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		}
 
 		_ = errQ
-		item := dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.StatusSuccess, VersionsWith: []string{}, VersionsWithout: []string{}}
+		item := dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.Success, VersionsWith: []string{}, VersionsWithout: []string{}}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
