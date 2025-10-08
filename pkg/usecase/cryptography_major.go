@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"sort"
 	"strings"
 
@@ -57,51 +58,51 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 	cryptoInRangeItems := []dtos.CryptoInRangeOutputItem{}
 	for _, component := range components {
 		cryptoInRangeItems = append(cryptoInRangeItems, dtos.CryptoInRangeOutputItem{
-			Status:      dtos.Success,
+			Status:      dtos.ComponentStatus{Status: dtos.Success},
 			Purl:        component.Purl,
 			Requirement: component.Requirement,
 		})
 	}
 	// Prepare purls to query
-	for _, c := range cryptoInRangeItems {
+	for i, c := range cryptoInRangeItems {
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			c.Status = dtos.InvalidPurl
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl), Error: pb.ErrorCode_INVALID_PURL.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 
 		}
 		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
-			c.Status = dtos.InvalidPurl
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl), Error: pb.ErrorCode_INVALID_PURL.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 		}
 
 		if c.Requirement != "" {
 			if !utils.IsValidRequirement(c.Requirement) {
-				c.Status = dtos.InvalidPurl
-				out.Cryptography = append(out.Cryptography, c)
+				cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.InvalidSemver, Message: fmt.Sprintf("Invalid semver %s", c.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()}
+				out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 				continue
 			}
 		}
 		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			c.Status = dtos.InvalidPurl
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl), Error: pb.ErrorCode_INVALID_PURL.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 		}
 		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, c.Requirement)
 		if err != nil {
 			s.Debugf("Failed to get cryptographic algorithms: %v", err)
-			c.Status = dtos.ComponentNotFound
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 		}
 		if len(res) == 0 {
-			c.Status = dtos.ComponentNotFound
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 		}
 
@@ -117,32 +118,31 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 			s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}
 		// avoid duplicate algorithms
-		fmt.Printf("USES %v", uses)
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
 		if len(uses) == 0 {
-			c.Status = dtos.ComponentWithoutInfo
-			out.Cryptography = append(out.Cryptography, c)
+			cryptoInRangeItems[i].Status = dtos.ComponentStatus{Status: dtos.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", purl), Error: pb.ErrorCode_NO_INFO.Enum()}
+			out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 			continue
 		}
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
 				nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
-				c.Algorithms = append(c.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
+				cryptoInRangeItems[i].Algorithms = append(cryptoInRangeItems[i].Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
 		for k := range nonDupVersions {
-			c.Versions = append(c.Versions, k)
+			cryptoInRangeItems[i].Versions = append(cryptoInRangeItems[i].Versions, k)
 		}
 
-		sort.Slice(c.Versions, func(i, j int) bool {
-			versionA, _ := semver.NewVersion(c.Versions[i])
-			versionB, _ := semver.NewVersion(c.Versions[j])
+		sort.Slice(cryptoInRangeItems[i].Versions, func(j, k int) bool {
+			versionA, _ := semver.NewVersion(cryptoInRangeItems[i].Versions[j])
+			versionB, _ := semver.NewVersion(cryptoInRangeItems[i].Versions[k])
 
 			return versionA.LessThan(versionB)
 		})
 
-		out.Cryptography = append(out.Cryptography, c)
+		out.Cryptography = append(out.Cryptography, cryptoInRangeItems[i])
 	}
 	return out, nil
 }

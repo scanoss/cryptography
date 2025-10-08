@@ -60,7 +60,7 @@ type CryptoInRangeOutputItem struct {
 	Requirement string            `json:"requirement"`
 	Versions    []string          `json:"versions"`
 	Algorithms  []CryptoUsageItem `json:"algorithms"`
-	Status      Status            `json:"status"`
+	Status      ComponentStatus   `json:"status"`
 }
 
 type VersionsInRangeOutput struct {

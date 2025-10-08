@@ -23,6 +23,7 @@ import (
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/httpresponsehelper"
 )
@@ -54,8 +55,32 @@ func ToAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, outp
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.AlgorithmsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	response = *httpresponsehelper.NewAlgorithmInRangeResponseHelper(&response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms in range retrieved successfully.",
+	}
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return &response, nil
+}
+
+func getAlgorithmsInRange(output dtos.CryptoInRangeOutputItem) *pb.ComponentsAlgorithmsInRangeResponse_Component {
+	var algorithms = make([]*pb.Algorithm, 0, len(output.Algorithms))
+	for _, alg := range output.Algorithms {
+		algorithms = append(algorithms, &pb.Algorithm{
+			Algorithm: alg.Algorithm,
+			Strength:  alg.Strength,
+		})
+	}
+	algorithmsInRange := &pb.ComponentsAlgorithmsInRangeResponse_Component{
+		Purl:       output.Purl,
+		Versions:   output.Versions,
+		Algorithms: algorithms,
+	}
+	if output.Status.Status != dtos.Success {
+		algorithmsInRange.ErrorMessage = &output.Status.Message
+		algorithmsInRange.ErrorCode = output.Status.Error
+	}
+	return algorithmsInRange
 }
 
 // ToComponentsAlgorithmsInRangeResponse converts CryptoInRangeOutput to ComponentsAlgorithmsInRangeResponse.
@@ -84,21 +109,14 @@ func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLo
 		Components: make([]*pb.ComponentsAlgorithmsInRangeResponse_Component, 0),
 		Status:     &common.StatusResponse{},
 	}
-	for i, c := range output.Cryptography {
-		var algorithms = make([]*pb.Algorithm, 0, len(output.Cryptography[i].Algorithms))
-		for _, alg := range c.Algorithms {
-			algorithms = append(algorithms, &pb.Algorithm{
-				Algorithm: alg.Algorithm,
-				Strength:  alg.Strength,
-			})
-		}
-		response.Components = append(response.Components, &pb.ComponentsAlgorithmsInRangeResponse_Component{
-			Purl:       output.Cryptography[i].Purl,
-			Versions:   output.Cryptography[i].Versions,
-			Algorithms: algorithms,
-		})
+	for _, c := range output.Cryptography {
+		response.Components = append(response.Components, getAlgorithmsInRange(c))
 	}
-	response = httpresponsehelper.NewAlgorithmInRangeResponseHelper(response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms in range retrieved successfully.",
+	}
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -129,20 +147,24 @@ func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLog
 		Component: &pb.ComponentAlgorithmsInRangeResponse_Component{},
 		Status:    &common.StatusResponse{},
 	}
-	for i, c := range output.Cryptography {
-		var algorithms = make([]*pb.Algorithm, 0, len(output.Cryptography[i].Algorithms))
-		for _, alg := range c.Algorithms {
-			algorithms = append(algorithms, &pb.Algorithm{
-				Algorithm: alg.Algorithm,
-				Strength:  alg.Strength,
-			})
+	for _, c := range output.Cryptography {
+		algorithmsInRange := getAlgorithmsInRange(c)
+
+		algorithmInRangeComponent := &pb.ComponentAlgorithmsInRangeResponse_Component{
+			Versions:   algorithmsInRange.Versions,
+			Purl:       algorithmsInRange.Purl,
+			Algorithms: algorithmsInRange.Algorithms,
 		}
-		response.Component = &pb.ComponentAlgorithmsInRangeResponse_Component{
-			Purl:       output.Cryptography[i].Purl,
-			Versions:   output.Cryptography[i].Versions,
-			Algorithms: algorithms,
+		if *algorithmsInRange.ErrorMessage != "" {
+			algorithmInRangeComponent.ErrorCode = *algorithmsInRange.ErrorCode
+			algorithmInRangeComponent.ErrorMessage = *algorithmsInRange.ErrorMessage
 		}
+		response.Component = algorithmInRangeComponent
 	}
-	response = httpresponsehelper.NewAlgorithmInRangeResponseHelper(response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Algorithms in range retrieved successfully.",
+	}
+	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

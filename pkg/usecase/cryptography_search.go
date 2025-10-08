@@ -64,7 +64,7 @@ func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 		s.Info("Empty List of Purls supplied")
 		return dtos.CryptoOutput{}, errors.New("empty list of purls")
 	}
-	componentCryptoMetadata, mapPurls, _ := d.processInputPurls(s, components)
+	componentCryptoMetadata, mapPurls := d.processInputPurls(s, components)
 	s.Debugf("Component Cryptography Metadata: %v", componentCryptoMetadata)
 	// Only query with SUCCESS status components
 	var successPurlsToQuery []utils.PurlReq
@@ -146,16 +146,13 @@ func (d CryptoUseCase) processPurlVersion(s *zap.SugaredLogger, purl packageurl.
 	return purl.Version
 }
 
-func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos.ComponentDTO) ([]ComponentCryptoMetadata, map[string]bool, models.QuerySummary) {
+func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos.ComponentDTO) ([]ComponentCryptoMetadata, map[string]bool) {
 	var componentCryptoMetadata []ComponentCryptoMetadata
 	mapPurls := make(map[string]bool)
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
 	for i := range components {
 		c := &components[i]
 		purl, err := purlhelper.PurlFromString(c.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
@@ -168,7 +165,6 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 		}
 		purlName, err := purlhelper.PurlNameFromString(c.Purl)
 		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
@@ -191,7 +187,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 				ComponentName: purlName,
 			})
 	}
-	return componentCryptoMetadata, mapPurls, summary
+	return componentCryptoMetadata, mapPurls
 }
 
 func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.AllURL {
