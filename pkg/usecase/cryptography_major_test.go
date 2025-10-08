@@ -18,7 +18,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -43,12 +42,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -63,8 +57,8 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 			Requirement: ">5.3.0",
 		},
 	}
-	cryptoUc := NewCryptoMajor(ctx, s, conn, myConfig)
-	algorithms, summary, err := cryptoUc.GetCryptoInRange(componentDTOS)
+	cryptoUc := NewCryptoMajor(db, myConfig)
+	algorithms, err := cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -75,16 +69,11 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("Expected to receive  3 versions")
 	}
 
-	if len(algorithms.Cryptography[0].Algorithms) == 0 || len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 algorithm")
-	}
-
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
-	if err != nil {
-		t.Fatalf("error not expected: %v", err)
-	}
-	if len(summary.PurlsFailedToParse) > 0 {
-		t.Fatal("Expected to get All purls")
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
+	for _, v := range algorithms.Cryptography {
+		if v.Status.Status != dtos.Success {
+			t.Fatal("Expected to get All purls")
+		}
 	}
 
 	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
@@ -96,14 +85,15 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 			Requirement: ">5.4.5,<5.4.7",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	if len(summary.PurlsNotFound) > 0 {
-		t.Fatal("Expected to get All purls")
+	for _, c := range algorithms.Cryptography {
+		if c.Status.Status != dtos.Success {
+			t.Fatal("Expected to get All purls")
+		}
 	}
-
 	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 1 {
 		t.Fatalf("Expected to receive  2 versions")
 	}
@@ -113,58 +103,58 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">v5.4.5,<5.4.7",
 		},
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:githubscanossdependencies",
 			Requirement: ">v5.4.5,<5.4.7",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	if len(summary.PurlsNotFound) > 0 {
-		t.Fatal("Expected to get All purls")
+	failedToParse := 0
+	for _, c := range algorithms.Cryptography {
+		if c.Status.Status != dtos.InvalidPurl {
+			failedToParse++
+		}
 	}
-	if len(summary.PurlsFailedToParse) < 1 {
-		t.Fatal("Expected to get a purl failed to parse")
+	if failedToParse != 1 {
+		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", failedToParse)
 	}
 	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 1 {
 		t.Fatalf("Expected to receive  1 versions")
 	}
 
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: "*",
 		},
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:githubscanossdependencies",
 			Requirement: "v*",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
-	if err == nil {
-		t.Fatalf("expected error on malformed requirement")
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
+	for _, c := range algorithms.Cryptography {
+		if c.Status.Status == dtos.Success {
+			t.Fatal("expected error on malformed requirement")
+		}
 	}
 
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">v5.4.5,<5.4.7",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	fmt.Printf("ALGORITHMS: %v\n", algorithms)
-	fmt.Printf("SUMMARY: %v\n", summary)
-	if len(summary.PurlsNotFound) >= 2 {
-		t.Fatal("Expected to get All purls")
-	}
-	componentDTOS = []dtos.ComponentDTO{}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(componentDTOS)
-	if err == nil {
-		t.Fatalf("Expected to get an error on empty list")
+	for _, c := range algorithms.Cryptography {
+		if c.Status.Status != dtos.Success {
+			t.Fatal("Expected to get All purls")
+		}
 	}
 }

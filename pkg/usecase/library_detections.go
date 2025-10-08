@@ -55,16 +55,26 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 			out.Hints = append(out.Hints, dtos.ECOutputItem{
 				Purl:     component.Purl,
 				Versions: []string{},
-				Status:   dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Requirement should include version range or major and wildcard. Requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+				Status:   dtos.ComponentStatus{Status: dtos.InvalidSemver, Message: fmt.Sprintf("Requirement should include version range or major and wildcard. Requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
 			})
 			s.Warnf("requirement should include version range or major and wildcard")
 			continue
 		}
-		if component.Requirement != "" && !utils.IsValidRequirement(component.Requirement) {
+
+		if component.Requirement == "" {
 			out.Hints = append(out.Hints, dtos.ECOutputItem{
 				Purl:     component.Purl,
 				Versions: []string{},
-				Status:   dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invald requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+				Status:   dtos.ComponentStatus{Status: dtos.InvalidSemver, Message: "Empty requirement", Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+			})
+			continue
+		}
+
+		if !utils.IsValidRequirement(component.Requirement) {
+			out.Hints = append(out.Hints, dtos.ECOutputItem{
+				Purl:     component.Purl,
+				Versions: []string{},
+				Status:   dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invalid requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
 			})
 			continue
 		}

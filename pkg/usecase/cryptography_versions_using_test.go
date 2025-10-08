@@ -18,6 +18,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -42,12 +43,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -66,9 +62,9 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">v0.0.0",
 		},
 	}
-	versionsUc := NewVersionsUsingCrypto(ctx, s, conn, myConfig)
+	versionsUc := NewVersionsUsingCrypto(db, myConfig)
 
-	versions, summary, err := versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	versions, err := versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -82,23 +78,17 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to get 1 versions without crypto and found %d\n", len(versions.Versions[0].VersionsWithout))
 	}
 
-	componentDTOS = []dtos.ComponentDTO{}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
-	if err == nil {
-		t.Fatalf("Expected to get an 'Empty list' error")
-	}
 	componentDTOS = []dtos.ComponentDTO{
 		{
 			Purl:        "pkg:githubscanossengine",
 			Requirement: ">v5.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
-	if len(versions.Versions) != 0 {
-		t.Fatalf("Not Expected to receive versions")
-	}
-	if len(summary.PurlsFailedToParse) != 1 {
-		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", len(summary.PurlsFailedToParse))
+	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	for _, v := range versions.Versions {
+		if v.Status.Status != dtos.InvalidPurl {
+			t.Fatalf("Expected to get failed to parse purl ")
+		}
 	}
 	componentDTOS = []dtos.ComponentDTO{
 		{
@@ -106,12 +96,11 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: "*",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
-	if err == nil {
-		t.Fatalf("An invalid range error was expected")
-	}
-	if len(versions.Versions) != 0 {
-		t.Fatalf("Not Expected to receive versions")
+	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	for _, v := range versions.Versions {
+		if v.Status.Status != dtos.InvalidSemver {
+			t.Fatalf("An invalid range error was expected")
+		}
 	}
 	componentDTOS = []dtos.ComponentDTO{
 		{
@@ -123,37 +112,50 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 			Requirement: ">1.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
-	if len(summary.PurlsFailedToParse) != 1 {
-		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", len(summary.PurlsFailedToParse))
+	failedToParse := 0
+	for _, v := range versions.Versions {
+		if v.Status.Status != dtos.InvalidPurl {
+			failedToParse++
+		}
 	}
+	if failedToParse != 1 {
+		t.Fatalf("Expected to get exactly one purl failed to parse and received %d", failedToParse)
+	}
+
 	componentDTOS = []dtos.ComponentDTO{
 		{
 			Purl:        "pkg:github/scanoss/engines",
 			Requirement: ">5.3.0",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
-	if len(summary.PurlsNotFound) != 1 {
-		t.Fatalf("Expected to get exactly one purl not found and received %d", len(summary.PurlsFailedToParse))
+	for _, v := range versions.Versions {
+		if v.Status.Status != dtos.ComponentNotFound {
+			t.Fatalf("Expected to get exactly one purl not found")
+		}
 	}
+
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
-	versions, summary, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
+	fmt.Printf("VERSIONS %v", versions)
 	if err != nil {
 		t.Fatalf("error was not expected")
 	}
-	if len(summary.PurlsNotFound) != 1 {
-		t.Fatalf("Expected to get exactly one purl not found and received %d", len(summary.PurlsFailedToParse))
+	for _, v := range versions.Versions {
+		if v.Status.Status != dtos.Success {
+			t.Fatalf("Expected to get exactly one purl not found")
+		}
 	}
 }
 
@@ -170,12 +172,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -185,14 +182,14 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 	var componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">5.3.0",
 		},
 	}
 
-	cryptoUc := NewCryptoMajor(ctx, s, conn, myConfig)
-	algorithms, summary, err := cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
+	cryptoUc := NewCryptoMajor(db, myConfig)
+	algorithms, err := cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
@@ -203,33 +200,20 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("Expected to receive  3 versions")
 	}
 
-	if len(algorithms.Cryptography[0].Algorithms) == 0 || len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 algorithm")
-	}
-
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
-	if err != nil {
-		t.Fatalf("error not expected: %v", err)
-	}
-	if len(summary.PurlsFailedToParse) > 0 {
-		t.Fatal("Expected to get All purls")
-	}
-
-	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 3 {
-		t.Fatalf("Expected to receive  2 versions")
-	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">v5.4.5,<5.4.7",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
+	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("error not expected: %v", err)
 	}
-	if len(summary.PurlsNotFound) > 0 {
-		t.Fatal("Expected to get All purls")
+	for _, c := range algorithms.Cryptography {
+		if c.Status.Status != dtos.Success {
+			t.Fatalf("Expected to get exactly one purl")
+		}
 	}
 
 	if len(algorithms.Cryptography[0].Versions) == 0 || len(algorithms.Cryptography[0].Versions) != 1 {

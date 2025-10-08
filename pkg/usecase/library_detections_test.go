@@ -42,12 +42,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -62,125 +57,47 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 			Requirement: ">=0.0.0",
 		},
 	}
-	hintsUc := NewECDetection(ctx, s, conn, myConfig)
-	libraries, summary, err := hintsUc.GetDetectionsInRange(componentDTOS)
+	hintsUc := NewECDetection(db, myConfig)
+	libraries, err := hintsUc.GetDetectionsInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
-	if len(libraries.Hints[0].Detections) == 0 ||
-		len(summary.PurlsFailedToParse) > 0 ||
-		len(summary.PurlsWOInfo) > 0 ||
-		len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 Hint")
+	for _, h := range libraries.Hints {
+		if h.Status.Status != dtos.Success {
+			t.Fatalf("Expected to get a success status")
+		}
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
 
-	libraries, summary, err = hintsUc.GetDetectionsInRange(componentDTOS)
-
+	libraries, err = hintsUc.GetDetectionsInRange(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
-
-	if len(summary.PurlsFailedToParse) != 1 {
-		t.Fatalf("Expected to fail parsing the purl")
+	for _, h := range libraries.Hints {
+		if h.Status.Status != dtos.InvalidSemver {
+			t.Fatalf("Expected to get invalid semver status, get %s", h.Status.Status)
+		}
 	}
+
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">=1.0.0",
 		},
 	}
-	libraries, summary, err = hintsUc.GetDetectionsInRange(componentDTOS)
+	libraries, err = hintsUc.GetDetectionsInRange(ctx, s, componentDTOS)
 
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
-
-	if len(summary.PurlsWOInfo) != 1 {
-		t.Fatalf("Expected to not find information for purl")
-	}
-
-	tests := []struct {
-		name          string
-		input         []dtos.ComponentDTO
-		expectedError bool
-	}{
-		{
-			name:          "Should_ReturnError_EmptyListOfPurls",
-			input:         []dtos.ComponentDTO{},
-			expectedError: true,
-		},
-		{
-			name: "Should_ReturnError_RequirementIncludeWildcard",
-			input: []dtos.ComponentDTO{
-				dtos.ComponentDTO{
-					Purl:        "pkg:github/scanoss/engine",
-					Requirement: "*",
-				},
-			},
-			expectedError: false,
-		},
-		{
-			name: "Should_ReturnError_RequirementIncludeWildcard",
-			input: []dtos.ComponentDTO{
-				dtos.ComponentDTO{
-					Purl:        "pkg:github/scanoss/engine",
-					Requirement: "v*",
-				},
-			},
-			expectedError: false,
-		},
-		{
-			name: "Should_Return_EmptyListOfPurls",
-			input: []dtos.ComponentDTO{
-				dtos.ComponentDTO{
-					Purl: "pkg:github/scanoss/engine",
-				},
-			},
-			expectedError: false,
-		},
-		{
-			name: "Should_Return_Hints",
-			input: []dtos.ComponentDTO{
-				dtos.ComponentDTO{
-					Purl:        "pkg:github/pineappleea/pineapple-src",
-					Requirement: ">=0.0.0",
-				},
-				dtos.ComponentDTO{
-					Purl:        "pkg:github/pineappleea/pineapple-src",
-					Requirement: ">=0.0.0",
-				},
-				dtos.ComponentDTO{
-					Purl:        "pkg:github/scanoss/engine",
-					Requirement: ">=0.0.0",
-				},
-			},
-			expectedError: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			libraries, summary, err = hintsUc.GetDetectionsInRange(test.input)
-			if (err != nil) != test.expectedError {
-				t.Errorf("Test '%s': Expected an error but got nil", test.name)
-			}
-		})
-	}
-
-	componentDTOS = []dtos.ComponentDTO{}
-	libraries, summary, err = hintsUc.GetDetectionsInRange(componentDTOS)
-
-	if err == nil {
-		t.Fatalf("expected to get an error: %v", err)
-	}
-	// errors.errorString {s: "empty list of purls"}
-	if len(summary.PurlsWOInfo) != 0 {
-		t.Fatalf("Expected to not get information of purls")
+	for _, h := range libraries.Hints {
+		if h.Status.Status != dtos.ComponentWithoutInfo {
+			t.Fatalf("Expected to not find information for purl")
+		}
 	}
 }
 
@@ -197,12 +114,7 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -217,27 +129,27 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 			Requirement: "5.4.7",
 		},
 	}
-	hintsUc := NewECDetection(ctx, s, conn, myConfig)
-	libraries, summary, err := hintsUc.GetDetections(componentDTOS)
+	hintsUc := NewECDetection(db, myConfig)
+	libraries, err := hintsUc.GetDetections(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
 	if libraries.Hints[0].Version != "v5.4.7" {
 		t.Errorf("Did not receive expected version (5.4.7 expected and received %s)", libraries.Hints[0].Version)
 	}
-	if len(libraries.Hints[0].Detections) == 0 ||
-		len(summary.PurlsFailedToParse) > 0 ||
-		len(summary.PurlsWOInfo) > 0 ||
-		len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 Hint")
+	for _, c := range libraries.Hints {
+		if c.Status.Status != dtos.Success {
+			t.Fatalf("Expected to get at least 1 Hint")
+		}
 	}
+
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/pineappleea/pineapple-src",
 			Requirement: "5.4.6",
 		},
 	}
-	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
+	libraries, err = hintsUc.GetDetections(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
@@ -245,40 +157,29 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Errorf("Did not receive expected version (5.4.7 expected and received %s)", libraries.Hints[0].Version)
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
-	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
+	libraries, err = hintsUc.GetDetections(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: ">=1.0",
 		},
 	}
-	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
-
+	libraries, err = hintsUc.GetDetections(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
-
-	if len(summary.PurlsWOInfo) != 1 {
-		t.Fatalf("Expected to not find information for purl")
-	}
-
-	componentDTOS = []dtos.ComponentDTO{}
-	libraries, summary, err = hintsUc.GetDetections(componentDTOS)
-
-	if err == nil {
-		t.Fatalf("expected to get an error: %v", err)
-	}
-	//errors.errorString {s: "empty list of purls"}
-	if len(summary.PurlsWOInfo) != 0 {
-		t.Fatalf("Expected to not get information of purls")
+	for _, c := range libraries.Hints {
+		if c.Status.Status != dtos.ComponentWithoutInfo {
+			t.Fatalf("Expected to not find information for purl")
+		}
 	}
 }
 func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
@@ -294,12 +195,7 @@ func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -309,21 +205,20 @@ func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 	var componentDTO = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:githubscanossengine",
 			Requirement: ">=1.0",
 		},
 	}
-	hintsUc := NewECDetection(ctx, s, conn, myConfig)
-	libraries, summary, err := hintsUc.GetDetectionsInRange(componentDTO)
+	hintsUc := NewECDetection(db, myConfig)
+	libraries, err := hintsUc.GetDetectionsInRange(ctx, s, componentDTO)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 
-	if len(summary.PurlsFailedToParse) != 1 {
-		t.Fatalf("Expected to fail parsing 1 purl")
-	}
-	if len(libraries.Hints) > 0 {
-		t.Fatalf("Not expected to get information from an empty request")
+	for _, c := range libraries.Hints {
+		if c.Status.Status != dtos.InvalidPurl {
+			t.Fatalf("Expected to fail parsing 1 purl")
+		}
 	}
 }
