@@ -18,12 +18,12 @@ package responsebuilder
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/httphelper"
 )
 
 // ToHintsResponse converts an internal HintsOutput structure into a HintsResponse.
@@ -41,18 +41,64 @@ import (
 //   - *pb.HintsResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
 func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.HintsResponse, error) {
-	data, err := json.Marshal(output)
-	if err != nil {
-		s.Errorf("Problem marshalling Cryptography request output: %v", err)
-		return &pb.HintsResponse{}, errors.New("problem marshalling Cryptography output")
+	var response = &pb.HintsResponse{
+		Purls:  make([]*pb.HintsResponse_Purls, 0, len(output.Hints)),
+		Status: &common.StatusResponse{},
 	}
-	var response pb.HintsResponse
-	err = json.Unmarshal(data, &response)
-	if err != nil {
-		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
-		return &pb.HintsResponse{}, errors.New("problem unmarshalling Cryptography output")
+	for _, hint := range output.Hints {
+		hints := make([]*pb.Hint, 0, len(hint.Detections))
+		for _, detection := range hint.Detections {
+			hints = append(hints, &pb.Hint{
+				Id:          detection.ID,
+				Name:        detection.Name,
+				Purl:        detection.Purl,
+				Description: detection.Description,
+				Category:    detection.Category,
+				Url:         detection.URL,
+			})
+		}
+		componentHints := &pb.HintsResponse_Purls{
+			Purl:    hint.Purl,
+			Version: hint.Version,
+			Hints:   hints,
+		}
+		if hint.Status.Status != dtos.Success {
+			componentHints.ErrorMessage = &hint.Status.Message
+			componentHints.ErrorCode = hint.Status.Error
+		}
+		response.Purls = append(response.Purls, componentHints)
 	}
-	return &response, nil
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Encryption's hints retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	return response, nil
+}
+
+func getComponentHints(output dtos.HintsOutputItem) *pb.ComponentHints {
+	hints := make([]*pb.Hint, 0, len(output.Detections))
+	for _, detection := range output.Detections {
+		hints = append(hints, &pb.Hint{
+			Id:          detection.ID,
+			Name:        detection.Name,
+			Purl:        detection.Purl,
+			Description: detection.Description,
+			Category:    detection.Category,
+			Url:         detection.URL,
+		})
+	}
+	componentHints := &pb.ComponentHints{
+		Purl:        output.Purl,
+		Version:     output.Version,
+		Requirement: output.Requirement,
+		Hints:       hints,
+	}
+	if output.Status.Status != dtos.Success {
+		componentHints.ErrorMessage = &output.Status.Message
+		componentHints.ErrorCode = output.Status.Error
+	}
+	return componentHints
 }
 
 // ToComponentsEncryptionHintsResponse converts HintsOutput to ComponentsEncryptionHintsResponse.
@@ -74,32 +120,18 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.Hint
 //   - *pb.ComponentsEncryptionHintsResponse: Response containing all components with their hints and status
 //   - error: Non-nil if hints data is missing
 func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
-	if output.Hints == nil {
-		return nil, errors.New("no encryption hints found")
-	}
 	var response = &pb.ComponentsEncryptionHintsResponse{
 		Components: make([]*pb.ComponentHints, 0, len(output.Hints)),
 		Status:     &common.StatusResponse{},
 	}
 	for _, hint := range output.Hints {
-		hints := make([]*pb.Hint, 0, len(hint.Detections))
-		for _, detection := range hint.Detections {
-			hints = append(hints, &pb.Hint{
-				Id:          detection.ID,
-				Name:        detection.Name,
-				Purl:        detection.Purl,
-				Description: detection.Description,
-				Category:    detection.Category,
-				Url:         detection.URL,
-			})
-		}
-		response.Components = append(response.Components, &pb.ComponentHints{
-			Purl:        hint.Purl,
-			Version:     hint.Version,
-			Requirement: hint.Requirement,
-			Hints:       hints,
-		})
+		response.Components = append(response.Components, getComponentHints(hint))
 	}
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Encryption's hints retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -123,31 +155,17 @@ func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogg
 //   - *pb.ComponentEncryptionHintsResponse: Response containing a single component with hints and status
 //   - error: Non-nil if hints data is missing
 func ToComponentEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
-	if output.Hints == nil {
-		return nil, errors.New("no encryption hints found")
-	}
 	var response = &pb.ComponentEncryptionHintsResponse{
 		Component: &pb.ComponentHints{},
 		Status:    &common.StatusResponse{},
 	}
 	for _, hint := range output.Hints {
-		hints := make([]*pb.Hint, 0, len(hint.Detections))
-		for _, detection := range hint.Detections {
-			hints = append(hints, &pb.Hint{
-				Id:          detection.ID,
-				Name:        detection.Name,
-				Purl:        detection.Purl,
-				Description: detection.Description,
-				Category:    detection.Category,
-				Url:         detection.URL,
-			})
-		}
-		response.Component = &pb.ComponentHints{
-			Purl:        hint.Purl,
-			Version:     hint.Version,
-			Requirement: hint.Requirement,
-			Hints:       hints,
-		}
+		response.Component = getComponentHints(hint)
 	}
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Encryption's hints retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

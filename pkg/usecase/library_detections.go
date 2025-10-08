@@ -18,7 +18,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"sort"
@@ -77,47 +76,71 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 
 // GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
 func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.HintsOutput, error) {
-	if len(components) == 0 {
-		s.Info("Empty List of Purls supplied")
-		return dtos.HintsOutput{}, errors.New("empty list of purls")
-	}
 	out := dtos.HintsOutput{}
 	// Prepare purls to query
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints, dtos.HintsOutputItem{
+				Purl: component.Purl, Version: "",
+				Requirement: component.Requirement,
+				Status:      dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+				Detections:  []dtos.ECDetectedItem{}})
 			continue
 		}
 
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
 			s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints,
+				dtos.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Detections:  []dtos.ECDetectedItem{}})
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, component.Requirement)
 		if errQ != nil {
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.InvalidPurl, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints,
+				dtos.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Detections:  []dtos.ECDetectedItem{}})
 			continue
 		}
 
 		uses, err1 := d.usageModel.GetLibraryUsageByURLHashes(ctx, s, []string{res.URLHash})
 		if err1 != nil {
 			s.Errorf("error getting algorithms usage for purl '%s': %s", component.Purl, err)
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.ComponentNotFound, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints,
+				dtos.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      dtos.ComponentStatus{Status: dtos.ComponentNotFound, Message: fmt.Sprintf("Component not found: '%s'", component.Purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()},
+					Detections:  []dtos.ECDetectedItem{}})
 			continue
 		}
 
 		if len(uses) == 0 {
-			out.Hints = append(out.Hints, dtos.HintsOutputItem{Purl: component.Purl, Version: "", Requirement: component.Requirement, Status: dtos.ComponentWithoutInfo, Detections: []dtos.ECDetectedItem{}})
+			out.Hints = append(out.Hints, dtos.HintsOutputItem{
+				Purl:        component.Purl,
+				Version:     "",
+				Requirement: component.Requirement,
+				Status:      dtos.ComponentStatus{Status: dtos.ComponentWithoutInfo, Message: fmt.Sprintf("Component with out  info: '%s'", component.Purl), Error: pb.ErrorCode_NO_INFO.Enum()},
+				Detections:  []dtos.ECDetectedItem{},
+			})
 			continue
 		}
 
 		// avoid duplicate detections (if any)
 		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
-		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: dtos.Success}
+		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: dtos.ComponentStatus{Status: dtos.Success}}
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {

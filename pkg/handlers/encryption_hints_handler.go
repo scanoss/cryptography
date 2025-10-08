@@ -87,7 +87,6 @@ func (c EncryptionHintsHandler) GetComponentsEncryptionHints(ctx context.Context
 	}
 
 	output, err := c.encryptionHintsUseCase.GetDetections(ctx, s, dto)
-	fmt.Printf("OUTPUT: %v\n", output)
 	if err != nil {
 		s.Errorf("Failed to get encryption hints: %v", err)
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}

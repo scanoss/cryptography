@@ -45,5 +45,5 @@ type HintsOutputItem struct {
 	Version     string           `json:"version"`
 	Requirement string           `json:"requirement"`
 	Detections  []ECDetectedItem `json:"hints"`
-	Status      Status           `json:"status"`
+	Status      ComponentStatus  `json:"status"`
 }
