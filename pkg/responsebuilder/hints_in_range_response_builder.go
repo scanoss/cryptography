@@ -18,12 +18,12 @@ package responsebuilder
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/httphelper"
 )
 
 // ToHintsInRangeResponse converts an internal ECOutput structure into a HintsInRangeResponse.
@@ -41,19 +41,38 @@ import (
 //   - *pb.HintsInRangeResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
 func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.HintsInRangeResponse, error) {
-	data, err := json.Marshal(output)
-
-	if err != nil {
-		s.Errorf("Problem marshalling Cryptography request output: %v", err)
-		return &pb.HintsInRangeResponse{}, errors.New("problem marshalling Cryptography output")
+	var response = &pb.HintsInRangeResponse{
+		Status: &common.StatusResponse{},
+		Purls:  make([]*pb.HintsInRangeResponse_Purl, 0, len(output.Hints)),
 	}
-	var response pb.HintsInRangeResponse
-	err = json.Unmarshal(data, &response)
-	if err != nil {
-		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
-		return &pb.HintsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
+	if len(output.Hints) > 0 {
+		for _, hint := range output.Hints {
+			hints := make([]*pb.Hint, 0, len(hint.Detections))
+			for _, detection := range hint.Detections {
+				hints = append(hints, &pb.Hint{
+					Id:          detection.ID,
+					Name:        detection.Name,
+					Purl:        detection.Purl,
+					Description: detection.Description,
+					Category:    detection.Category,
+					Url:         detection.URL,
+				})
+			}
+			componentHintsInRange := &pb.HintsInRangeResponse_Purl{
+				Purl:     hint.Purl,
+				Versions: hint.Versions,
+				Hints:    hints,
+			}
+			if hint.Status.Status != dtos.Success {
+				componentHintsInRange.ErrorMessage = &hint.Status.Message
+				componentHintsInRange.ErrorCode = hint.Status.Error
+			}
+			response.Purls = append(response.Purls, componentHintsInRange)
+		}
+		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
-	return &response, nil
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	return response, nil
 }
 
 // ToComponentsHintsInRangeResponse converts ECOutput to ComponentsHintsInRangeResponse.
@@ -75,9 +94,6 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dt
 //   - *pb.ComponentsHintsInRangeResponse: Response containing all components with their hints and status
 //   - error: Non-nil if hints data is missing or empty
 func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
-	if (output.Hints == nil) || (len(output.Hints) == 0) {
-		return nil, errors.New("no hints found")
-	}
 	var response = &pb.ComponentsHintsInRangeResponse{
 		Status:     &common.StatusResponse{},
 		Components: make([]*pb.ComponentsHintsInRangeResponse_Component, 0, len(output.Hints)),
@@ -95,16 +111,24 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 					Url:         detection.URL,
 				})
 			}
-			component := &pb.ComponentsHintsInRangeResponse_Component{
+			componentHintsInRange := &pb.ComponentsHintsInRangeResponse_Component{
 				Purl:     hint.Purl,
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			response.Components = append(response.Components, component)
+			if hint.Status.Status != dtos.Success {
+				componentHintsInRange.ErrorMessage = &hint.Status.Message
+				componentHintsInRange.ErrorCode = hint.Status.Error
+			}
+			response.Components = append(response.Components, componentHintsInRange)
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
-
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Hints in range retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -130,9 +154,6 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 //   - *pb.ComponentHintsInRangeResponse: Response containing a single component with hints and status
 //   - error: Non-nil if hints data is missing or empty
 func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
-	if (output.Hints == nil) || (len(output.Hints) == 0) {
-		return nil, errors.New("no hints found")
-	}
 	var response = &pb.ComponentHintsInRangeResponse{
 		Status:    &common.StatusResponse{},
 		Component: &pb.ComponentHintsInRangeResponse_Component{},
@@ -150,13 +171,23 @@ func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, 
 					Url:         detection.URL,
 				})
 			}
-			response.Component = &pb.ComponentHintsInRangeResponse_Component{
+			componentHintsInRange := &pb.ComponentHintsInRangeResponse_Component{
 				Purl:     hint.Purl,
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
+			if hint.Status.Status != dtos.Success {
+				componentHintsInRange.ErrorMessage = &hint.Status.Message
+				componentHintsInRange.ErrorCode = hint.Status.Error
+			}
+			response.Component = componentHintsInRange
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Hints in range retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

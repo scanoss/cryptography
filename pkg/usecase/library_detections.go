@@ -19,6 +19,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"sort"
 	"strings"
 
@@ -48,24 +50,24 @@ func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseC
 
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
 func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.ECOutput, error) {
-	if len(components) == 0 {
-		s.Info("Empty List of Purls supplied")
-		return dtos.ECOutput{}, errors.New("empty list of purls")
-	}
-
 	out := dtos.ECOutput{}
-
 	for _, component := range components {
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.InvalidPurl})
+			out.Hints = append(out.Hints, dtos.ECOutputItem{
+				Purl:     component.Purl,
+				Versions: []string{},
+				Status:   dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Requirement should include version range or major and wildcard. Requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+			})
 			s.Warnf("requirement should include version range or major and wildcard")
 			continue
 		}
-		if component.Requirement != "" {
-			if !utils.IsValidRequirement(component.Requirement) {
-				out.Hints = append(out.Hints, dtos.ECOutputItem{Purl: component.Purl, Versions: []string{}, Status: dtos.InvalidPurl})
-				continue
-			}
+		if component.Requirement != "" && !utils.IsValidRequirement(component.Requirement) {
+			out.Hints = append(out.Hints, dtos.ECOutputItem{
+				Purl:     component.Purl,
+				Versions: []string{},
+				Status:   dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Invald requirement: '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+			})
+			continue
 		}
 		item := d.processSinglePurl(ctx, s, component)
 		out.Hints = append(out.Hints, *item)
@@ -203,29 +205,40 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 // processSinglePurl processes a single PURL and returns whether to continue processing.
 func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, componentDTO dtos.ComponentDTO) *dtos.ECOutputItem {
 	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
+	componentStatus := dtos.ComponentStatus{
+		Status:  dtos.InvalidPurl,
+		Message: fmt.Sprintf("Invalid purl: '%s'", componentDTO.Purl),
+		Error:   pb.ErrorCode_INVALID_PURL.Enum(),
+	}
 	if err != nil {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: componentStatus}
 	}
 
 	purlName, err := purlhelper.PurlNameFromString(componentDTO.Purl)
 	if err != nil {
 		s.Errorf("Failed to parse purl '%s': %s", componentDTO.Purl, err)
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: componentStatus}
 	}
 
 	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, componentDTO.Requirement)
+	componentStatus.Status = dtos.ComponentNotFound
+	componentStatus.Message = fmt.Sprintf("Component not found '%s'", componentDTO.Purl)
+	componentStatus.Error = pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()
 	if err != nil {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.InvalidPurl}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: componentStatus}
 	}
 
 	if len(res) == 0 {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentNotFound}
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: componentStatus}
 	}
 
 	item, hashes := d.processURLResults(ctx, s, res, componentDTO)
 	if len(hashes) == 0 {
-		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: dtos.ComponentWithoutInfo}
+		componentStatus.Status = dtos.ComponentWithoutInfo
+		componentStatus.Message = fmt.Sprintf("Component without info '%s'", componentDTO.Purl)
+		componentStatus.Error = pb.ErrorCode_NO_INFO.Enum()
+		return &dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}, Detections: []dtos.ECDetectedItem{}, Status: componentStatus}
 	}
-	item.Status = dtos.Success
+	item.Status = dtos.ComponentStatus{Status: dtos.Success}
 	return &item
 }

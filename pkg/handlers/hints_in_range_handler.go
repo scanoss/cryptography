@@ -64,7 +64,6 @@ func (c HintsRangeHandler) GetHintsInRange(ctx context.Context, request *common.
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
-
 	response, err := responsebuilder.ToHintsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert hints in range to 'HintsInRangeResponse': %v", err)
@@ -87,6 +86,7 @@ func (c HintsRangeHandler) GetComponentsHintsInRange(ctx context.Context, reques
 	if errorResp != nil {
 		return errorResp, nil
 	}
+
 	// Search the KB for information about each Cryptography
 	output, err := c.hintsInRangeUseCase.GetDetectionsInRange(ctx, s, dto)
 	if err != nil {
@@ -94,7 +94,6 @@ func (c HintsRangeHandler) GetComponentsHintsInRange(ctx context.Context, reques
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problem encountered extracting Cryptography data")
 	}
-	fmt.Printf("OUTPUT: %v\n", output)
 	response, err := responsebuilder.ToComponentsHintsInRangeResponse(ctx, s, output) // Convert the internal data into a response object
 	if err != nil {
 		s.Errorf("Failed to convert hints in range to 'ComponentsHintsInRangeResponse': %v", err)
