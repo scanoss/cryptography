@@ -19,6 +19,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"sort"
 	"strings"
 
@@ -59,34 +61,65 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{
+				Purl:            component.Purl,
+				Status:          dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+				VersionsWith:    []string{},
+				VersionsWithout: []string{}})
 			continue
 		}
 		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions,
+				dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl,
+					Status:          dtos.ComponentStatus{Status: dtos.InvalidSemver, Message: fmt.Sprintf("Invalid sember %s", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+					VersionsWith:    []string{},
+					VersionsWithout: []string{}})
 			continue
 		}
 
 		if component.Requirement != "" {
 			if !utils.IsValidRequirement(component.Requirement) {
-				out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
+				out.Versions = append(out.Versions,
+					dtos.VersionsInRangeUsingCryptoItem{
+						Purl:            component.Purl,
+						Status:          dtos.ComponentStatus{Status: dtos.InvalidSemver, Message: fmt.Sprintf("Invalidad requirement '%s'", component.Requirement), Error: pb.ErrorCode_INVALID_SEMVER.Enum()},
+						VersionsWith:    []string{},
+						VersionsWithout: []string{},
+					})
 				continue
 			}
 		}
 
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.InvalidPurl, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions,
+				dtos.VersionsInRangeUsingCryptoItem{
+					Purl:            component.Purl,
+					Status:          dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					VersionsWith:    []string{},
+					VersionsWithout: []string{},
+				})
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, purlName, purl.Type, component.Requirement)
 		if len(res) == 0 {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentNotFound, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions,
+				dtos.VersionsInRangeUsingCryptoItem{
+					Purl:            component.Purl,
+					Status:          dtos.ComponentStatus{Status: dtos.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()},
+					VersionsWith:    []string{},
+					VersionsWithout: []string{},
+				})
 			continue
 		}
 
 		_ = errQ
-		item := dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.Success, VersionsWith: []string{}, VersionsWithout: []string{}}
+		item := dtos.VersionsInRangeUsingCryptoItem{
+			Purl:            component.Purl,
+			Status:          dtos.ComponentStatus{Status: dtos.Success},
+			VersionsWith:    []string{},
+			VersionsWithout: []string{},
+		}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
@@ -98,12 +131,21 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err)
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentWithoutInfo, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{
+				Purl:            component.Purl,
+				Status:          dtos.ComponentStatus{Status: dtos.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", purl), Error: pb.ErrorCode_NO_INFO.Enum()},
+				VersionsWith:    []string{},
+				VersionsWithout: []string{},
+			})
 			continue
 		}
 
 		if len(uses) == 0 {
-			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, Status: dtos.ComponentWithoutInfo, VersionsWith: []string{}, VersionsWithout: []string{}})
+			out.Versions = append(out.Versions, dtos.VersionsInRangeUsingCryptoItem{
+				Purl:            component.Purl,
+				Status:          dtos.ComponentStatus{Status: dtos.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", purl), Error: pb.ErrorCode_NO_INFO.Enum()},
+				VersionsWith:    []string{},
+				VersionsWithout: []string{}})
 			continue
 		}
 

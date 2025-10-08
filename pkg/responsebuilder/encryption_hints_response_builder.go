@@ -24,7 +24,6 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/httpresponsehelper"
 )
 
 // ToHintsResponse converts an internal HintsOutput structure into a HintsResponse.
@@ -53,7 +52,6 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.Hint
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.HintsResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	response = *httpresponsehelper.NewEncryptionHintsResponseHelper(&response).WithStatus(ctx, s, output)
 	return &response, nil
 }
 
@@ -102,7 +100,6 @@ func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogg
 			Hints:       hints,
 		})
 	}
-	response = httpresponsehelper.NewEncryptionHintsResponseHelper(response).WithStatus(ctx, s, output)
 	return response, nil
 }
 
@@ -152,6 +149,5 @@ func ToComponentEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogge
 			Hints:       hints,
 		}
 	}
-	response = httpresponsehelper.NewEncryptionHintsResponseHelper(response).WithStatus(ctx, s, output)
 	return response, nil
 }

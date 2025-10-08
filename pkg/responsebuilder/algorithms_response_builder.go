@@ -24,7 +24,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/httpresponsehelper"
+	"scanoss.com/cryptography/pkg/httphelper"
 )
 
 // ToAlgorithmResponse converts an internal CryptoOutput structure into an AlgorithmResponse.
@@ -73,7 +73,7 @@ func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms retrieved successfully.",
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -133,7 +133,7 @@ func ToComponentsAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, o
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms retrieved successfully.",
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -168,7 +168,7 @@ func ToComponentAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, ou
 	for _, component := range output.Cryptography {
 		response.Component = getComponentAlgorithms(component)
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	response.Status = &common.StatusResponse{
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms retrieved successfully.",

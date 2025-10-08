@@ -68,8 +68,8 @@ type VersionsInRangeOutput struct {
 }
 
 type VersionsInRangeUsingCryptoItem struct {
-	Purl            string   `json:"purl"`
-	Status          Status   `json:"status"`
-	VersionsWith    []string `json:"versions_with"`
-	VersionsWithout []string `json:"versions_without"`
+	Purl            string          `json:"purl"`
+	Status          ComponentStatus `json:"status"`
+	VersionsWith    []string        `json:"versions_with"`
+	VersionsWithout []string        `json:"versions_without"`
 }

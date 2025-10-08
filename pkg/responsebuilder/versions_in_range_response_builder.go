@@ -18,13 +18,13 @@ package responsebuilder
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
+	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/httpresponsehelper"
+	"scanoss.com/cryptography/pkg/httphelper"
 )
 
 // ToVersionsInRangeResponse converts a VersionsInRangeOutput structure into a VersionsInRangeResponse.
@@ -43,19 +43,29 @@ import (
 //   - *pb.VersionsInRangeResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
 func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.VersionsInRangeResponse, error) {
-	data, err := json.Marshal(output)
-	if err != nil {
-		s.Errorf("Problem marshalling Cryptography request output: %v", err)
-		return &pb.VersionsInRangeResponse{}, errors.New("problem marshalling Versions output")
+	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
+	var response = &pb.VersionsInRangeResponse{
+		Purls:  make([]*pb.VersionsInRangeResponse_Purl, 0),
+		Status: &common.StatusResponse{},
 	}
-	var response pb.VersionsInRangeResponse
-	err = json.Unmarshal(data, &response)
-	if err != nil {
-		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
-		return &pb.VersionsInRangeResponse{}, errors.New("problem unmarshalling Versions output")
+	for _, v := range output.Versions {
+		componentVersionsInRange := &pb.VersionsInRangeResponse_Purl{
+			Purl:            v.Purl,
+			VersionsWith:    v.VersionsWith,
+			VersionsWithout: v.VersionsWithout,
+		}
+		if v.Status.Status != dtos.Success {
+			componentVersionsInRange.ErrorMessage = &v.Status.Message
+			componentVersionsInRange.ErrorCode = v.Status.Error
+		}
+		response.Purls = append(response.Purls, componentVersionsInRange)
 	}
-	response = *httpresponsehelper.NewVersionsInRangeResponseHelper(&response).WithStatus(ctx, s, output)
-	return &response, nil
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Versions in range retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	return response, nil
 }
 
 // ToComponentsVersionsInRangeResponse converts VersionsInRangeOutput to ComponentsVersionsInRangeResponse.
@@ -80,13 +90,22 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 		Status:     &common.StatusResponse{},
 	}
 	for _, v := range output.Versions {
-		response.Components = append(response.Components, &pb.ComponentsVersionsInRangeResponse_Component{
+		componentVersionsInRange := &pb.ComponentsVersionsInRangeResponse_Component{
 			Purl:            v.Purl,
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
-		})
+		}
+		if v.Status.Status != dtos.Success {
+			componentVersionsInRange.ErrorMessage = &v.Status.Message
+			componentVersionsInRange.ErrorCode = v.Status.Error
+		}
+		response.Components = append(response.Components, componentVersionsInRange)
 	}
-	response = httpresponsehelper.NewVersionsInRangeResponseHelper(response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Versions in range retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -121,12 +140,23 @@ func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogge
 		Status:    &common.StatusResponse{},
 	}
 	for _, v := range output.Versions {
-		response.Component = &pb.ComponentVersionsInRangeResponse_Component{
+
+		componentVersionsInRange := &pb.ComponentVersionsInRangeResponse_Component{
 			Purl:            v.Purl,
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
+		if v.Status.Status != dtos.Success {
+			componentVersionsInRange.ErrorMessage = &v.Status.Message
+			componentVersionsInRange.ErrorCode = v.Status.Error
+		}
+
+		response.Component = componentVersionsInRange
 	}
-	response = httpresponsehelper.NewVersionsInRangeResponseHelper(response).WithStatus(ctx, s, output)
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Versions in range retrieved successfully.",
+	}
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

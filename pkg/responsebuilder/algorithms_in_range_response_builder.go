@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/httpresponsehelper"
+	"scanoss.com/cryptography/pkg/httphelper"
 )
 
 // ToAlgorithmsInRangeResponse converts an internal CryptoInRangeOutput structure into an AlgorithmsInRangeResponse.
@@ -59,7 +59,7 @@ func ToAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, outp
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms in range retrieved successfully.",
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return &response, nil
 }
 
@@ -116,7 +116,7 @@ func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLo
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms in range retrieved successfully.",
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }
 
@@ -165,6 +165,6 @@ func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLog
 		Status:  common.StatusCode_SUCCESS,
 		Message: "Algorithms in range retrieved successfully.",
 	}
-	httpresponsehelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
+	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

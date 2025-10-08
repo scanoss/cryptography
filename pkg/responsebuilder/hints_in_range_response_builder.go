@@ -24,7 +24,6 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/httpresponsehelper"
 )
 
 // ToHintsInRangeResponse converts an internal ECOutput structure into a HintsInRangeResponse.
@@ -54,7 +53,6 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dt
 		s.Errorf("Problem unmarshalling Cryptography request output: %v", err)
 		return &pb.HintsInRangeResponse{}, errors.New("problem unmarshalling Cryptography output")
 	}
-	response = *httpresponsehelper.NewHintsInRangeResponseHelper(&response).WithStatus(ctx, s, output)
 	return &response, nil
 }
 
@@ -106,7 +104,7 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
-	response = httpresponsehelper.NewHintsInRangeResponseHelper(response).WithStatus(ctx, s, output)
+
 	return response, nil
 }
 
@@ -160,6 +158,5 @@ func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, 
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
-	response = httpresponsehelper.NewHintsInRangeResponseHelper(response).WithStatus(ctx, s, output)
 	return response, nil
 }
