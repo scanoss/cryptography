@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scanoss.com/cryptography/pkg/domain"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"scanoss.com/cryptography/pkg/dtos"
 )
 
 type HintsTestCase struct {
@@ -111,7 +111,7 @@ func TestEncryptionHintsResponse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name+"_ToHintsResponse", func(t *testing.T) {
-			var input dtos.HintsOutput
+			var input domain.HintsOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -144,7 +144,7 @@ func TestEncryptionHintsResponse(t *testing.T) {
 		})
 
 		t.Run(tc.Name+"_ToComponentsEncryptionHintsResponse", func(t *testing.T) {
-			var input dtos.HintsOutput
+			var input domain.HintsOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -193,7 +193,7 @@ func TestComponentEncryptionHintsResponse(t *testing.T) {
 
 	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","version":"v5.4.5","requirement":">=v5.4.0","hints":[{"id":"1","name":"AES","purl":"pkg:crypto/aes","description":"AES encryption","category":"symmetric","url":"https://example.com/aes"}],"status":{"status":"SUCCESS"}}]}`
 
-	var input dtos.HintsOutput
+	var input domain.HintsOutput
 	err = json.Unmarshal([]byte(singleComponentJSON), &input)
 	if err != nil {
 		t.Fatalf("failed to parse request JSON: %v", err)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scanoss.com/cryptography/pkg/domain"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"scanoss.com/cryptography/pkg/dtos"
 )
 
 type VersionsTestCase struct {
@@ -99,7 +99,7 @@ func TestVersionsInRangeResponse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name+"_ToVersionsInRangeResponse", func(t *testing.T) {
-			var input dtos.VersionsInRangeOutput
+			var input domain.VersionsInRangeOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -152,7 +152,7 @@ func TestVersionsInRangeResponse(t *testing.T) {
 		})
 
 		t.Run(tc.Name+"_ToComponentsVersionsInRangeResponse", func(t *testing.T) {
-			var input dtos.VersionsInRangeOutput
+			var input domain.VersionsInRangeOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -220,7 +220,7 @@ func TestComponentVersionsInRangeResponse(t *testing.T) {
 
 	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","versions_with":["v5.4.6","v5.4.7"],"versions_without":["v5.4.5"],"status":{"status":"SUCCESS"}}]}`
 
-	var input dtos.VersionsInRangeOutput
+	var input domain.VersionsInRangeOutput
 	err = json.Unmarshal([]byte(singleComponentJSON), &input)
 	if err != nil {
 		t.Fatalf("failed to parse request JSON: %v", err)
@@ -251,7 +251,7 @@ func TestComponentVersionsInRangeResponseNilInput(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	emptyInput := dtos.VersionsInRangeOutput{Versions: nil}
+	emptyInput := domain.VersionsInRangeOutput{Versions: nil}
 
 	_, err = ToComponentVersionsInRangeResponse(ctx, zlog.S, emptyInput)
 	assert.Error(t, err)

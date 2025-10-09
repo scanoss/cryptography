@@ -14,11 +14,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package service
+package handlers
 
 import (
 	"context"
-	"scanoss.com/cryptography/pkg/handlers"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -99,7 +98,7 @@ func Test_handleComponentsRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotComponents, gotResponse := handlers.rejectIfInvalidComponents(ctx, s, tt.request, createResponseFunc)
+			gotComponents, gotResponse := rejectIfInvalidComponents(ctx, s, tt.request, createResponseFunc)
 
 			if tt.wantResponse != nil {
 				if gotResponse == nil {
@@ -188,7 +187,7 @@ func Test_handleComponentRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotResponse := handlers.rejectIfInvalid(ctx, s, tt.request, createResponseFunc)
+			gotResponse := rejectIfInvalid(ctx, s, tt.request, createResponseFunc)
 
 			if tt.expectError {
 				if gotResponse == nil {

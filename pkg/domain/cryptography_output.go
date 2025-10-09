@@ -23,7 +23,7 @@ import (
 
 type ComponentStatus struct {
 	Message    string
-	Error      *pb.ErrorCode
+	Error      *pb.ErrorCode // TODO: remove from internal
 	StatusCode StatusCode
 }
 

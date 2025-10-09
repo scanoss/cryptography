@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"os"
 	"path/filepath"
+	"scanoss.com/cryptography/pkg/domain"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"scanoss.com/cryptography/pkg/dtos"
 )
 
 // mockServerTransportStream implements grpc.ServerTransportStream for testing
@@ -176,7 +176,7 @@ func TestInRangeResponseForMultipleComponents(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Parse input
-			var input dtos.CryptoInRangeOutput
+			var input domain.CryptoInRangeOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse sample JSON: %v", err)
@@ -260,9 +260,9 @@ func TestToAlgorithmsInRangeResponse(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	inputJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","requirement":">v5.4.5","versions":["v5.4.6","v5.4.7"],"algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"status":"SUCCESS"}}]}`
+	inputJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","requirement":">v5.4.5","versions":["v5.4.6","v5.4.7"],"algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"statusCode":"SUCCESS"}}]}`
 
-	var input dtos.CryptoInRangeOutput
+	var input domain.CryptoInRangeOutput
 	err = json.Unmarshal([]byte(inputJSON), &input)
 	if err != nil {
 		t.Fatalf("failed to parse request JSON: %v", err)
@@ -287,12 +287,11 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		context.Background(),
 		&mockServerTransportStream{ctx: context.Background()},
 	)
-
+	s := ctxzap.Extract(ctx).Sugar()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
-	defer zlog.SyncZap()
 
 	goodPurl := `{"purls": [
          {
@@ -308,18 +307,19 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
                     "algorithm": "MD5",
                     "strength": "16"
                 }
-            ]
+            ],
+			"status":{"statusCode":"SUCCESS"}
         }
     ]}`
 
-	var input dtos.CryptoInRangeOutput
+	var input domain.CryptoInRangeOutput
 	err = json.Unmarshal([]byte(goodPurl), &input)
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
 
 	// Call the function under test
-	res, err := ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, input)
+	res, err := ToComponentAlgorithmsInRangeResponse(ctx, s, input)
 	if err != nil {
 		t.Errorf("unexpected error on creating response: %v", err)
 		return
@@ -337,7 +337,7 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		            "purl": "pkg:github/scanoss/ldb",
 		            "requirement": ">v1.0.0",
 		            			"status": {
-						"status": "NO_INFO",
+						"statusCode": "NO_INFO",
 						"message": "No crypto found",
 						"error_message": ""
 						}
@@ -345,13 +345,13 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		        }
 		    ]}`
 
-	var noCryptoInput dtos.CryptoInRangeOutput
+	var noCryptoInput domain.CryptoInRangeOutput
 	err = json.Unmarshal([]byte(noCryptoJson), &noCryptoInput)
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
 	noCryptoInput.Cryptography[0].Status.Error = cryptographyv2.ErrorCode_NO_INFO.Enum()
-	noCryptoInput.Cryptography[0].Status.Status = dtos.ComponentWithoutInfo
+	noCryptoInput.Cryptography[0].Status.StatusCode = domain.ComponentWithoutInfo
 	noCryptoInput.Cryptography[0].Status.Message = "No crypto found"
 
 	// Call the function under test
@@ -360,7 +360,6 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		t.Errorf("unexpected error on creating response: %v", err)
 		return
 	}
-	fmt.Printf("->%+v\n", res)
 	assert.Equal(t, "pkg:github/scanoss/ldb", res.Component.Purl)
 	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
 	assert.Equal(t, "No crypto found", res.Component.ErrorMessage)
@@ -374,20 +373,20 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	            "purl": "pkg:github/scanoss/ldbo",
 	            "requirement": ">v1.0.0",
 	            			"status": {
-					"status": "SUCCESS",
+					"statusCode": "SUCCESS",
 					"message": "purl not found"
 					}
 
 	        }
 	    ]}`
 
-	var noPurlInput dtos.CryptoInRangeOutput
+	var noPurlInput domain.CryptoInRangeOutput
 	err = json.Unmarshal([]byte(noPurlJson), &noPurlInput)
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
 	noPurlInput.Cryptography[0].Status.Error = cryptographyv2.ErrorCode_COMPONENT_NOT_FOUND.Enum()
-	noPurlInput.Cryptography[0].Status.Status = dtos.ComponentNotFound
+	noPurlInput.Cryptography[0].Status.StatusCode = domain.ComponentNotFound
 	noPurlInput.Cryptography[0].Status.Message = "No crypto found"
 	// Call the function under test
 	res, err = ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, noPurlInput)

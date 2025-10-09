@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 
 	"github.com/scanoss/papi/api/commonv2"
@@ -11,7 +12,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"scanoss.com/cryptography/pkg/dtos"
 )
 
 func TestAlgorithmsResponse(t *testing.T) {
@@ -31,7 +31,7 @@ func TestAlgorithmsResponse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name+"_ToAlgorithmResponse", func(t *testing.T) {
-			var input dtos.CryptoOutput
+			var input domain.CryptoOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -72,7 +72,7 @@ func TestAlgorithmsResponse(t *testing.T) {
 		})
 
 		t.Run(tc.Name+"_ToComponentsAlgorithmsResponse", func(t *testing.T) {
-			var input dtos.CryptoOutput
+			var input domain.CryptoOutput
 			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
 			if err != nil {
 				t.Fatalf("failed to parse request JSON: %v", err)
@@ -127,9 +127,9 @@ func TestComponentAlgorithmsResponse(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","version":"v5.4.5","requirement":">=v5.4.0","algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"status":"SUCCESS"}}]}`
+	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","version":"v5.4.5","requirement":">=v5.4.0","algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"statusCode":"SUCCESS"}}]}`
 
-	var input dtos.CryptoOutput
+	var input domain.CryptoOutput
 	err = json.Unmarshal([]byte(singleComponentJSON), &input)
 	if err != nil {
 		t.Fatalf("failed to parse request JSON: %v", err)
@@ -161,7 +161,7 @@ func TestAlgorithmsResponseNilInput(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
-	emptyInput := dtos.CryptoOutput{Cryptography: nil}
+	emptyInput := domain.CryptoOutput{Cryptography: nil}
 
 	_, err = ToAlgorithmResponse(ctx, zlog.S, emptyInput)
 	assert.Error(t, err)

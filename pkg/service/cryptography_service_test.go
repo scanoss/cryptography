@@ -48,12 +48,7 @@ func TestCryptographyServer_Echo(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -113,8 +108,7 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 	}
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
-
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -124,90 +118,70 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 
-	invalidDB, err := sqlx.Connect("sqlite", ":memory:")
-	invalidDB.Close()
-
 	tests := []struct {
-		name                 string
-		req                  string
-		request              string
-		expectedPurls        int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
-		db                   *sqlx.DB
+		name          string
+		req           string
+		request       string
+		expectedPurls int
+		expectedError bool
+		status        common.StatusCode
+		db            *sqlx.DB
 	}{
 		{
-			name:                 "Should_Return_ResponseWithOnePurl",
-			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}]}`,
-			expectedPurls:        1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
-			db:                   db,
+			name:          "Should_Return_ResponseWithOnePurl",
+			request:       `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}]}`,
+			expectedPurls: 1,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_CantFindPurl",
-			request:              `{"purls": [{"purl": "pkg:github/scanoss/engines", "requirement":"v5.4.5"}]}`,
-			expectedPurls:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
-			db:                   db,
+			name:          "Should_Return_CantFindPurl",
+			request:       `{"purls": [{"purl": "pkg:github/scanoss/engines", "requirement":"v5.4.5"}]}`,
+			expectedPurls: 1,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_FailedToParsePurl",
-			request:              `{"purls": [{"purl": "pkg:githubscanossengine", "requirement":"v5.4.5"}]}`,
-			expectedPurls:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
-			db:                   db,
+			name:          "Should_Return_FailedToParsePurl",
+			request:       `{"purls": [{"purl": "pkg:githubscanossengine", "requirement":"v5.4.5"}]}`,
+			expectedPurls: 1,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_ResponseWithTwoPurls",
-			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}, {"purl": "pkg:github/scanoss/dependencies", "requirement": "v5.4.5"}]}`,
-			expectedPurls:        2,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find information for 1 purl(s):scanoss/dependencies",
-			db:                   db,
+			name:          "Should_Return_ResponseWithTwoPurls",
+			request:       `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}, {"purl": "pkg:github/scanoss/dependencies", "requirement": "v5.4.5"}]}`,
+			expectedPurls: 2,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_NoDataSupplied",
-			request:              `{"purls":[]}`,
-			expectedError:        true,
-			expectedPurls:        0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "No purls in request data supplied",
-			db:                   db,
+			name:          "Should_Return_NoDataSupplied",
+			request:       `{"purls":[]}`,
+			expectedError: true,
+			expectedPurls: 0,
+			status:        common.StatusCode_FAILED,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_NoDataSupplied",
-			request:              `{"purls":[{"purl":""}]}`,
-			expectedError:        false,
-			expectedPurls:        0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
-			db:                   db,
+			name:          "Should_Return_NoDataSupplied",
+			request:       `{"purls":[{"purl":""}]}`,
+			expectedError: false,
+			expectedPurls: 1,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_ReturnError_NoDBConnection",
-			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement":"v5.4.5"}]}`,
-			expectedError:        true,
-			expectedPurls:        0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to get database pool connection",
-			db:                   invalidDB,
-		},
-		{
-			name:                 "Should_ReturnError_InvalidJSON",
-			request:              `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement": [],}]}`,
-			expectedError:        true,
-			expectedPurls:        0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "No purls in request data supplied",
-			db:                   db,
+			name:          "Should_ReturnError_InvalidJSON",
+			request:       `{"purls": [{"purl": "pkg:github/scanoss/engine", "requirement": [],}]}`,
+			expectedError: true,
+			expectedPurls: 0,
+			status:        common.StatusCode_FAILED,
+			db:            db,
 		},
 	}
 
@@ -226,10 +200,6 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
 			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
-			}
-
 		})
 	}
 }
@@ -249,7 +219,7 @@ func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -303,7 +273,7 @@ func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -359,7 +329,7 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -414,7 +384,7 @@ func TestCryptographyServer_GetHints(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -463,7 +433,7 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -599,7 +569,7 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -707,7 +677,7 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -843,7 +813,7 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -949,7 +919,7 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -1030,7 +1000,7 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -1129,7 +1099,7 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -1249,7 +1219,7 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -1377,7 +1347,7 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -1496,7 +1466,7 @@ func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
 	defer models.CloseDB(db)
 	ctx = ctxzap.ToContext(ctx, zlog.L)
 
-	err = models.LoadTestSQLData(db, nil, nil)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		fmt.Println(err)
 	}

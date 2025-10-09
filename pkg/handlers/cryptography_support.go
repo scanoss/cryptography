@@ -80,6 +80,9 @@ func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.Purl
 	for _, req := range dtoRequest.Purls {
 		components = append(components, buildComponentDTO(req.Purl, req.Requirement))
 	}
+	if len(components) == 0 {
+		return []dtos.ComponentDTO{}, errors.New("no components found in request")
+	}
 	return components, nil
 }
 
