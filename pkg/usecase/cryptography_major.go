@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Masterminds/semver/v3"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/domain"
@@ -73,11 +72,11 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageUrl.Type, c.Requirement)
 		if err != nil {
 			s.Debugf("Failed to get cryptographic algorithms: %v", err)
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()}
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
 		if len(res) == 0 {
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()}
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
 		var hashes []string
@@ -94,7 +93,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		// avoid duplicate algorithms
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
 		if len(uses) == 0 {
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", c.Purl), Error: pb.ErrorCode_NO_INFO.Enum()}
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", c.Purl)}
 			continue
 		}
 		fmt.Printf("USES %v\n", uses)

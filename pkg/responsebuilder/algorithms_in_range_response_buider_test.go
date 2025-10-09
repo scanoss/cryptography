@@ -350,7 +350,6 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
-	noCryptoInput.Cryptography[0].Status.Error = cryptographyv2.ErrorCode_NO_INFO.Enum()
 	noCryptoInput.Cryptography[0].Status.StatusCode = domain.ComponentWithoutInfo
 	noCryptoInput.Cryptography[0].Status.Message = "No crypto found"
 
@@ -385,7 +384,6 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
-	noPurlInput.Cryptography[0].Status.Error = cryptographyv2.ErrorCode_COMPONENT_NOT_FOUND.Enum()
 	noPurlInput.Cryptography[0].Status.StatusCode = domain.ComponentNotFound
 	noPurlInput.Cryptography[0].Status.Message = "No crypto found"
 	// Call the function under test

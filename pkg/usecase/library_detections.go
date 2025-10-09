@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/domain"
 	"sort"
@@ -80,7 +79,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 			out.Hints = append(out.Hints, domain.HintsOutputItem{
 				Purl: component.Purl, Version: "",
 				Requirement: component.Requirement,
-				Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+				Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 				Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -93,7 +92,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -104,7 +103,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -117,7 +116,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found: '%s'", component.Purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()},
+					Status:      domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -127,7 +126,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 				Purl:        component.Purl,
 				Version:     "",
 				Requirement: component.Requirement,
-				Status:      domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component with out  info: '%s'", component.Purl), Error: pb.ErrorCode_NO_INFO.Enum()},
+				Status:      domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component with out  info: '%s'", component.Purl)},
 				Detections:  []domain.ECDetectedItem{},
 			})
 			continue
@@ -226,13 +225,11 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 	componentStatus := domain.ComponentStatus{
 		StatusCode: domain.InvalidPurl,
 		Message:    fmt.Sprintf("Invalid purl: '%s'", component.Purl),
-		Error:      pb.ErrorCode_INVALID_PURL.Enum(),
 	}
 
 	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageUrl.Type, component.Requirement)
 	componentStatus.StatusCode = domain.ComponentNotFound
 	componentStatus.Message = fmt.Sprintf("Component not found '%s'", component.Purl)
-	componentStatus.Error = pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()
 	if err != nil {
 		s.Errorf("error getting urls for purl '%s': %s", component.Purl, err)
 		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
@@ -245,7 +242,6 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 	if len(hashes) == 0 {
 		componentStatus.StatusCode = domain.ComponentWithoutInfo
 		componentStatus.Message = fmt.Sprintf("Component without info '%s'", component.Purl)
-		componentStatus.Error = pb.ErrorCode_NO_INFO.Enum()
 		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
 	}
 	item.Status = domain.ComponentStatus{StatusCode: domain.Success}

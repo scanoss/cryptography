@@ -65,7 +65,7 @@ func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output domai
 		}
 		if component.Status.StatusCode != domain.Success {
 			compAlgorithms.ErrorMessage = &component.Status.Message
-			compAlgorithms.ErrorCode = component.Status.Error
+			compAlgorithms.ErrorCode = statusCodeToErrorCode(component.Status.StatusCode)
 		}
 		response.Purls = append(response.Purls, compAlgorithms)
 	}
@@ -94,7 +94,7 @@ func getComponentAlgorithms(cryptoOutputItem domain.CryptoOutputItem) *pb.Compon
 
 	if cryptoOutputItem.Status.StatusCode != domain.Success {
 		componentAlgorithms.ErrorMessage = &cryptoOutputItem.Status.Message
-		componentAlgorithms.ErrorCode = cryptoOutputItem.Status.Error
+		componentAlgorithms.ErrorCode = statusCodeToErrorCode(cryptoOutputItem.Status.StatusCode)
 	}
 	return componentAlgorithms
 }

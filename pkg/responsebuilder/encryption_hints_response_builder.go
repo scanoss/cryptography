@@ -64,7 +64,7 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.Hi
 		}
 		if hint.Status.StatusCode != domain.Success {
 			componentHints.ErrorMessage = &hint.Status.Message
-			componentHints.ErrorCode = hint.Status.Error
+			componentHints.ErrorCode = statusCodeToErrorCode(hint.Status.StatusCode)
 		}
 		response.Purls = append(response.Purls, componentHints)
 	}
@@ -96,7 +96,7 @@ func getComponentHints(output domain.HintsOutputItem) *pb.ComponentHints {
 	}
 	if output.Status.StatusCode != domain.Success {
 		componentHints.ErrorMessage = &output.Status.Message
-		componentHints.ErrorCode = output.Status.Error
+		componentHints.ErrorCode = statusCodeToErrorCode(output.Status.StatusCode)
 	}
 	return componentHints
 }

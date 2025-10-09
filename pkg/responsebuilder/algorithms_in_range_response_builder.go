@@ -78,7 +78,7 @@ func getAlgorithmsInRange(output domain.CryptoInRangeOutputItem) *pb.ComponentsA
 	}
 	if output.Status.StatusCode != domain.Success {
 		algorithmsInRange.ErrorMessage = &output.Status.Message
-		algorithmsInRange.ErrorCode = output.Status.Error
+		algorithmsInRange.ErrorCode = statusCodeToErrorCode(output.Status.StatusCode)
 	}
 	return algorithmsInRange
 }

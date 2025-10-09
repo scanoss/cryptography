@@ -18,12 +18,10 @@ package domain
 
 import (
 	"github.com/package-url/packageurl-go"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
 )
 
 type ComponentStatus struct {
 	Message    string
-	Error      *pb.ErrorCode // TODO: remove from internal
 	StatusCode StatusCode
 }
 

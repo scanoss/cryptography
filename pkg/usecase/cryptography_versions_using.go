@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/domain"
 	"sort"
 
@@ -67,6 +66,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		}
 		out.Versions = append(out.Versions, versionInRangeOutput)
 	}
+	fmt.Printf("OUT %v", out)
 
 	// Prepare purls to query
 	for i := range out.Versions {
@@ -76,7 +76,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageUrl.Type, component.Requirement)
 		if len(res) == 0 {
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl), Error: pb.ErrorCode_COMPONENT_NOT_FOUND.Enum()}
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl)}
 			continue
 		}
 		_ = errQ
@@ -91,11 +91,11 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err1)
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s"), Error: pb.ErrorCode_NO_INFO.Enum()}
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s")}
 			continue
 		}
 		if len(uses) == 0 {
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl), Error: pb.ErrorCode_NO_INFO.Enum()}
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
 			continue
 		}
 		for _, alg := range uses {

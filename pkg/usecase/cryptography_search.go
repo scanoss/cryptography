@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"scanoss.com/cryptography/pkg/domain"
 	"strings"
 
@@ -125,7 +124,6 @@ func (d CryptoUseCase) processUrls(urls []models.AllURL, componentCryptoMetadata
 				componentCryptoMetadata[i].Status = domain.ComponentStatus{
 					StatusCode: domain.ComponentNotFound,
 					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-					Error:      pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
 				}
 			}
 		}
@@ -157,7 +155,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
-					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl)},
 					ComponentName: "",
 					Requirement:   c.Requirement,
 					Version:       c.Version,
@@ -169,7 +167,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
-					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl)},
 					ComponentName: "",
 					Requirement:   c.Requirement,
 					Version:       c.Version,
@@ -183,7 +181,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			ComponentCryptoMetadata{
 				Purl:          c.Purl,
 				Version:       version,
-				Status:        domain.ComponentStatus{StatusCode: domain.Success, Message: "", Error: nil},
+				Status:        domain.ComponentStatus{StatusCode: domain.Success, Message: ""},
 				Requirement:   c.Requirement,
 				ComponentName: purlName,
 			})
@@ -224,7 +222,6 @@ func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMet
 				componentCryptoMetadata[i].Status = domain.ComponentStatus{
 					StatusCode: domain.ComponentNotFound,
 					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-					Error:      pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
 				}
 			}
 			componentCryptoMetadata[i].SelectedURLS = []models.AllURL{}
@@ -289,8 +286,7 @@ func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypt
 		if !foundInfo {
 			cryptoOutItem.Status = domain.ComponentStatus{
 				StatusCode: domain.ComponentWithoutInfo,
-				Message:    fmt.Sprintf("No info found for %s", q.Purl),
-				Error:      pb.ErrorCode_NO_INFO.Enum()}
+				Message:    fmt.Sprintf("No info found for %s", q.Purl)}
 		}
 		mapPurls[q.ComponentName] = foundInfo
 	}

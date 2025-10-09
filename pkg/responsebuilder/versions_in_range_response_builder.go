@@ -56,7 +56,7 @@ func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output
 		}
 		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = v.Status.Error
+			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
 		}
 		response.Purls = append(response.Purls, componentVersionsInRange)
 	}
@@ -97,7 +97,7 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 		}
 		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = v.Status.Error
+			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
 		}
 		response.Components = append(response.Components, componentVersionsInRange)
 	}
@@ -148,7 +148,7 @@ func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogge
 		}
 		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = v.Status.Error
+			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
 		}
 
 		response.Component = componentVersionsInRange
