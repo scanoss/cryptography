@@ -110,7 +110,7 @@ func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request
 // their associated algorithms.
 //
 // The response includes algorithm names and strength ratings for each component at the
-// specified version or requirement. Status codes indicate success or failure with
+// specified version or requirement. StatusCode codes indicate success or failure with
 // descriptive messages.
 //
 // Parameters:
@@ -153,7 +153,7 @@ func (c CryptographyAlgorithmHandler) GetComponentsAlgorithms(ctx context.Contex
 // (purl and version/requirement). It validates the request, queries the knowledge base,
 // and returns the algorithms associated with that component.
 //
-// The response includes algorithm names and strength ratings. Status codes indicate
+// The response includes algorithm names and strength ratings. StatusCode codes indicate
 // success or failure with descriptive messages.
 //
 // Parameters:

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
+	"scanoss.com/cryptography/pkg/domain"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -47,7 +48,7 @@ type ComponentCryptoMetadata struct {
 	ComponentName string
 	Requirement   string
 	Version       string
-	Status        dtos.ComponentStatus
+	Status        domain.ComponentStatus
 	SelectedURLS  []models.AllURL
 }
 
@@ -59,17 +60,17 @@ func NewCrypto(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoUseCase {
 }
 
 // GetComponentsAlgorithms takes a list of ComponentDTO objects, searches for cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (dtos.CryptoOutput, error) {
+func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.CryptoOutput, error) {
 	if len(components) == 0 {
 		s.Info("Empty List of Purls supplied")
-		return dtos.CryptoOutput{}, errors.New("empty list of purls")
+		return domain.CryptoOutput{}, errors.New("empty list of purls")
 	}
 	componentCryptoMetadata, mapPurls := d.processInputPurls(s, components)
 	s.Debugf("Component Cryptography Metadata: %v", componentCryptoMetadata)
 	// Only query with SUCCESS status components
 	var successPurlsToQuery []utils.PurlReq
 	for _, cm := range componentCryptoMetadata {
-		if cm.Status.Status == dtos.Success {
+		if cm.Status.StatusCode == domain.Success {
 			successPurlsToQuery = append(successPurlsToQuery, utils.PurlReq{
 				Purl:    cm.ComponentName,
 				Version: cm.Version,
@@ -93,13 +94,13 @@ func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 	purlMap := d.buildPurlMap(urls)
 	urlHashes, err := d.collectURLHashes(s, componentCryptoMetadata, purlMap)
 	if err != nil {
-		return dtos.CryptoOutput{}, err
+		return domain.CryptoOutput{}, err
 	}
 	var usage []models.CryptoUsage
 	if len(urlHashes) > 0 {
 		usage, err = d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, urlHashes)
 		if err != nil {
-			return dtos.CryptoOutput{}, errors.New("error retrieving url hashes")
+			return domain.CryptoOutput{}, errors.New("error retrieving url hashes")
 		}
 	}
 
@@ -117,14 +118,14 @@ func (d CryptoUseCase) processUrls(urls []models.AllURL, componentCryptoMetadata
 	}
 	// Update component metadata with matched URLs
 	for i := range componentCryptoMetadata {
-		if componentCryptoMetadata[i].Status.Status == dtos.Success {
+		if componentCryptoMetadata[i].Status.StatusCode == domain.Success {
 			if matchedUrls, found := urlsByPurl[componentCryptoMetadata[i].ComponentName]; found {
 				componentCryptoMetadata[i].SelectedURLS = matchedUrls
 			} else {
-				componentCryptoMetadata[i].Status = dtos.ComponentStatus{
-					Status:  dtos.ComponentNotFound,
-					Message: fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-					Error:   pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
+				componentCryptoMetadata[i].Status = domain.ComponentStatus{
+					StatusCode: domain.ComponentNotFound,
+					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
+					Error:      pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
 				}
 			}
 		}
@@ -156,7 +157,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
-					Status:        dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
 					ComponentName: "",
 					Requirement:   c.Requirement,
 					Version:       c.Version,
@@ -168,7 +169,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			componentCryptoMetadata = append(componentCryptoMetadata,
 				ComponentCryptoMetadata{
 					Purl:          c.Purl,
-					Status:        dtos.ComponentStatus{Status: dtos.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
+					Status:        domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Error while parsing %s", c.Purl), Error: pb.ErrorCode_INVALID_PURL.Enum()},
 					ComponentName: "",
 					Requirement:   c.Requirement,
 					Version:       c.Version,
@@ -182,7 +183,7 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 			ComponentCryptoMetadata{
 				Purl:          c.Purl,
 				Version:       version,
-				Status:        dtos.ComponentStatus{Status: dtos.Success, Message: "", Error: nil},
+				Status:        domain.ComponentStatus{StatusCode: domain.Success, Message: "", Error: nil},
 				Requirement:   c.Requirement,
 				ComponentName: purlName,
 			})
@@ -202,7 +203,7 @@ func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMet
 	var urlHashes []string
 	for i := range componentCryptoMetadata {
 		// Skip malformed components
-		if componentCryptoMetadata[i].Status.Status != dtos.Success {
+		if componentCryptoMetadata[i].Status.StatusCode != domain.Success {
 			continue
 		}
 
@@ -219,11 +220,11 @@ func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMet
 			}
 		} else {
 			// No URLs found for this component
-			if componentCryptoMetadata[i].Status.Status != dtos.ComponentNotFound {
-				componentCryptoMetadata[i].Status = dtos.ComponentStatus{
-					Status:  dtos.ComponentNotFound,
-					Message: fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-					Error:   pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
+			if componentCryptoMetadata[i].Status.StatusCode != domain.ComponentNotFound {
+				componentCryptoMetadata[i].Status = domain.ComponentStatus{
+					StatusCode: domain.ComponentNotFound,
+					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
+					Error:      pb.ErrorCode_COMPONENT_NOT_FOUND.Enum(),
 				}
 			}
 			componentCryptoMetadata[i].SelectedURLS = []models.AllURL{}
@@ -243,8 +244,8 @@ func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]m
 	return mapCrypto
 }
 
-func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutput {
-	output := dtos.CryptoOutput{}
+func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutput {
+	output := domain.CryptoOutput{}
 
 	for _, c := range componentCryptoMetadata {
 		item := d.buildCryptoOutputItem(c, mapCrypto, mapPurls)
@@ -253,11 +254,11 @@ func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCr
 	return output
 }
 
-func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutItem *dtos.CryptoOutputItem, algorithms map[string]bool) {
+func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutItem *domain.CryptoOutputItem, algorithms map[string]bool) {
 	for _, item := range items {
 		algKey := strings.ToLower(item.Algorithm)
 		if !algorithms[algKey] {
-			cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, dtos.CryptoUsageItem{
+			cryptoOutItem.Algorithms = append(cryptoOutItem.Algorithms, domain.CryptoUsageItem{
 				Algorithm: algKey,
 				Strength:  item.Strength,
 			})
@@ -266,15 +267,15 @@ func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutIte
 	}
 }
 
-func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) dtos.CryptoOutputItem {
-	cryptoOutItem := dtos.CryptoOutputItem{
+func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutputItem {
+	cryptoOutItem := domain.CryptoOutputItem{
 		Version:     q.Version,
 		Requirement: q.Requirement,
 		Purl:        q.Purl,
 		Status:      q.Status,
 	}
 
-	if q.Status.Status == dtos.Success {
+	if q.Status.StatusCode == domain.Success {
 		algorithms := make(map[string]bool)
 		foundInfo := false
 
@@ -286,10 +287,10 @@ func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypt
 		}
 		// Update status based on whether we found crypto info
 		if !foundInfo {
-			cryptoOutItem.Status = dtos.ComponentStatus{
-				Status:  dtos.ComponentWithoutInfo,
-				Message: fmt.Sprintf("No info found for %s", q.Purl),
-				Error:   pb.ErrorCode_NO_INFO.Enum()}
+			cryptoOutItem.Status = domain.ComponentStatus{
+				StatusCode: domain.ComponentWithoutInfo,
+				Message:    fmt.Sprintf("No info found for %s", q.Purl),
+				Error:      pb.ErrorCode_NO_INFO.Enum()}
 		}
 		mapPurls[q.ComponentName] = foundInfo
 	}

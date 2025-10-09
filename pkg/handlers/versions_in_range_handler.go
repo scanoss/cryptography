@@ -69,7 +69,7 @@ func (c VersionsInRangeHandler) GetVersionsInRange(ctx context.Context, request 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	// response.Status = statusResp
+	// response.StatusCode = statusResp
 	// telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }

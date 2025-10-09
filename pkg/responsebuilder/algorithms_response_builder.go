@@ -23,7 +23,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"net/http"
-	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
 
@@ -41,7 +41,7 @@ import (
 // Returns:
 //   - *pb.AlgorithmResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
-func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.AlgorithmResponse, error) {
+func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoOutput) (*pb.AlgorithmResponse, error) {
 	if output.Cryptography == nil {
 		return nil, errors.New("no cryptography found")
 	}
@@ -63,7 +63,7 @@ func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.
 			Version:    component.Version,
 			Algorithms: algorithms,
 		}
-		if component.Status.Status != dtos.Success {
+		if component.Status.StatusCode != domain.Success {
 			compAlgorithms.ErrorMessage = &component.Status.Message
 			compAlgorithms.ErrorCode = component.Status.Error
 		}
@@ -77,7 +77,7 @@ func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.
 	return response, nil
 }
 
-func getComponentAlgorithms(cryptoOutputItem dtos.CryptoOutputItem) *pb.ComponentAlgorithms {
+func getComponentAlgorithms(cryptoOutputItem domain.CryptoOutputItem) *pb.ComponentAlgorithms {
 	algorithms := make([]*pb.Algorithm, 0, len(cryptoOutputItem.Algorithms))
 	for _, alg := range cryptoOutputItem.Algorithms {
 		algorithms = append(algorithms, &pb.Algorithm{
@@ -92,7 +92,7 @@ func getComponentAlgorithms(cryptoOutputItem dtos.CryptoOutputItem) *pb.Componen
 		Algorithms:  algorithms,
 	}
 
-	if cryptoOutputItem.Status.Status != dtos.Success {
+	if cryptoOutputItem.Status.StatusCode != domain.Success {
 		componentAlgorithms.ErrorMessage = &cryptoOutputItem.Status.Message
 		componentAlgorithms.ErrorCode = cryptoOutputItem.Status.Error
 	}
@@ -117,7 +117,7 @@ func getComponentAlgorithms(cryptoOutputItem dtos.CryptoOutputItem) *pb.Componen
 // Returns:
 //   - *pb.ComponentsAlgorithmsResponse: Response containing all components with their algorithms and status
 //   - error: Non-nil if cryptography data is missing
-func ToComponentsAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
+func ToComponentsAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoOutput) (*pb.ComponentsAlgorithmsResponse, error) {
 	if output.Cryptography == nil {
 		return nil, errors.New("no cryptography found")
 	}
@@ -156,7 +156,7 @@ func ToComponentsAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, o
 // Returns:
 //   - *pb.ComponentAlgorithmsResponse: Response containing a single component with algorithms and status
 //   - error: Non-nil if cryptography data is missing
-func ToComponentAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
+func ToComponentAlgorithmsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoOutput) (*pb.ComponentAlgorithmsResponse, error) {
 	if output.Cryptography == nil {
 		return nil, errors.New("no cryptography found")
 	}

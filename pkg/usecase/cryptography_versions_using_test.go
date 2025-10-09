@@ -19,6 +19,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -86,7 +87,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	for _, v := range versions.Versions {
-		if v.Status.Status != dtos.InvalidPurl {
+		if v.Status.StatusCode != domain.InvalidPurl {
 			t.Fatalf("Expected to get failed to parse purl ")
 		}
 	}
@@ -98,7 +99,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	for _, v := range versions.Versions {
-		if v.Status.Status != dtos.InvalidSemver {
+		if v.Status.StatusCode != domain.InvalidSemver {
 			t.Fatalf("An invalid range error was expected")
 		}
 	}
@@ -118,7 +119,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	failedToParse := 0
 	for _, v := range versions.Versions {
-		if v.Status.Status != dtos.InvalidPurl {
+		if v.Status.StatusCode != domain.InvalidPurl {
 			failedToParse++
 		}
 	}
@@ -137,7 +138,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error was not expected")
 	}
 	for _, v := range versions.Versions {
-		if v.Status.Status != dtos.ComponentNotFound {
+		if v.Status.StatusCode != domain.ComponentNotFound {
 			t.Fatalf("Expected to get exactly one purl not found")
 		}
 	}
@@ -153,7 +154,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error was not expected")
 	}
 	for _, v := range versions.Versions {
-		if v.Status.Status != dtos.Success {
+		if v.Status.StatusCode != domain.Success {
 			t.Fatalf("Expected to get exactly one purl not found")
 		}
 	}
@@ -211,7 +212,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error not expected: %v", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.Status != dtos.Success {
+		if c.Status.StatusCode != domain.Success {
 			t.Fatalf("Expected to get exactly one purl")
 		}
 	}

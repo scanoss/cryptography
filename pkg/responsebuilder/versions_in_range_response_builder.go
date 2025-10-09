@@ -23,7 +23,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"net/http"
-	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
 
@@ -42,7 +42,7 @@ import (
 // Returns:
 //   - *pb.VersionsInRangeResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
-func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.VersionsInRangeResponse, error) {
+func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.VersionsInRangeOutput) (*pb.VersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
 	var response = &pb.VersionsInRangeResponse{
 		Purls:  make([]*pb.VersionsInRangeResponse_Purl, 0),
@@ -54,7 +54,7 @@ func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.Status != dtos.Success {
+		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
 			componentVersionsInRange.ErrorCode = v.Status.Error
 		}
@@ -83,7 +83,7 @@ func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output
 // Returns:
 //   - *pb.ComponentsVersionsInRangeResponse: Response containing all components with version data and status
 //   - error: Always returns nil error in current implementation
-func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
+func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.VersionsInRangeOutput) (*pb.ComponentsVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
 	var response = &pb.ComponentsVersionsInRangeResponse{
 		Components: make([]*pb.ComponentsVersionsInRangeResponse_Component, 0),
@@ -95,7 +95,7 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.Status != dtos.Success {
+		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
 			componentVersionsInRange.ErrorCode = v.Status.Error
 		}
@@ -130,7 +130,7 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 // Returns:
 //   - *pb.ComponentVersionsInRangeResponse: Response containing a single component with version data and status
 //   - error: Non-nil if version data is missing or empty
-func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
+func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
 	if (output.Versions == nil) || (len(output.Versions) == 0) {
 		return nil, errors.New("no versions found")
@@ -146,7 +146,7 @@ func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogge
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.Status != dtos.Success {
+		if v.Status.StatusCode != domain.Success {
 			componentVersionsInRange.ErrorMessage = &v.Status.Message
 			componentVersionsInRange.ErrorCode = v.Status.Error
 		}

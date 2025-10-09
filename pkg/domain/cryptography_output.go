@@ -14,24 +14,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dtos
+package domain
 
-import pb "github.com/scanoss/papi/api/cryptographyv2"
+import (
+	"github.com/package-url/packageurl-go"
+	pb "github.com/scanoss/papi/api/cryptographyv2"
+)
 
 type ComponentStatus struct {
-	Message string
-	Error   *pb.ErrorCode
-	Status  Status
+	Message    string
+	Error      *pb.ErrorCode
+	StatusCode StatusCode
 }
 
-type Status string
+type StatusCode string
 
 const (
-	ComponentNotFound    Status = "COMPONENT_NOT_FOUND"
-	InvalidPurl          Status = "INVALID_PURL"
-	ComponentWithoutInfo Status = "COMPONENT_WITHOUT_INFO"
-	Success              Status = "SUCCESS"
-	InvalidSemver        Status = "INVALID_SEMVER"
+	ComponentNotFound    StatusCode = "COMPONENT_NOT_FOUND"
+	InvalidPurl          StatusCode = "INVALID_PURL"
+	ComponentWithoutInfo StatusCode = "COMPONENT_WITHOUT_INFO"
+	Success              StatusCode = "SUCCESS"
+	InvalidSemver        StatusCode = "INVALID_SEMVER"
 )
 
 type CryptoOutput struct {
@@ -56,11 +59,13 @@ type CryptoInRangeOutput struct {
 }
 
 type CryptoInRangeOutputItem struct {
-	Purl        string            `json:"purl"`
-	Requirement string            `json:"requirement"`
-	Versions    []string          `json:"versions"`
-	Algorithms  []CryptoUsageItem `json:"algorithms"`
-	Status      ComponentStatus   `json:"status"`
+	Purl        string                 `json:"purl"`
+	Requirement string                 `json:"requirement"`
+	Versions    []string               `json:"versions"`
+	Algorithms  []CryptoUsageItem      `json:"algorithms"`
+	Status      ComponentStatus        `json:"status"`
+	PackageUrl  *packageurl.PackageURL `json:"package_url"`
+	PurlName    *string                `json:"purl_name"`
 }
 
 type VersionsInRangeOutput struct {
@@ -68,8 +73,11 @@ type VersionsInRangeOutput struct {
 }
 
 type VersionsInRangeUsingCryptoItem struct {
-	Purl            string          `json:"purl"`
-	Status          ComponentStatus `json:"status"`
-	VersionsWith    []string        `json:"versions_with"`
-	VersionsWithout []string        `json:"versions_without"`
+	Purl            string                 `json:"purl"`
+	Status          ComponentStatus        `json:"status"`
+	VersionsWith    []string               `json:"versions_with"`
+	VersionsWithout []string               `json:"versions_without"`
+	Requirement     string                 `json:"requirement"`
+	PackageUrl      *packageurl.PackageURL `json:"package_url"`
+	PurlName        *string                `json:"purl_name"`
 }

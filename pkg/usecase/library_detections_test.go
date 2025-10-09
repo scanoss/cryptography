@@ -18,6 +18,7 @@ package usecase
 
 import (
 	"context"
+	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -63,7 +64,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("the error '%v' was not expected when getting Hints", err)
 	}
 	for _, h := range libraries.Hints {
-		if h.Status.Status != dtos.Success {
+		if h.Status.StatusCode != domain.Success {
 			t.Fatalf("Expected to get a success status")
 		}
 	}
@@ -78,8 +79,8 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 	for _, h := range libraries.Hints {
-		if h.Status.Status != dtos.InvalidSemver {
-			t.Fatalf("Expected to get invalid semver status, get %s", h.Status.Status)
+		if h.Status.StatusCode != domain.InvalidSemver {
+			t.Fatalf("Expected to get invalid semver status, get %s", h.Status.StatusCode)
 		}
 	}
 
@@ -95,7 +96,7 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 	for _, h := range libraries.Hints {
-		if h.Status.Status != dtos.ComponentWithoutInfo {
+		if h.Status.StatusCode != domain.ComponentWithoutInfo {
 			t.Fatalf("Expected to not find information for purl")
 		}
 	}
@@ -138,7 +139,7 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Errorf("Did not receive expected version (5.4.7 expected and received %s)", libraries.Hints[0].Version)
 	}
 	for _, c := range libraries.Hints {
-		if c.Status.Status != dtos.Success {
+		if c.Status.StatusCode != domain.Success {
 			t.Fatalf("Expected to get at least 1 Hint")
 		}
 	}
@@ -177,7 +178,7 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 	for _, c := range libraries.Hints {
-		if c.Status.Status != dtos.ComponentWithoutInfo {
+		if c.Status.StatusCode != domain.ComponentWithoutInfo {
 			t.Fatalf("Expected to not find information for purl")
 		}
 	}
@@ -217,7 +218,7 @@ func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
 	}
 
 	for _, c := range libraries.Hints {
-		if c.Status.Status != dtos.InvalidPurl {
+		if c.Status.StatusCode != domain.InvalidPurl {
 			t.Fatalf("Expected to fail parsing 1 purl")
 		}
 	}

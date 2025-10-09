@@ -14,17 +14,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dtos
+package domain
+
+import (
+	"github.com/package-url/packageurl-go"
+)
 
 type ECOutput struct {
 	Hints []ECOutputItem `json:"purls"`
 }
 
 type ECOutputItem struct {
-	Purl       string           `json:"purl"`
-	Versions   []string         `json:"versions"`
-	Detections []ECDetectedItem `json:"hints"`
-	Status     ComponentStatus  `json:"status"`
+	Purl        string                 `json:"purl"`
+	Versions    []string               `json:"versions"`
+	Detections  []ECDetectedItem       `json:"hints"`
+	Status      ComponentStatus        `json:"status"`
+	Requirement string                 `json:"requirement"`
+	PackageUrl  *packageurl.PackageURL `json:"package_url"`
+	PurlName    *string                `json:"purl_name"`
 }
 
 type ECDetectedItem struct {

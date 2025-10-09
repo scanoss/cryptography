@@ -286,7 +286,7 @@ func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("Status message does not match")
+		t.Errorf("StatusCode message does not match")
 	}
 }
 func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
@@ -340,7 +340,7 @@ func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("Status message does not match")
+		t.Errorf("StatusCode message does not match")
 	}
 }
 
@@ -396,7 +396,7 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("Status message does not match")
+		t.Errorf("StatusCode message does not match")
 	}
 }
 

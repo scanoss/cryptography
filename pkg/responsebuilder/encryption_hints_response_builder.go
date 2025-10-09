@@ -22,7 +22,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"net/http"
-	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
 
@@ -40,7 +40,7 @@ import (
 // Returns:
 //   - *pb.HintsResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
-func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.HintsResponse, error) {
+func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.HintsOutput) (*pb.HintsResponse, error) {
 	var response = &pb.HintsResponse{
 		Purls:  make([]*pb.HintsResponse_Purls, 0, len(output.Hints)),
 		Status: &common.StatusResponse{},
@@ -62,7 +62,7 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.Hint
 			Version: hint.Version,
 			Hints:   hints,
 		}
-		if hint.Status.Status != dtos.Success {
+		if hint.Status.StatusCode != domain.Success {
 			componentHints.ErrorMessage = &hint.Status.Message
 			componentHints.ErrorCode = hint.Status.Error
 		}
@@ -76,7 +76,7 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.Hint
 	return response, nil
 }
 
-func getComponentHints(output dtos.HintsOutputItem) *pb.ComponentHints {
+func getComponentHints(output domain.HintsOutputItem) *pb.ComponentHints {
 	hints := make([]*pb.Hint, 0, len(output.Detections))
 	for _, detection := range output.Detections {
 		hints = append(hints, &pb.Hint{
@@ -94,7 +94,7 @@ func getComponentHints(output dtos.HintsOutputItem) *pb.ComponentHints {
 		Requirement: output.Requirement,
 		Hints:       hints,
 	}
-	if output.Status.Status != dtos.Success {
+	if output.Status.StatusCode != domain.Success {
 		componentHints.ErrorMessage = &output.Status.Message
 		componentHints.ErrorCode = output.Status.Error
 	}
@@ -119,7 +119,7 @@ func getComponentHints(output dtos.HintsOutputItem) *pb.ComponentHints {
 // Returns:
 //   - *pb.ComponentsEncryptionHintsResponse: Response containing all components with their hints and status
 //   - error: Non-nil if hints data is missing
-func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
+func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.HintsOutput) (*pb.ComponentsEncryptionHintsResponse, error) {
 	var response = &pb.ComponentsEncryptionHintsResponse{
 		Components: make([]*pb.ComponentHints, 0, len(output.Hints)),
 		Status:     &common.StatusResponse{},
@@ -154,7 +154,7 @@ func ToComponentsEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogg
 // Returns:
 //   - *pb.ComponentEncryptionHintsResponse: Response containing a single component with hints and status
 //   - error: Non-nil if hints data is missing
-func ToComponentEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
+func ToComponentEncryptionHintsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.HintsOutput) (*pb.ComponentEncryptionHintsResponse, error) {
 	var response = &pb.ComponentEncryptionHintsResponse{
 		Component: &pb.ComponentHints{},
 		Status:    &common.StatusResponse{},

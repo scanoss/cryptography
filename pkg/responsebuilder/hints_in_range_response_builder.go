@@ -22,7 +22,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"net/http"
-	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
 
@@ -40,7 +40,7 @@ import (
 // Returns:
 //   - *pb.HintsInRangeResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
-func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.HintsInRangeResponse, error) {
+func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.ECOutput) (*pb.HintsInRangeResponse, error) {
 	var response = &pb.HintsInRangeResponse{
 		Status: &common.StatusResponse{},
 		Purls:  make([]*pb.HintsInRangeResponse_Purl, 0, len(output.Hints)),
@@ -63,7 +63,7 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dt
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.Status != dtos.Success {
+			if hint.Status.StatusCode != domain.Success {
 				componentHintsInRange.ErrorMessage = &hint.Status.Message
 				componentHintsInRange.ErrorCode = hint.Status.Error
 			}
@@ -93,7 +93,7 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dt
 // Returns:
 //   - *pb.ComponentsHintsInRangeResponse: Response containing all components with their hints and status
 //   - error: Non-nil if hints data is missing or empty
-func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
+func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.ECOutput) (*pb.ComponentsHintsInRangeResponse, error) {
 	var response = &pb.ComponentsHintsInRangeResponse{
 		Status:     &common.StatusResponse{},
 		Components: make([]*pb.ComponentsHintsInRangeResponse_Component, 0, len(output.Hints)),
@@ -116,7 +116,7 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.Status != dtos.Success {
+			if hint.Status.StatusCode != domain.Success {
 				componentHintsInRange.ErrorMessage = &hint.Status.Message
 				componentHintsInRange.ErrorCode = hint.Status.Error
 			}
@@ -153,7 +153,7 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 // Returns:
 //   - *pb.ComponentHintsInRangeResponse: Response containing a single component with hints and status
 //   - error: Non-nil if hints data is missing or empty
-func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
+func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.ECOutput) (*pb.ComponentHintsInRangeResponse, error) {
 	var response = &pb.ComponentHintsInRangeResponse{
 		Status:    &common.StatusResponse{},
 		Component: &pb.ComponentHintsInRangeResponse_Component{},
@@ -176,7 +176,7 @@ func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, 
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.Status != dtos.Success {
+			if hint.Status.StatusCode != domain.Success {
 				componentHintsInRange.ErrorMessage = &hint.Status.Message
 				componentHintsInRange.ErrorCode = hint.Status.Error
 			}

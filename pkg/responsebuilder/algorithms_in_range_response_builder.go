@@ -24,7 +24,7 @@ import (
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
 	"net/http"
-	"scanoss.com/cryptography/pkg/dtos"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
 
@@ -42,7 +42,7 @@ import (
 // Returns:
 //   - *pb.AlgorithmsInRangeResponse: The formatted protobuf response with status
 //   - error: Non-nil if marshalling/unmarshalling fails
-func ToAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.AlgorithmsInRangeResponse, error) {
+func ToAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoInRangeOutput) (*pb.AlgorithmsInRangeResponse, error) {
 	data, err := json.Marshal(output)
 
 	if err != nil {
@@ -63,7 +63,7 @@ func ToAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, outp
 	return &response, nil
 }
 
-func getAlgorithmsInRange(output dtos.CryptoInRangeOutputItem) *pb.ComponentsAlgorithmsInRangeResponse_Component {
+func getAlgorithmsInRange(output domain.CryptoInRangeOutputItem) *pb.ComponentsAlgorithmsInRangeResponse_Component {
 	var algorithms = make([]*pb.Algorithm, 0, len(output.Algorithms))
 	for _, alg := range output.Algorithms {
 		algorithms = append(algorithms, &pb.Algorithm{
@@ -76,7 +76,7 @@ func getAlgorithmsInRange(output dtos.CryptoInRangeOutputItem) *pb.ComponentsAlg
 		Versions:   output.Versions,
 		Algorithms: algorithms,
 	}
-	if output.Status.Status != dtos.Success {
+	if output.Status.StatusCode != domain.Success {
 		algorithmsInRange.ErrorMessage = &output.Status.Message
 		algorithmsInRange.ErrorCode = output.Status.Error
 	}
@@ -100,7 +100,7 @@ func getAlgorithmsInRange(output dtos.CryptoInRangeOutputItem) *pb.ComponentsAlg
 // Returns:
 //   - *pb.ComponentsAlgorithmsInRangeResponse: Response containing all components with their algorithms and status
 //   - error: Non-nil if cryptography data is missing or empty
-func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
+func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
 	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
 		return nil, errors.New("no cryptography found")
@@ -138,7 +138,7 @@ func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLo
 // Returns:
 //   - *pb.ComponentAlgorithmsInRangeResponse: Response containing a single component with algorithms and status
 //   - error: Non-nil if cryptography data is missing or empty
-func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output dtos.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
 	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
 		return nil, errors.New("no cryptography found")
@@ -155,7 +155,7 @@ func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLog
 			Purl:       algorithmsInRange.Purl,
 			Algorithms: algorithmsInRange.Algorithms,
 		}
-		if *algorithmsInRange.ErrorMessage != "" {
+		if c.Status.StatusCode != domain.Success {
 			algorithmInRangeComponent.ErrorCode = *algorithmsInRange.ErrorCode
 			algorithmInRangeComponent.ErrorMessage = *algorithmsInRange.ErrorMessage
 		}
