@@ -112,7 +112,7 @@ func (c HintsRangeHandler) GetComponentHintsInRange(ctx context.Context, request
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get hints in range...")
-	errorResp := rejectIfInvalid(ctx, s, request,
+	errorResp := rejectIfInvalidRange(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentHintsInRangeResponse {
 			return &pb.ComponentHintsInRangeResponse{Status: status}
 		})

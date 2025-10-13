@@ -162,3 +162,23 @@ func validateComponentRequest(request *common.ComponentRequest) error {
 	}
 	return nil
 }
+
+// validateComponentRequestRange validates that a ComponentRequest contains required fields.
+//
+// This function ensures that the request is non-nil and contains a non-empty purl field.
+// It is used as a guard clause before processing single component requests.
+//
+// Parameters:
+//   - request: ComponentRequest to validate
+//
+// Returns:
+//   - error: Non-nil if request is nil or purl is empty, nil if validation passes
+func validateComponentRequestRange(request *common.ComponentRequest) error {
+	if request == nil || request.Purl == "" {
+		return errors.New("no purl supplied. A PURL is required")
+	}
+	if request.Requirement == "" {
+		return errors.New("no requirement supplied. A requirement is required")
+	}
+	return nil
+}

@@ -87,3 +87,33 @@ func rejectIfInvalid[T any](ctx context.Context, s *zap.SugaredLogger, request *
 	}
 	return zero
 }
+
+// rejectIfInvalid validates a single ComponentRequest with generic error handling.
+//
+// This generic function validates a ComponentRequest and implements the guard clause pattern.
+// It uses Go generics to support any response type, making it reusable across all handler
+// methods that accept a single component.
+//
+// If the request is valid, it returns the zero value of type T, which signals to the caller
+// that processing can continue. If validation fails, it creates an error response using the
+// provided createResponse function and sets HTTP 400 (Bad Request) in the gRPC trailer.
+//
+// Parameters:
+//   - ctx: Context for setting HTTP status codes in gRPC trailers
+//   - s: Structured logger for error logging
+//   - request: ComponentRequest to validate
+//   - createResponse: Function to construct typed error response from StatusResponse
+//
+// Returns:
+//   - T: Either zero value (valid request) or error response (invalid request) of generic type T
+func rejectIfInvalidRange[T any](ctx context.Context, s *zap.SugaredLogger, request *common.ComponentRequest, createResponse func(*common.StatusResponse) T) T {
+	var zero T
+	err := validateComponentRequestRange(request)
+	if err != nil {
+		s.Errorf("rejectIfInvalid: %v, %v", request, err)
+		httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusBadRequest)
+		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: err.Error()}
+		return createResponse(&statusResp)
+	}
+	return zero
+}

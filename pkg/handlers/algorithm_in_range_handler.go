@@ -113,7 +113,7 @@ func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Conte
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component algorithms request...")
-	errorResp := rejectIfInvalid(ctx, s, request,
+	errorResp := rejectIfInvalidRange(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentAlgorithmsInRangeResponse {
 			return &pb.ComponentAlgorithmsInRangeResponse{Status: status}
 		})

@@ -112,7 +112,7 @@ func (c VersionsInRangeHandler) GetComponentVersionsInRange(ctx context.Context,
 	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get versions in range...")
-	errorResp := rejectIfInvalid(ctx, s, request,
+	errorResp := rejectIfInvalidRange(ctx, s, request,
 		func(status *common.StatusResponse) *pb.ComponentVersionsInRangeResponse {
 			return &pb.ComponentVersionsInRangeResponse{Status: status}
 		})
