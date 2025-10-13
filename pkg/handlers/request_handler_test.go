@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package service
+package handlers
 
 import (
 	"context"
@@ -188,6 +188,86 @@ func Test_handleComponentRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResponse := rejectIfInvalid(ctx, s, tt.request, createResponseFunc)
+
+			if tt.expectError {
+				if gotResponse == nil {
+					t.Errorf("rejectIfInvalid() expected response but got nil")
+					return
+				}
+				if gotResponse.status != tt.wantResponse.status {
+					t.Errorf("rejectIfInvalid() response status = %v, want %v", gotResponse.status, tt.wantResponse.status)
+				}
+				if gotResponse.message != tt.wantResponse.message {
+					t.Errorf("rejectIfInvalid() response message = %v, want %v", gotResponse.message, tt.wantResponse.message)
+				}
+			} else {
+				if gotResponse != nil {
+					t.Errorf("rejectIfInvalid() expected nil response but got %v", gotResponse)
+				}
+			}
+		})
+	}
+}
+
+func Test_handleComponentRequestRange(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("failed to initialize logger: %v", err)
+	}
+	defer zlog.SyncZap()
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
+	s := ctxzap.Extract(ctx).Sugar()
+
+	createResponseFunc := func(statusResp *common.StatusResponse) *mockStatusResponse {
+		return &mockStatusResponse{
+			status:  statusResp.Status,
+			message: statusResp.Message,
+		}
+	}
+
+	tests := []struct {
+		name         string
+		request      *common.ComponentRequest
+		wantResponse *mockStatusResponse
+		expectError  bool
+	}{
+		{
+			name: "valid component request",
+			request: &common.ComponentRequest{
+				Purl:        "pkg:npm/react",
+				Requirement: "^17.0.0",
+			},
+			wantResponse: nil,
+			expectError:  false,
+		},
+		{
+			name:         "nil request",
+			request:      nil,
+			wantResponse: &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
+			expectError:  true,
+		},
+		{
+			name: "empty purl component request",
+			request: &common.ComponentRequest{
+				Purl:        "",
+				Requirement: "^17.0.0",
+			},
+			wantResponse: &mockStatusResponse{status: common.StatusCode_FAILED, message: "no purl supplied. A PURL is required"},
+			expectError:  true,
+		},
+		{
+			name: "empty requirement",
+			request: &common.ComponentRequest{
+				Purl: "pkg:npm/react",
+			},
+			wantResponse: &mockStatusResponse{status: common.StatusCode_FAILED, message: "no requirement supplied. A requirement is required"},
+			expectError:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResponse := rejectIfInvalidRange(ctx, s, tt.request, createResponseFunc)
 
 			if tt.expectError {
 				if gotResponse == nil {

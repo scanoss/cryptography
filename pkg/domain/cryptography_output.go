@@ -14,7 +14,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dtos
+package domain
+
+import (
+	"github.com/package-url/packageurl-go"
+)
+
+type ComponentStatus struct {
+	Message    string
+	StatusCode StatusCode
+}
+
+type StatusCode string
+
+const (
+	ComponentNotFound    StatusCode = "COMPONENT_NOT_FOUND"
+	InvalidPurl          StatusCode = "INVALID_PURL"
+	ComponentWithoutInfo StatusCode = "COMPONENT_WITHOUT_INFO"
+	Success              StatusCode = "SUCCESS"
+	InvalidSemver        StatusCode = "INVALID_SEMVER"
+)
 
 type CryptoOutput struct {
 	Cryptography []CryptoOutputItem `json:"purls"`
@@ -24,6 +43,7 @@ type CryptoOutputItem struct {
 	Purl        string            `json:"purl"`
 	Version     string            `json:"version"`
 	Requirement string            `json:"requirement"`
+	Status      ComponentStatus   `json:"status"`
 	Algorithms  []CryptoUsageItem `json:"algorithms"`
 }
 
@@ -37,9 +57,13 @@ type CryptoInRangeOutput struct {
 }
 
 type CryptoInRangeOutputItem struct {
-	Purl       string            `json:"purl"`
-	Versions   []string          `json:"versions"`
-	Algorithms []CryptoUsageItem `json:"algorithms"`
+	Purl        string                 `json:"purl"`
+	Requirement string                 `json:"requirement"`
+	Versions    []string               `json:"versions"`
+	Algorithms  []CryptoUsageItem      `json:"algorithms"`
+	Status      ComponentStatus        `json:"status"`
+	PackageURL  *packageurl.PackageURL `json:"package_url"`
+	PurlName    *string                `json:"purl_name"`
 }
 
 type VersionsInRangeOutput struct {
@@ -47,7 +71,11 @@ type VersionsInRangeOutput struct {
 }
 
 type VersionsInRangeUsingCryptoItem struct {
-	Purl            string   `json:"purl"`
-	VersionsWith    []string `json:"versions_with"`
-	VersionsWithout []string `json:"versions_without"`
+	Purl            string                 `json:"purl"`
+	Status          ComponentStatus        `json:"status"`
+	VersionsWith    []string               `json:"versions_with"`
+	VersionsWithout []string               `json:"versions_without"`
+	Requirement     string                 `json:"requirement"`
+	PackageURL      *packageurl.PackageURL `json:"package_url"`
+	PurlName        *string                `json:"purl_name"`
 }

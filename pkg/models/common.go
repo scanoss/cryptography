@@ -29,16 +29,14 @@ import (
 )
 
 // loadSQLData Load the specified SQL files into the supplied DB.
-func loadSQLData(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, filename string) error {
+func loadSQLData(db *sqlx.DB, ctx context.Context, filename string) error {
 	fmt.Printf("Loading test data file: %v\n", filename)
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-	if conn != nil {
-		_, err = conn.ExecContext(ctx, string(file))
-	} else {
-		_, err = db.Exec(string(file))
+	if db != nil {
+		_, err = db.ExecContext(ctx, string(file))
 	}
 	if err != nil {
 		return err
@@ -47,25 +45,22 @@ func loadSQLData(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, filename str
 }
 
 // LoadTestSQLData loads all the required test SQL files.
-func LoadTestSQLData(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn) error {
+func LoadTestSQLData(db *sqlx.DB, ctx context.Context) error {
 	files := []string{"../models/tests/mines.sql", "../models/tests/all_urls.sql", "../models/tests/versions.sql",
 		"../models/tests/component_crypto.sql", "../models/tests/component_crypto_libraries.sql",
 		"../models/tests/crypto_libraries.sql"}
-	return loadTestSQLDataFiles(db, ctx, conn, files)
+	return loadTestSQLDataFiles(db, ctx, files)
 }
 
-func RunTestSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
-	return runSQL(db, ctx, conn, stm)
+func RunTestSQL(db *sqlx.DB, ctx context.Context, stm string) error {
+	return runSQL(db, ctx, stm)
 }
 
-func runSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
+func runSQL(db *sqlx.DB, ctx context.Context, stm string) error {
 	fmt.Printf("Running %+v\n", stm)
-
 	var err error
-	if conn != nil {
-		_, err = conn.ExecContext(ctx, stm)
-	} else {
-		_, err = db.Exec(stm)
+	if db != nil {
+		_, err = db.ExecContext(ctx, stm)
 	}
 	if err != nil {
 		return err
@@ -74,9 +69,9 @@ func runSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error
 }
 
 // loadTestSQLDataFiles loads a list of test SQL files.
-func loadTestSQLDataFiles(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, files []string) error {
+func loadTestSQLDataFiles(db *sqlx.DB, ctx context.Context, files []string) error {
 	for _, file := range files {
-		err := loadSQLData(db, ctx, conn, file)
+		err := loadSQLData(db, ctx, file)
 		if err != nil {
 			return err
 		}
@@ -91,15 +86,6 @@ func sqliteSetup(t *testing.T) *sqlx.DB {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	return db
-}
-
-// sqliteConn sets up a connection to a test DB.
-func sqliteConn(t *testing.T, ctx context.Context, db *sqlx.DB) *sqlx.Conn {
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	return conn
 }
 
 // CloseDB closes the specified DB and logs any errors.

@@ -18,114 +18,131 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
-	"strings"
-
-	"scanoss.com/cryptography/pkg/utils"
 
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	myconfig "scanoss.com/cryptography/pkg/config"
+	"scanoss.com/cryptography/pkg/domain"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 )
 
 type ECDetectionUseCase struct {
-	ctx     context.Context
-	s       *zap.SugaredLogger
-	conn    *sqlx.Conn
-	allUrls *models.AllUrlsModel
-	usage   *models.ECUsageModel
+	allUrls    *models.AllUrlsModel
+	usageModel *models.ECUsageModel
 }
 
-func NewECDetection(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *ECDetectionUseCase {
-	return &ECDetectionUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls: models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		usage:   models.NewECUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseCase {
+	return &ECDetectionUseCase{
+		allUrls:    models.NewAllURLModel(db),
+		usageModel: models.NewECUsageModel(db),
 	}
 }
 
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d ECDetectionUseCase) GetDetectionsInRange(components []dtos.ComponentDTO) (dtos.ECOutput, models.QuerySummary, error) {
-	if len(components) == 0 {
-		d.s.Info("Empty List of Purls supplied")
-		return dtos.ECOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.ECOutput, error) {
+	out := domain.ECOutput{}
+	for _, component := range components {
+		status, packageURL, purlName := parseAndValidateComponent(s, component)
+		hintOutputItem := domain.ECOutputItem{
+			Purl:        component.Purl,
+			Status:      status,
+			Detections:  []domain.ECDetectedItem{},
+			Requirement: component.Requirement,
+			PackageURL:  packageURL,
+			PurlName:    purlName,
+		}
+		out.Hints = append(out.Hints, hintOutputItem)
 	}
 
-	out := dtos.ECOutput{}
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
-
-	for _, component := range components {
-		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
-			d.s.Warnf("requirement should include version range or major and wildcard")
+	for i, component := range out.Hints {
+		if component.Status.StatusCode != domain.Success {
 			continue
 		}
-		if component.Requirement != "" {
-			if !utils.IsValidRequirement(component.Requirement) {
-				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", component.Purl, component.Requirement))
-				continue
-			}
-		}
-
-		if item, ok := d.processSinglePurl(component, &summary); ok {
-			out.Hints = append(out.Hints, *item)
-		}
+		item := d.processSinglePurl(ctx, s, component)
+		out.Hints[i] = item
 	}
-
-	return out, summary, nil
+	return out, nil
 }
 
 // GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
-func (d ECDetectionUseCase) GetDetections(components []dtos.ComponentDTO) (dtos.HintsOutput, models.QuerySummary, error) {
-	if len(components) == 0 {
-		d.s.Info("Empty List of Purls supplied")
-		return dtos.HintsOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
-	}
-	out := dtos.HintsOutput{}
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
+func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.HintsOutput, error) {
+	out := domain.HintsOutput{}
 	// Prepare purls to query
 	for _, component := range components {
 		purl, err := purlhelper.PurlFromString(component.Purl)
 		if err != nil {
-			//	d.s.Logf("Failed to parse purl '%s': %s", reqPurl.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
+			out.Hints = append(out.Hints, domain.HintsOutputItem{
+				Purl: component.Purl, Version: "",
+				Requirement: component.Requirement,
+				Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+				Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
 
 		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
+			out.Hints = append(out.Hints,
+				domain.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameType(purlName, purl.Type, component.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, component.Requirement)
 		if errQ != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
+			out.Hints = append(out.Hints,
+				domain.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
-		item := dtos.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement}
-		uses, err1 := d.usage.GetLibraryUsageByURLHashes([]string{res.URLHash})
+
+		uses, err1 := d.usageModel.GetLibraryUsageByURLHashes(ctx, s, []string{res.URLHash})
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", component.Purl, err)
+			s.Errorf("error getting algorithms usage for purl '%s': %s", component.Purl, err)
+			out.Hints = append(out.Hints,
+				domain.HintsOutputItem{
+					Purl:        component.Purl,
+					Version:     "",
+					Requirement: component.Requirement,
+					Status:      domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found: '%s'", component.Purl)},
+					Detections:  []domain.ECDetectedItem{}})
+			continue
 		}
+
+		if len(uses) == 0 {
+			out.Hints = append(out.Hints, domain.HintsOutputItem{
+				Purl:        component.Purl,
+				Version:     "",
+				Requirement: component.Requirement,
+				Status:      domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component with out  info: '%s'", component.Purl)},
+				Detections:  []domain.ECDetectedItem{},
+			})
+			continue
+		}
+
 		// avoid duplicate detections (if any)
 		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
+		item := domain.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: domain.ComponentStatus{StatusCode: domain.Success}}
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
 				nonDupAlgorithms[alg.ID] = true
 				item.Detections = append(item.Detections,
-					dtos.ECDetectedItem{ID: alg.ID,
+					domain.ECDetectedItem{ID: alg.ID,
 						Name:        alg.Name,
 						Description: alg.Description,
 						URL:         alg.URL,
@@ -133,17 +150,14 @@ func (d ECDetectionUseCase) GetDetections(components []dtos.ComponentDTO) (dtos.
 						Purl:        alg.Purl})
 			}
 		}
-		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, component.Purl)
-		}
 		out.Hints = append(out.Hints, item)
 	}
-	return out, summary, nil
+	return out, nil
 }
 
 // processURLResults handles the processing of URL results and creates an ECOutputItem.
-func (d ECDetectionUseCase) processURLResults(res []models.AllURL, componentDTO dtos.ComponentDTO) (dtos.ECOutputItem, []string) {
-	item := dtos.ECOutputItem{Purl: componentDTO.Purl, Versions: []string{}}
+func (d ECDetectionUseCase) processURLResults(ctx context.Context, s *zap.SugaredLogger, res []models.AllURL, component domain.ECOutputItem) (domain.ECOutputItem, []string) {
+	item := domain.ECOutputItem{Purl: component.Purl, Versions: []string{}}
 	hashes := make([]string, 0)
 	mapVersionHash := make(map[string]string)
 
@@ -154,14 +168,14 @@ func (d ECDetectionUseCase) processURLResults(res []models.AllURL, componentDTO 
 		}
 	}
 
-	return item, d.processUsages(hashes, mapVersionHash, &item)
+	return item, d.processUsages(ctx, s, hashes, mapVersionHash, &item)
 }
 
 // processUsages handles library usage processing and returns hashes.
-func (d ECDetectionUseCase) processUsages(hashes []string, mapVersionHash map[string]string, item *dtos.ECOutputItem) []string {
-	uses, err := d.usage.GetLibraryUsageByURLHashes(hashes)
+func (d ECDetectionUseCase) processUsages(ctx context.Context, s *zap.SugaredLogger, hashes []string, mapVersionHash map[string]string, item *domain.ECOutputItem) []string {
+	uses, err := d.usageModel.GetLibraryUsageByURLHashes(ctx, s, hashes)
 	if err != nil {
-		d.s.Errorf("error getting algorithms usage for purl '%s': %s", item.Purl, err)
+		s.Errorf("error getting algorithms usage for purl '%s': %s", item.Purl, err)
 		return hashes
 	}
 	// If a library has no usages, return empty hashes
@@ -176,7 +190,7 @@ func (d ECDetectionUseCase) processUsages(hashes []string, mapVersionHash map[st
 		nonDupVersions[mapVersionHash[alg.URLHash]] = true
 		if _, exist := nonDupAlgorithms[alg.ID]; !exist {
 			nonDupAlgorithms[alg.ID] = true
-			item.Detections = append(item.Detections, dtos.ECDetectedItem{
+			item.Detections = append(item.Detections, domain.ECDetectedItem{
 				ID:          alg.ID,
 				Name:        alg.Name,
 				Description: alg.Description,
@@ -208,35 +222,29 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 }
 
 // processSinglePurl processes a single PURL and returns whether to continue processing.
-func (d ECDetectionUseCase) processSinglePurl(componentDTO dtos.ComponentDTO, summary *models.QuerySummary) (*dtos.ECOutputItem, bool) {
-	purl, err := purlhelper.PurlFromString(componentDTO.Purl)
-	if err != nil {
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
-		return nil, false
+func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, component domain.ECOutputItem) domain.ECOutputItem {
+	componentStatus := domain.ComponentStatus{
+		StatusCode: domain.InvalidPurl,
+		Message:    fmt.Sprintf("Invalid purl: '%s'", component.Purl),
 	}
 
-	purlName, err := purlhelper.PurlNameFromString(componentDTO.Purl)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
+	componentStatus.StatusCode = domain.ComponentNotFound
+	componentStatus.Message = fmt.Sprintf("Component not found '%s'", component.Purl)
 	if err != nil {
-		d.s.Errorf("Failed to parse purl '%s': %s", componentDTO.Purl, err)
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
-		return nil, false
-	}
-
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, componentDTO.Requirement, summary)
-	if err != nil {
-		summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, componentDTO.Purl)
-		return nil, false
+		s.Errorf("error getting urls for purl '%s': %s", component.Purl, err)
+		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
 	}
 
 	if len(res) == 0 {
-		summary.PurlsNotFound = append(summary.PurlsNotFound, componentDTO.Purl)
-		return nil, false
+		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
 	}
-
-	item, hashes := d.processURLResults(res, componentDTO)
+	item, hashes := d.processURLResults(ctx, s, res, component)
 	if len(hashes) == 0 {
-		summary.PurlsWOInfo = append(summary.PurlsWOInfo, componentDTO.Purl)
+		componentStatus.StatusCode = domain.ComponentWithoutInfo
+		componentStatus.Message = fmt.Sprintf("Component without info '%s'", component.Purl)
+		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
 	}
-
-	return &item, true
+	item.Status = domain.ComponentStatus{StatusCode: domain.Success}
+	return item
 }

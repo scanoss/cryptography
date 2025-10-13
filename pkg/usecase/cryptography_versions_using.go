@@ -21,75 +21,64 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
-	"scanoss.com/cryptography/pkg/utils"
+	"scanoss.com/cryptography/pkg/domain"
 
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 
 	"github.com/jmoiron/sqlx"
-	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 )
 
 type VersionsUsingCrypto struct {
-	ctx         context.Context
 	s           *zap.SugaredLogger
-	conn        *sqlx.Conn
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
 
-func NewVersionsUsingCrypto(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *VersionsUsingCrypto {
-	return &VersionsUsingCrypto{ctx: ctx, s: s, conn: conn,
-		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+func NewVersionsUsingCrypto(db *sqlx.DB, config *myconfig.ServerConfig) *VersionsUsingCrypto {
+	return &VersionsUsingCrypto{
+		allUrls:     models.NewAllURLModel(db),
+		cryptoUsage: models.NewCryptoUsageModel(db),
 	}
 }
 
 // GetVersionsInRangeUsingCrypto takes the Crypto Input request, searches for Cryptographic and return versions that use and does not use crypto.
-func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.ComponentDTO) (dtos.VersionsInRangeOutput, models.QuerySummary, error) {
+func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.VersionsInRangeOutput, error) {
 	if len(components) == 0 {
 		d.s.Info("Empty List of Purls supplied")
-		return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+		return domain.VersionsInRangeOutput{}, errors.New("empty list of purls")
 	}
-	out := dtos.VersionsInRangeOutput{}
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
-	// Prepare purls to query
+	out := domain.VersionsInRangeOutput{}
 	for _, component := range components {
-		purl, err := purlhelper.PurlFromString(component.Purl)
-		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, component.Purl)
+		status, packageURL, purlName := parseAndValidateComponent(s, component)
+		versionInRangeOutput := domain.VersionsInRangeUsingCryptoItem{
+			Purl:            component.Purl,
+			Status:          status,
+			Requirement:     component.Requirement,
+			VersionsWith:    []string{},
+			VersionsWithout: []string{},
+			PackageURL:      packageURL,
+			PurlName:        purlName,
+		}
+		out.Versions = append(out.Versions, versionInRangeOutput)
+	}
+	fmt.Printf("OUT %v", out)
+
+	// Prepare purls to query
+	for i := range out.Versions {
+		component := &out.Versions[i]
+		if component.Status.StatusCode != domain.Success {
 			continue
 		}
-		if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-			return dtos.VersionsInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
-		}
-
-		if component.Requirement != "" {
-			if !utils.IsValidRequirement(component.Requirement) {
-				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", component.Purl, component.Requirement))
-				continue
-			}
-		}
-
-		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
-		if err != nil {
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, purl.Name)
-			continue
-		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, component.Requirement, &summary)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
 		if len(res) == 0 {
-			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl)}
 			continue
 		}
-
 		_ = errQ
-		item := dtos.VersionsInRangeUsingCryptoItem{Purl: component.Purl, VersionsWith: []string{}, VersionsWithout: []string{}}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
 		mapVersionHash := make(map[string]string)
@@ -98,28 +87,28 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(components []dtos.Com
 			mapVersionHash[url.URLHash] = url.SemVer
 			nonDupVersions[url.SemVer] = false
 		}
-		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
-			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err)
+			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err1)
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
+			continue
 		}
-
+		if len(uses) == 0 {
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
+			continue
+		}
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 		}
 		for k, v := range nonDupVersions {
 			if v {
-				item.VersionsWith = append(item.VersionsWith, k)
+				component.VersionsWith = append(component.VersionsWith, k)
 			} else {
-				item.VersionsWithout = append(item.VersionsWithout, k)
+				component.VersionsWithout = append(component.VersionsWithout, k)
 			}
 		}
-		sort.Strings(item.VersionsWith)
-		sort.Strings(item.VersionsWithout)
-
-		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, component.Purl)
-		}
-		out.Versions = append(out.Versions, item)
+		sort.Strings(component.VersionsWith)
+		sort.Strings(component.VersionsWithout)
 	}
-	return out, summary, nil
+	return out, nil
 }

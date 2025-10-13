@@ -116,6 +116,74 @@ func TestParseCryptoInput(t *testing.T) {
 			expectedOutput: CryptoInput{},
 			expectedErr:    true,
 		},
+		{
+			name: "Should_ParseSuccessfully_WhenMultiplePurlsProvided",
+			input: []byte(
+				`{ "purls": [
+								{
+									"purl": "pkg:github/scanoss/engine",
+									"requirement":"v5.4.5"
+								},
+								{
+									"purl": "pkg:npm/lodash",
+									"requirement":">=4.0.0"
+								},
+								{
+									"purl": "pkg:pypi/requests"
+								}
+							]
+				}`),
+			expectedOutput: CryptoInput{
+				Purls: []CryptoInputItem{
+					{
+						Purl:        "pkg:github/scanoss/engine",
+						Requirement: "v5.4.5",
+					},
+					{
+						Purl:        "pkg:npm/lodash",
+						Requirement: ">=4.0.0",
+					},
+					{
+						Purl: "pkg:pypi/requests",
+					},
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:           "Should_ParseSuccessfully_WhenPurlsArrayIsEmpty",
+			input:          []byte(`{"purls": []}`),
+			expectedOutput: CryptoInput{Purls: []CryptoInputItem{}},
+			expectedErr:    false,
+		},
+		{
+			name:           "Should_ParseSuccessfully_WhenPurlsFieldIsMissing",
+			input:          []byte(`{}`),
+			expectedOutput: CryptoInput{},
+			expectedErr:    false,
+		},
+		{
+			name: "Should_ParseSuccessfully_WhenExtraFieldsArePresent",
+			input: []byte(
+				`{ "purls": [
+								{
+									"purl": "pkg:github/scanoss/engine",
+									"requirement":"v5.4.5",
+									"extra_field": "should be ignored"
+								}
+							],
+							"metadata": "should also be ignored"
+				}`),
+			expectedOutput: CryptoInput{
+				Purls: []CryptoInputItem{
+					{
+						Purl:        "pkg:github/scanoss/engine",
+						Requirement: "v5.4.5",
+					},
+				},
+			},
+			expectedErr: false,
+		},
 	}
 
 	for _, test := range tests {

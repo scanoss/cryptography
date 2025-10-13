@@ -4,6 +4,31 @@
 ### Added
 - Upcoming changes...
 
+## [0.8.0] - 2025-10-13
+### Added
+- Added telemetry request time in cryptography handlers
+- Added documentation
+
+### Changed
+- Enhanced response handling with detailed error messages and status codes for:
+  - Encryption hints block responses
+  - Hints in range block responses
+  - Versions in range block responses
+  - Algorithms in range responses
+  - Algorithms block responses
+- Refactored handlers for improved code quality:
+  - Encryption hints handler
+  - Hints in range handler
+  - Version in range handler
+  - Cryptography in range handler
+- Implemented response builder package
+- Removed duplicated validation code shared by ranges endpoints
+- Removed protobuf error code from ComponentStatus domain struct
+
+### Updated
+- Upgraded scanoss/papi dependency to v0.25.1
+
+
 ## [0.7.1] - 2025-10-02
 ### Bug
 - Fixed response status for batch operations
@@ -68,6 +93,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.8.0]: https://github.com/scanoss/cryptography/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/scanoss/cryptography/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scanoss/cryptography/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scanoss/cryptography/compare/v0.5.0...v0.6.0

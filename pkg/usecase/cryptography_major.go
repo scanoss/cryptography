@@ -21,115 +21,99 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
-
-	"scanoss.com/cryptography/pkg/utils"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
+	"scanoss.com/cryptography/pkg/domain"
 
 	"github.com/jmoiron/sqlx"
-	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 )
 
 type CryptoMajorUseCase struct {
-	ctx         context.Context
-	s           *zap.SugaredLogger
-	conn        *sqlx.Conn
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
 
-func NewCryptoMajor(ctx context.Context, s *zap.SugaredLogger, conn *sqlx.Conn, config *myconfig.ServerConfig) *CryptoMajorUseCase {
-	return &CryptoMajorUseCase{ctx: ctx, s: s, conn: conn,
-		allUrls:     models.NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
-		cryptoUsage: models.NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, config.Database.Trace)),
+func NewCryptoMajor(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoMajorUseCase {
+	return &CryptoMajorUseCase{
+		allUrls:     models.NewAllURLModel(db),
+		cryptoUsage: models.NewCryptoUsageModel(db),
 	}
 }
 
 // GetCryptoInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
-func (d CryptoMajorUseCase) GetCryptoInRange(components []dtos.ComponentDTO) (dtos.CryptoInRangeOutput, models.QuerySummary, error) {
+func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.CryptoInRangeOutput, error) {
 	if len(components) == 0 {
-		d.s.Info("Empty List of Purls supplied")
-		return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("empty list of purls")
+		s.Info("Empty List of Purls supplied")
+		return domain.CryptoInRangeOutput{}, errors.New("empty list of purls")
 	}
-	out := dtos.CryptoInRangeOutput{}
-	summary := models.QuerySummary{}
-	summary.TotalPurls = len(components)
+	out := domain.CryptoInRangeOutput{}
+	for _, component := range components {
+		status, packageURL, purlName := parseAndValidateComponent(s, component)
+		cryptoItem := domain.CryptoInRangeOutputItem{
+			Status:      status,
+			Purl:        component.Purl,
+			Requirement: component.Requirement,
+			Versions:    []string{},
+			Algorithms:  []domain.CryptoUsageItem{},
+			PackageURL:  packageURL,
+			PurlName:    purlName,
+		}
+		out.Cryptography = append(out.Cryptography, cryptoItem)
+	}
 	// Prepare purls to query
-	for _, c := range components {
-		purl, err := purlhelper.PurlFromString(c.Purl)
-		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+	for i := range out.Cryptography {
+		c := &out.Cryptography[i]
+		if c.Status.StatusCode != domain.Success {
 			continue
 		}
-		if c.Requirement == "*" || strings.HasPrefix(c.Requirement, "v*") {
-			return dtos.CryptoInRangeOutput{}, models.QuerySummary{}, errors.New("requirement should include version range or major and wildcard")
-		}
-
-		if c.Requirement != "" {
-			if !utils.IsValidRequirement(c.Requirement) {
-				summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, fmt.Sprintf("purl: %s , requirement: %s", c.Purl, c.Requirement))
-				continue
-			}
-		}
-
-		purlName, err := purlhelper.PurlNameFromString(c.Purl) // Make sure we just have the bare minimum for a Purl Name
+		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageURL.Type, c.Requirement)
 		if err != nil {
-			d.s.Errorf("Failed to parse purl '%s': %s", c.Purl, err)
-			summary.PurlsFailedToParse = append(summary.PurlsFailedToParse, c.Purl)
+			s.Debugf("Failed to get cryptographic algorithms: %v", err)
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(purlName, purl.Type, c.Requirement, &summary)
 		if len(res) == 0 {
-			summary.PurlsNotFound = append(summary.PurlsNotFound, purlName)
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
-		_ = errQ
-		item := dtos.CryptoInRangeOutputItem{Purl: c.Purl, Versions: []string{}}
 		var hashes []string
 		nonDupVersions := make(map[string]bool)
-
 		mapVersionHash := make(map[string]string)
 		for _, url := range res {
 			hashes = append(hashes, url.URLHash)
 			mapVersionHash[url.URLHash] = url.SemVer
 		}
-		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(hashes)
+		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
-			d.s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
+			s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
 		}
 		// avoid duplicate algorithms
-		fmt.Printf("USES %v", uses)
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
+		if len(uses) == 0 {
+			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", c.Purl)}
+			continue
+		}
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
 				nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
-				item.Algorithms = append(item.Algorithms, dtos.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
+				c.Algorithms = append(c.Algorithms, domain.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
 		for k := range nonDupVersions {
-			item.Versions = append(item.Versions, k)
+			c.Versions = append(c.Versions, k)
 		}
 
-		sort.Slice(item.Versions, func(i, j int) bool {
-			versionA, _ := semver.NewVersion(item.Versions[i])
-			versionB, _ := semver.NewVersion(item.Versions[j])
+		sort.Slice(c.Versions, func(j, k int) bool {
+			versionA, _ := semver.NewVersion(c.Versions[j])
+			versionB, _ := semver.NewVersion(c.Versions[k])
 
 			return versionA.LessThan(versionB)
 		})
-
-		if len(uses) == 0 {
-			summary.PurlsWOInfo = append(summary.PurlsWOInfo, c.Purl)
-		}
-
-		out.Cryptography = append(out.Cryptography, item)
 	}
-	return out, summary, nil
+	return out, nil
 }

@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 )
@@ -36,9 +35,7 @@ func TestECSearchUsage(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -48,20 +45,19 @@ func TestECSearchUsage(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 
-	cum := NewECUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	usage, err := cum.GetLibraryUsageByURLHashes([]string{"c8b569083fe8d7b94ad429c445800253"})
+	cum := NewECUsageModel(db)
+	usage, err := cum.GetLibraryUsageByURLHashes(ctx, s, []string{"c8b569083fe8d7b94ad429c445800253"})
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
 	if len(usage) == 0 {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
 	}
-	_, err = cum.GetLibraryUsageByURLHashes([]string{})
+	_, err = cum.GetLibraryUsageByURLHashes(ctx, s, []string{})
 	if err == nil {
 		t.Errorf("Expected to get an error on empy list")
 	}
-	_, err = cum.GetLibraryUsageByURLHashes([]string{"", ""})
+	_, err = cum.GetLibraryUsageByURLHashes(ctx, s, []string{"", ""})
 	if err == nil {
 		t.Errorf(" Expected to get an error on full list of empty urls")
 	}

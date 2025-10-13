@@ -18,6 +18,7 @@ package usecase
 
 import (
 	"context"
+	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -42,12 +43,7 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer models.CloseDB(db)
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer models.CloseConn(conn)
-	err = models.LoadTestSQLData(db, ctx, conn)
+	err = models.LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -56,58 +52,58 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	cryptoUc := NewCrypto(ctx, s, conn, myConfig)
+	cryptoUc := NewCrypto(db, myConfig)
 	var componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:github/scanoss/engine",
 		},
 	}
-	algorithms, summary, err := cryptoUc.GetComponentsAlgorithms(componentDTOS)
+	algorithms, err := cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
-	t.Logf("Algorithms: %v", algorithms)
-
-	if len(algorithms.Cryptography[0].Algorithms) == 0 ||
-		len(summary.PurlsFailedToParse) > 0 ||
-		len(summary.PurlsWOInfo) > 0 ||
-		len(summary.PurlsNotFound) > 0 {
-		t.Fatalf("Expected to get at least 1 algorithm")
+	for _, c := range algorithms.Cryptography {
+		if c.Status.StatusCode != domain.Success {
+			t.Fatalf("Expected to get at least 1 algorithm")
+		}
 	}
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:npm/",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
-	if len(summary.PurlsFailedToParse) == 0 {
-		t.Fatalf("did not get an expected purl failed to parse")
+	algorithms, err = cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
+	for _, c := range algorithms.Cryptography {
+		if c.Status.StatusCode != domain.InvalidPurl {
+			t.Fatalf("did not get an expected purl failed to parse")
+		}
 	}
 	// t.Logf("Got expected error: %+v\n", err)
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl:        "pkg:github/scanoss/engine",
 			Requirement: "v5.9.0",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
-
-	if len(summary.PurlsFailedToParse) != 0 {
-		t.Fatalf("did not get an expected purl failed to parse")
+	algorithms, err = cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
+	for _, c := range algorithms.Cryptography {
+		if c.Status.StatusCode == domain.InvalidPurl {
+			t.Fatalf("did not get an expected purl failed to parse")
+		}
 	}
 
 	componentDTOS = []dtos.ComponentDTO{
-		dtos.ComponentDTO{
+		{
 			Purl: "pkg:github/scanoss/engines",
 		},
 	}
-	algorithms, summary, err = cryptoUc.GetComponentsAlgorithms(componentDTOS)
-	t.Logf("%+v - %v\n", summary, err)
+	algorithms, err = cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
-
-	if len(summary.PurlsNotFound) == 0 {
-		t.Fatalf("Expected to not found a purl")
+	for _, c := range algorithms.Cryptography {
+		if c.Status.StatusCode != domain.ComponentNotFound {
+			t.Fatalf("Expected to not found a purl")
+		}
 	}
 }
