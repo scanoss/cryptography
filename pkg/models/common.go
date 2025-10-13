@@ -37,8 +37,6 @@ func loadSQLData(db *sqlx.DB, ctx context.Context, filename string) error {
 	}
 	if db != nil {
 		_, err = db.ExecContext(ctx, string(file))
-	} else {
-		_, err = db.Exec(string(file))
 	}
 	if err != nil {
 		return err
@@ -63,8 +61,6 @@ func runSQL(db *sqlx.DB, ctx context.Context, stm string) error {
 	var err error
 	if db != nil {
 		_, err = db.ExecContext(ctx, stm)
-	} else {
-		_, err = db.Exec(stm)
 	}
 	if err != nil {
 		return err
@@ -90,15 +86,6 @@ func sqliteSetup(t *testing.T) *sqlx.DB {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	return db
-}
-
-// sqliteConn sets up a connection to a test DB.
-func sqliteConn(t *testing.T, ctx context.Context, db *sqlx.DB) *sqlx.Conn {
-	conn, err := db.Connx(ctx) // Get a connection from the pool
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	return conn
 }
 
 // CloseDB closes the specified DB and logs any errors.

@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type ECUsageModel struct {

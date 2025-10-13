@@ -19,6 +19,8 @@ package handlers
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -27,7 +29,6 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
-	"time"
 )
 
 // CryptographyAlgorithmHandler handles gRPC requests for cryptographic algorithm information.
@@ -52,7 +53,7 @@ type CryptographyAlgorithmHandler struct {
 // Returns:
 //   - *CryptographyAlgorithmHandler: Initialized handler ready to process requests
 func NewCryptographyAlgorithmHandler(db *sqlx.DB, config *myconfig.ServerConfig) *CryptographyAlgorithmHandler {
-	//setupMetrics()
+	// setupMetrics()
 	return &CryptographyAlgorithmHandler{
 		config:        config,
 		cryptoUseCase: *usecase.NewCrypto(db, config),
@@ -100,7 +101,7 @@ func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request
 	response, err := responsebuilder.ToAlgorithmResponse(ctx, s, output)
 	if err != nil {
 		statusResp := &common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
-		return &pb.AlgorithmResponse{Status: statusResp}, nil
+		return &pb.AlgorithmResponse{Status: statusResp}, nil //nolint:nilerr
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil

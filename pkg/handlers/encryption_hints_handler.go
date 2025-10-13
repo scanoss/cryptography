@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -28,7 +30,6 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
-	"time"
 )
 
 type EncryptionHintsHandler struct {
@@ -38,7 +39,7 @@ type EncryptionHintsHandler struct {
 
 // NewEncryptionHintsHandler creates a new instance of EncryptionHintsHandler.
 func NewEncryptionHintsHandler(db *sqlx.DB, config *myconfig.ServerConfig) *EncryptionHintsHandler {
-	//setupMetrics()
+	// setupMetrics()
 	return &EncryptionHintsHandler{
 		config:                 config,
 		encryptionHintsUseCase: *usecase.NewECDetection(db, config),

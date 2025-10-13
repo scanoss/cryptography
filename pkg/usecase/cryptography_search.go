@@ -20,8 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/domain"
 	"strings"
+
+	"scanoss.com/cryptography/pkg/domain"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/package-url/packageurl-go"
@@ -87,11 +88,7 @@ func (d CryptoUseCase) GetComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 		}
 		d.processUrls(urls, componentCryptoMetadata)
 	}
-
-	// summary.PurlsNotFound = append(summary.PurlsNotFound, urlSummary.PurlsNotFound...)
-
-	purlMap := d.buildPurlMap(urls)
-	urlHashes, err := d.collectURLHashes(s, componentCryptoMetadata, purlMap)
+	urlHashes, err := d.collectURLHashes(s, componentCryptoMetadata)
 	if err != nil {
 		return domain.CryptoOutput{}, err
 	}
@@ -189,15 +186,15 @@ func (d CryptoUseCase) processInputPurls(s *zap.SugaredLogger, components []dtos
 	return componentCryptoMetadata, mapPurls
 }
 
-func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.AllURL {
+/*func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.AllURL {
 	purlMap := make(map[string][]models.AllURL)
 	for _, url := range urls {
 		purlMap[url.PurlName] = append(purlMap[url.PurlName], url)
 	}
 	return purlMap
-}
+}*/
 
-func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMetadata []ComponentCryptoMetadata, purlMap map[string][]models.AllURL) ([]string, error) {
+func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMetadata []ComponentCryptoMetadata) ([]string, error) {
 	var urlHashes []string
 	for i := range componentCryptoMetadata {
 		// Skip malformed components
@@ -241,7 +238,8 @@ func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]m
 	return mapCrypto
 }
 
-func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutput {
+func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata,
+	mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutput {
 	output := domain.CryptoOutput{}
 
 	for _, c := range componentCryptoMetadata {

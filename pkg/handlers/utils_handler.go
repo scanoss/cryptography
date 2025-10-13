@@ -18,8 +18,9 @@ package handlers
 
 import (
 	"context"
-	myconfig "scanoss.com/cryptography/pkg/config"
 	"time"
+
+	myconfig "scanoss.com/cryptography/pkg/config"
 )
 
 // telemetryRequestTime records cryptographic algorithm request duration to OpenTelemetry.

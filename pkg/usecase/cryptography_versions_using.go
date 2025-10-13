@@ -20,8 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/domain"
 	"sort"
+
+	"scanoss.com/cryptography/pkg/domain"
 
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
@@ -32,9 +33,7 @@ import (
 )
 
 type VersionsUsingCrypto struct {
-	ctx         context.Context
 	s           *zap.SugaredLogger
-	conn        *sqlx.Conn
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
@@ -61,7 +60,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 			Requirement:     component.Requirement,
 			VersionsWith:    []string{},
 			VersionsWithout: []string{},
-			PackageUrl:      packageURL,
+			PackageURL:      packageURL,
 			PurlName:        purlName,
 		}
 		out.Versions = append(out.Versions, versionInRangeOutput)
@@ -74,7 +73,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		if component.Status.StatusCode != domain.Success {
 			continue
 		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageUrl.Type, component.Requirement)
+		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
 		if len(res) == 0 {
 			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl)}
 			continue

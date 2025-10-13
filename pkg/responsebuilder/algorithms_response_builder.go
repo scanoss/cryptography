@@ -19,10 +19,11 @@ package responsebuilder
 import (
 	"context"
 	"errors"
+	"net/http"
+
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
-	"net/http"
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )

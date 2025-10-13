@@ -336,7 +336,7 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		         {
 		            "purl": "pkg:github/scanoss/ldb",
 		            "requirement": ">v1.0.0",
-		            			"status": {
+					"status": {
 						"statusCode": "NO_INFO",
 						"message": "No crypto found",
 						"error_message": ""
@@ -361,8 +361,10 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	}
 	assert.Equal(t, "pkg:github/scanoss/ldb", res.Component.Purl)
 	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
-	assert.Equal(t, "No crypto found", res.Component.ErrorMessage)
-	assert.Equal(t, *cryptographyv2.ErrorCode_NO_INFO.Enum(), res.Component.ErrorCode)
+	assert.NotNil(t, res.Component.ErrorMessage)
+	assert.Equal(t, "No crypto found", *res.Component.ErrorMessage)
+	assert.NotNil(t, res.Component.ErrorCode)
+	assert.Equal(t, commonv2.ErrorCode_NO_INFO, *res.Component.ErrorCode)
 	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
 	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
 	//--------------------------------------- Purl not found ------------------------------------
@@ -372,7 +374,7 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	            "purl": "pkg:github/scanoss/ldbo",
 	            "requirement": ">v1.0.0",
 	            			"status": {
-					"statusCode": "SUCCESS",
+					"statusCode": "COMPONENT_NOT_FOUND",
 					"message": "purl not found"
 					}
 
@@ -385,17 +387,19 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
 	noPurlInput.Cryptography[0].Status.StatusCode = domain.ComponentNotFound
-	noPurlInput.Cryptography[0].Status.Message = "No crypto found"
+	noPurlInput.Cryptography[0].Status.Message = "purl not found"
 	// Call the function under test
 	res, err = ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, noPurlInput)
 	if err != nil {
 		t.Errorf("unexpected error on creating response: %v", err)
 		return
 	}
-	assert.Equal(t, res.Component.Purl, "pkg:github/scanoss/ldbo")
-	assert.Equal(t, res.Component.Algorithms, []*cryptographyv2.Algorithm{})
-	assert.Equal(t, res.Component.ErrorMessage, "No crypto found")
-	assert.Equal(t, res.Component.ErrorCode, *cryptographyv2.ErrorCode_COMPONENT_NOT_FOUND.Enum())
-	assert.Equal(t, res.Status.Status, commonv2.StatusCode_SUCCESS)
-	assert.Equal(t, res.Status.Message, "Algorithms in range retrieved successfully.")
+	assert.Equal(t, "pkg:github/scanoss/ldbo", res.Component.Purl)
+	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
+	assert.NotNil(t, res.Component.ErrorMessage)
+	assert.Equal(t, "purl not found", *res.Component.ErrorMessage)
+	assert.NotNil(t, res.Component.ErrorCode)
+	assert.Equal(t, commonv2.ErrorCode_COMPONENT_NOT_FOUND, *res.Component.ErrorCode)
+	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
+	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
 }

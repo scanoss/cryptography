@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -28,7 +30,6 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
-	"time"
 )
 
 type HintsRangeHandler struct {
@@ -38,7 +39,7 @@ type HintsRangeHandler struct {
 
 // NewHintsInRangeHandler creates a new instance of HintsRangeHandler.
 func NewHintsInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *HintsRangeHandler {
-	//setupMetrics()
+	// setupMetrics()
 	return &HintsRangeHandler{
 		config:              config,
 		hintsInRangeUseCase: *usecase.NewECDetection(db, config),
@@ -133,5 +134,4 @@ func (c HintsRangeHandler) GetComponentHintsInRange(ctx context.Context, request
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
-
 }

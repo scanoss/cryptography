@@ -30,7 +30,7 @@ type ECOutputItem struct {
 	Detections  []ECDetectedItem       `json:"hints"`
 	Status      ComponentStatus        `json:"status"`
 	Requirement string                 `json:"requirement"`
-	PackageUrl  *packageurl.PackageURL `json:"package_url"`
+	PackageURL  *packageurl.PackageURL `json:"package_url"`
 	PurlName    *string                `json:"purl_name"`
 }
 

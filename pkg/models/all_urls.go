@@ -20,10 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 	"sort"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 
 	"github.com/Masterminds/semver/v3"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"

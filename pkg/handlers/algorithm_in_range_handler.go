@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -28,7 +30,6 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
-	"time"
 )
 
 type AlgorithmInRangeHandler struct {
@@ -38,7 +39,7 @@ type AlgorithmInRangeHandler struct {
 
 // NewAlgorithmInRangeHandler creates a new instance of AlgorithmInRangeHandler.
 func NewAlgorithmInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *AlgorithmInRangeHandler {
-	//setupMetrics()
+	// setupMetrics()
 	return &AlgorithmInRangeHandler{
 		config:             config,
 		CryptoMajorUseCase: *usecase.NewCryptoMajor(db, config),
@@ -123,7 +124,6 @@ func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Conte
 	output, err := c.CryptoMajorUseCase.GetCryptoInRange(ctx, s, []dtos.ComponentDTO{{Purl: request.Purl, Requirement: request.Requirement}})
 	if err != nil {
 		s.Errorf("Failed to get cryptographic algorithms: %v", err)
-
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: fmt.Sprintf("%v", err)}
 		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
@@ -135,5 +135,4 @@ func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Conte
 	}
 	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
-
 }

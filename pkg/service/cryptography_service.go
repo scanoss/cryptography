@@ -19,6 +19,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -40,7 +41,7 @@ type cryptographyServer struct {
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
-	//setupMetrics()
+	// setupMetrics()
 	return &cryptographyServer{db: db, config: config,
 		algorithmHandler:        handlers.NewCryptographyAlgorithmHandler(db, config),
 		algorithmInRangeHandler: handlers.NewAlgorithmInRangeHandler(db, config),

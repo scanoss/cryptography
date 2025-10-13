@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
-	"net/http"
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/httphelper"
 )
@@ -156,8 +157,8 @@ func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLog
 			Algorithms: algorithmsInRange.Algorithms,
 		}
 		if c.Status.StatusCode != domain.Success {
-			algorithmInRangeComponent.ErrorCode = *algorithmsInRange.ErrorCode
-			algorithmInRangeComponent.ErrorMessage = *algorithmsInRange.ErrorMessage
+			algorithmInRangeComponent.ErrorCode = algorithmsInRange.ErrorCode
+			algorithmInRangeComponent.ErrorMessage = algorithmsInRange.ErrorMessage
 		}
 		response.Component = algorithmInRangeComponent
 	}

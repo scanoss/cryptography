@@ -62,7 +62,7 @@ type CryptoInRangeOutputItem struct {
 	Versions    []string               `json:"versions"`
 	Algorithms  []CryptoUsageItem      `json:"algorithms"`
 	Status      ComponentStatus        `json:"status"`
-	PackageUrl  *packageurl.PackageURL `json:"package_url"`
+	PackageURL  *packageurl.PackageURL `json:"package_url"`
 	PurlName    *string                `json:"purl_name"`
 }
 
@@ -76,6 +76,6 @@ type VersionsInRangeUsingCryptoItem struct {
 	VersionsWith    []string               `json:"versions_with"`
 	VersionsWithout []string               `json:"versions_without"`
 	Requirement     string                 `json:"requirement"`
-	PackageUrl      *packageurl.PackageURL `json:"package_url"`
+	PackageURL      *packageurl.PackageURL `json:"package_url"`
 	PurlName        *string                `json:"purl_name"`
 }

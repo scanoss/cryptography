@@ -2,7 +2,7 @@ package responsebuilder
 
 import (
 	"fmt"
-	pb "github.com/scanoss/papi/api/cryptographyv2"
+	pb "github.com/scanoss/papi/api/commonv2"
 	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 )

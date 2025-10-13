@@ -43,6 +43,8 @@ var oltpMetrics = metricsCounters{}
 //
 // This function initializes histogram metrics for tracking request durations.
 // It should be called once during handler initialization to set up the metrics infrastructure.
+//
+//nolint:unused
 func setupMetrics() {
 	meter := otel.Meter("scanoss.com/cryptography")
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))

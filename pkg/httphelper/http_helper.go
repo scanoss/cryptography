@@ -21,10 +21,11 @@ package httphelper
 
 import (
 	"context"
+	"strconv"
+
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"strconv"
 )
 
 // SetHTTPCodeOnTrailer sets the HTTP status code in the gRPC trailer metadata.

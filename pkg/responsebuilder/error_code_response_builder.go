@@ -1,7 +1,7 @@
 package responsebuilder
 
 import (
-	pb "github.com/scanoss/papi/api/cryptographyv2"
+	pb "github.com/scanoss/papi/api/commonv2"
 	"scanoss.com/cryptography/pkg/domain"
 )
 
@@ -16,6 +16,8 @@ func statusCodeToErrorCode(code domain.StatusCode) *pb.ErrorCode {
 		return pb.ErrorCode_INVALID_SEMVER.Enum()
 	case domain.ComponentWithoutInfo:
 		return pb.ErrorCode_NO_INFO.Enum()
+	case domain.Success:
+		return nil
 	default:
 		return nil
 	}

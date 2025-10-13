@@ -19,10 +19,11 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"sort"
+
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/domain"
-	"sort"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
@@ -53,7 +54,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 			Status:      status,
 			Detections:  []domain.ECDetectedItem{},
 			Requirement: component.Requirement,
-			PackageUrl:  packageURL,
+			PackageURL:  packageURL,
 			PurlName:    purlName,
 		}
 		out.Hints = append(out.Hints, hintOutputItem)
@@ -227,7 +228,7 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 		Message:    fmt.Sprintf("Invalid purl: '%s'", component.Purl),
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageUrl.Type, component.Requirement)
+	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
 	componentStatus.StatusCode = domain.ComponentNotFound
 	componentStatus.Message = fmt.Sprintf("Component not found '%s'", component.Purl)
 	if err != nil {

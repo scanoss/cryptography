@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
@@ -28,7 +30,6 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
-	"time"
 )
 
 type VersionsInRangeHandler struct {
@@ -38,7 +39,7 @@ type VersionsInRangeHandler struct {
 
 // NewVersionsInRangeHandler creates a new instance of Cryptography Server.
 func NewVersionsInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *VersionsInRangeHandler {
-	//setupMetrics()
+	// setupMetrics()
 	return &VersionsInRangeHandler{
 		config:                config,
 		versionInRangeUseCase: *usecase.NewVersionsUsingCrypto(db, config),

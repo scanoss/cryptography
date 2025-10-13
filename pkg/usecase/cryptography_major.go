@@ -20,11 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+
 	"github.com/Masterminds/semver/v3"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/domain"
-	"sort"
 
 	"github.com/jmoiron/sqlx"
 	"scanoss.com/cryptography/pkg/dtos"
@@ -58,7 +59,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 			Requirement: component.Requirement,
 			Versions:    []string{},
 			Algorithms:  []domain.CryptoUsageItem{},
-			PackageUrl:  packageURL,
+			PackageURL:  packageURL,
 			PurlName:    purlName,
 		}
 		out.Cryptography = append(out.Cryptography, cryptoItem)
@@ -69,7 +70,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		if c.Status.StatusCode != domain.Success {
 			continue
 		}
-		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageUrl.Type, c.Requirement)
+		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageURL.Type, c.Requirement)
 		if err != nil {
 			s.Debugf("Failed to get cryptographic algorithms: %v", err)
 			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
