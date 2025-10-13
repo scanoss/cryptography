@@ -28,6 +28,9 @@ import (
 	"scanoss.com/cryptography/pkg/handlers"
 )
 
+// cryptographyServer implements the gRPC CryptographyServer interface.
+// It handles requests for cryptographic algorithm information, version ranges,
+// and encryption hints for software components.
 type cryptographyServer struct {
 	pb.CryptographyServer
 	db                      *sqlx.DB
@@ -77,14 +80,17 @@ func (c cryptographyServer) GetComponentAlgorithms(ctx context.Context, request 
 
 // *************************************** Algorithm in range handlers ***************************************/
 
+// GetAlgorithmsInRange retrieves cryptographic algorithms within a version range for a single component.
 func (c cryptographyServer) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
 	return c.algorithmInRangeHandler.GetAlgorithmsInRange(ctx, request)
 }
 
+// GetComponentsAlgorithmsInRange retrieves cryptographic algorithms within version ranges for multiple components.
 func (c cryptographyServer) GetComponentsAlgorithmsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	return c.algorithmInRangeHandler.GetComponentsAlgorithmsInRange(ctx, request)
 }
 
+// GetComponentAlgorithmsInRange retrieves cryptographic algorithms within a version range for a component.
 func (c cryptographyServer) GetComponentAlgorithmsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	return c.algorithmInRangeHandler.GetComponentAlgorithmsInRange(ctx, request)
 }
@@ -96,10 +102,12 @@ func (c cryptographyServer) GetVersionsInRange(ctx context.Context, request *com
 	return c.versionsInRangeHandler.GetVersionsInRange(ctx, request)
 }
 
+// GetComponentsVersionsInRange retrieves versions within specified ranges for multiple components.
 func (c cryptographyServer) GetComponentsVersionsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsVersionsInRangeResponse, error) {
 	return c.versionsInRangeHandler.GetComponentsVersionsInRange(ctx, request)
 }
 
+// GetComponentVersionsInRange retrieves versions within a specified range for a component.
 func (c cryptographyServer) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
 	return c.versionsInRangeHandler.GetComponentVersionsInRange(ctx, request)
 }
@@ -111,10 +119,12 @@ func (c cryptographyServer) GetHintsInRange(ctx context.Context, request *common
 	return c.hintsInRangeHandler.GetHintsInRange(ctx, request)
 }
 
+// GetComponentsHintsInRange retrieves cryptographic hints within version ranges for multiple components.
 func (c cryptographyServer) GetComponentsHintsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsHintsInRangeResponse, error) {
 	return c.hintsInRangeHandler.GetComponentsHintsInRange(ctx, request)
 }
 
+// GetComponentHintsInRange retrieves cryptographic hints within a version range for a component.
 func (c cryptographyServer) GetComponentHintsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentHintsInRangeResponse, error) {
 	return c.hintsInRangeHandler.GetComponentHintsInRange(ctx, request)
 }
@@ -126,10 +136,12 @@ func (c cryptographyServer) GetEncryptionHints(ctx context.Context, request *com
 	return c.encryptionHintsHandler.GetEncryptionHints(ctx, request)
 }
 
+// GetComponentsEncryptionHints retrieves encryption hints for multiple components.
 func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsEncryptionHintsResponse, error) {
 	return c.encryptionHintsHandler.GetComponentsEncryptionHints(ctx, request)
 }
 
+// GetComponentEncryptionHints retrieves encryption hints for a single component.
 func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
 	return c.encryptionHintsHandler.GetComponentEncryptionHints(ctx, request)
 }
