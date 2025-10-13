@@ -73,7 +73,7 @@ func parseAndValidateComponent(s *zap.SugaredLogger, component dtos.ComponentDTO
 		return domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", component.Purl)}, nil, nil
 	}
 	if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-		return domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl)}, nil, nil
+		return domain.ComponentStatus{StatusCode: domain.InvalidSemver, Message: fmt.Sprintf("Invalid requirement: %s", purl)}, nil, nil
 	}
 	if component.Requirement == "" {
 		return domain.ComponentStatus{StatusCode: domain.InvalidSemver, Message: fmt.Sprintf("Empty requirement %s", component.Requirement)}, nil, nil

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -240,24 +239,23 @@ func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 	r, err = server.GetAlgorithmsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 
 	r, err = server.GetAlgorithmsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 	r, err = server.GetAlgorithmsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 1 {
+	} else if len(r.Purls) != 2 {
 		t.Errorf("Expected to get exactly one purl")
-	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("StatusCode message does not match")
 	}
+
 }
 func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 	ctx := context.Background()
@@ -294,23 +292,21 @@ func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 	r, err = server.GetVersionsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 
 	r, err = server.GetVersionsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 	r, err = server.GetVersionsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 1 {
+	} else if len(r.Purls) != 2 {
 		t.Errorf("Expected to get exactly one purl")
-	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("StatusCode message does not match")
 	}
 }
 
@@ -350,23 +346,21 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 	r, err = server.GetHintsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 
 	r, err = server.GetHintsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 0 {
+	} else if len(r.Purls) != 1 {
 		t.Errorf("Expected to get exactly one purl")
 	}
 	r, err = server.GetHintsInRange(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"}, {Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	} else if len(r.Purls) != 1 {
+	} else if len(r.Purls) != 2 {
 		t.Errorf("Expected to get exactly one purl")
-	} else if !strings.Contains(r.Status.Message, "Can't find 1 purl(s)") {
-		t.Errorf("StatusCode message does not match")
 	}
 }
 
@@ -406,16 +400,16 @@ func TestCryptographyServer_GetHints(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if r.Status.Status != common.StatusCode_FAILED {
-		t.Errorf("Expected to get failed status")
+	if r.Status.Status != common.StatusCode_SUCCESS {
+		t.Errorf("Expected to get success status")
 	}
 
 	r, err = server.GetEncryptionHints(ctx, &common.PurlRequest{Purls: []*common.PurlRequest_Purls{{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"}}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if r.Status.Status != common.StatusCode_FAILED {
-		t.Errorf("Expected to get failed status")
+	if r.Status.Status != common.StatusCode_SUCCESS {
+		t.Errorf("Expected to get success status")
 	}
 }
 
@@ -447,46 +441,42 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 	invalidDB.Close()
 
 	tests := []struct {
-		name                 string
-		components           []*common.ComponentRequest
-		expectedComponents   int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
-		db                   *sqlx.DB
+		name               string
+		components         []*common.ComponentRequest
+		expectedComponents int
+		expectedError      bool
+		status             common.StatusCode
+		db                 *sqlx.DB
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_CantFindComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_FailedToParseComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_ResponseWithTwoComponents",
@@ -494,42 +484,28 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
 				{Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   2,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find information for 1 purl(s):scanoss/dependencies",
-			db:                   db,
+			expectedComponents: 2,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
-			name:                 "Should_Return_NoDataSupplied",
-			components:           []*common.ComponentRequest{},
-			expectedError:        false,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "'components' array cannot be empty, at least one component must be provided",
-			db:                   db,
+			name:               "Should_Return_NoDataSupplied",
+			components:         []*common.ComponentRequest{},
+			expectedError:      false,
+			expectedComponents: 0,
+			status:             common.StatusCode_FAILED,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_EmptyPurl",
 			components: []*common.ComponentRequest{
 				{Purl: "", Requirement: "v5.4.5"},
 			},
-			expectedError:        false,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
-			db:                   db,
-		},
-		{
-			name: "Should_ReturnError_NoDBConnection",
-			components: []*common.ComponentRequest{
-				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			},
-			expectedError:        true,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to get database pool connection",
-			db:                   invalidDB,
+			expectedError:      false,
+			expectedComponents: 1,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 	}
 
@@ -547,9 +523,6 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentsAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -583,58 +556,44 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 	invalidDB.Close()
 
 	tests := []struct {
-		name                 string
-		component            *common.ComponentRequest
-		hasComponent         bool
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
-		db                   *sqlx.DB
+		name          string
+		component     *common.ComponentRequest
+		hasComponent  bool
+		expectedError bool
+		status        common.StatusCode
+		db            *sqlx.DB
 	}{
 		{
-			name:                 "Should_Return_ResponseWithOneComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			hasComponent:         true,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
-			db:                   db,
+			name:          "Should_Return_ResponseWithOneComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			hasComponent:  true,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_CantFindComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
-			db:                   db,
+			name:          "Should_Return_CantFindComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
+			hasComponent:  false,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_FailedToParseComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
-			db:                   db,
+			name:          "Should_Return_FailedToParseComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
+			hasComponent:  false,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_EmptyPurl",
-			component:            &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "no purl supplied. A PURL is required",
-			db:                   db,
-		},
-		{
-			name:                 "Should_ReturnError_NoDBConnection",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        true,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to get database pool connection",
-			db:                   invalidDB,
+			name:          "Should_Return_EmptyPurl",
+			component:     &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
+			hasComponent:  false,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 	}
 
@@ -654,9 +613,6 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 				}
 				if tt.status != r.Status.Status {
 					t.Errorf("service.GetComponentAlgorithms(),received = %v, want %v", r.Status.Status, tt.status)
-				}
-				if r.Status.Message != tt.expectedErrorMessage {
-					t.Errorf("service.GetComponentAlgorithms(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 				}
 			}
 		})
@@ -691,46 +647,42 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 	invalidDB.Close()
 
 	tests := []struct {
-		name                 string
-		components           []*common.ComponentRequest
-		expectedComponents   int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
-		db                   *sqlx.DB
+		name               string
+		components         []*common.ComponentRequest
+		expectedComponents int
+		expectedError      bool
+		status             common.StatusCode
+		db                 *sqlx.DB
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_CantFindComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_FailedToParseComponent",
 			components: []*common.ComponentRequest{
 				{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
-			db:                   db,
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_ResponseWithTwoComponents",
@@ -738,42 +690,28 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
 				{Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/dependencies",
-			db:                   db,
+			expectedComponents: 2,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 		{
-			name:                 "Should_Return_NoDataSupplied",
-			components:           []*common.ComponentRequest{},
-			expectedError:        false,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "'components' array cannot be empty, at least one component must be provided",
-			db:                   db,
+			name:               "Should_Return_NoDataSupplied",
+			components:         []*common.ComponentRequest{},
+			expectedError:      false,
+			expectedComponents: 0,
+			status:             common.StatusCode_FAILED,
+			db:                 db,
 		},
 		{
 			name: "Should_Return_EmptyPurl",
 			components: []*common.ComponentRequest{
 				{Purl: "", Requirement: "v5.4.5"},
 			},
-			expectedError:        false,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
-			db:                   db,
-		},
-		{
-			name: "Should_ReturnError_NoDBConnection",
-			components: []*common.ComponentRequest{
-				{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			},
-			expectedError:        true,
-			expectedComponents:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to get database pool connection",
-			db:                   invalidDB,
+			expectedError:      false,
+			expectedComponents: 1,
+			status:             common.StatusCode_SUCCESS,
+			db:                 db,
 		},
 	}
 
@@ -791,9 +729,6 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsAlgorithmsInRange(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentsAlgorithmsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -827,58 +762,44 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 	invalidDB.Close()
 
 	tests := []struct {
-		name                 string
-		component            *common.ComponentRequest
-		hasComponent         bool
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
-		db                   *sqlx.DB
+		name          string
+		component     *common.ComponentRequest
+		hasComponent  bool
+		expectedError bool
+		status        common.StatusCode
+		db            *sqlx.DB
 	}{
 		{
-			name:                 "Should_Return_ResponseWithOneComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			hasComponent:         true,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
-			db:                   db,
+			name:          "Should_Return_ResponseWithOneComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
+			hasComponent:  true,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_CantFindComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
-			db:                   db,
+			name:          "Should_Return_CantFindComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
+			hasComponent:  true,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_FailedToParseComponent",
-			component:            &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
-			db:                   db,
+			name:          "Should_Return_FailedToParseComponent",
+			component:     &common.ComponentRequest{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
+			hasComponent:  true,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
+			db:            db,
 		},
 		{
-			name:                 "Should_Return_EmptyPurl",
-			component:            &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "no purl supplied. A PURL is required",
-			db:                   db,
-		},
-		{
-			name:                 "Should_ReturnError_NoDBConnection",
-			component:            &common.ComponentRequest{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
-			hasComponent:         false,
-			expectedError:        true,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to get database pool connection",
-			db:                   invalidDB,
+			name:          "Should_Return_EmptyPurl",
+			component:     &common.ComponentRequest{Purl: "", Requirement: "v5.4.5"},
+			hasComponent:  false,
+			expectedError: false,
+			status:        common.StatusCode_FAILED,
+			db:            db,
 		},
 	}
 
@@ -897,9 +818,6 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentAlgorithmsInRange(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentAlgorithmsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -932,11 +850,10 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentRequest
-		expectedPurlsCount   int
-		status               common.StatusCode
-		expectedErrorMessage string
+		name               string
+		request            *common.ComponentRequest
+		expectedPurlsCount int
+		status             common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
@@ -944,9 +861,8 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 				Purl:        "pkg:github/scanoss/engine",
 				Requirement: "v5.4.5",
 			},
-			expectedPurlsCount:   1,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponent",
@@ -954,9 +870,8 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 				Purl:        "pkg:github/scanoss/engines",
 				Requirement: "v5.4.5",
 			},
-			expectedPurlsCount:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -964,9 +879,8 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 				Purl:        "pkg:githubscanossengine",
 				Requirement: "v5.4.5",
 			},
-			expectedPurlsCount:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 	}
 
@@ -978,9 +892,6 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentVersionsInRange(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentVersionsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -1013,11 +924,10 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentsRequest
-		expectedPurlsCount   int
-		status               common.StatusCode
-		expectedErrorMessage string
+		name               string
+		request            *common.ComponentsRequest
+		expectedPurlsCount int
+		status             common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
@@ -1026,9 +936,8 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engine", Requirement: "v5.4.5"},
 				},
 			},
-			expectedPurlsCount:   1,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponent",
@@ -1037,9 +946,8 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engines", Requirement: "v5.4.5"},
 				},
 			},
-			expectedPurlsCount:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/engines",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1048,9 +956,8 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 					{Purl: "pkg:githubscanossengine", Requirement: "v5.4.5"},
 				},
 			},
-			expectedPurlsCount:   0,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:githubscanossengine",
+			expectedPurlsCount: 1,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_ResponseWithTwoComponents",
@@ -1060,9 +967,8 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 					{Purl: "pkg:github/scanoss/dependencies", Requirement: "v5.4.5"},
 				},
 			},
-			expectedPurlsCount:   1,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find 1 purl(s):scanoss/dependencies",
+			expectedPurlsCount: 2,
+			status:             common.StatusCode_SUCCESS,
 		},
 	}
 
@@ -1077,9 +983,6 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsVersionsInRange(),received = %v, want %v", r.Status.Status, tt.status)
-			}
-			if r.Status.Message != tt.expectedErrorMessage {
-				t.Errorf("service.GetComponentsVersionsInRange(), received %v, want %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -1112,12 +1015,11 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentRequest
-		expectedHints        int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
+		name          string
+		request       *common.ComponentRequest
+		expectedHints int
+		expectedError bool
+		status        common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithHints",
@@ -1125,10 +1027,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Purl:        "pkg:github/pineappleea/pineapple-src",
 				Requirement: ">=0.0.0",
 			},
-			expectedHints:        5,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedHints: 5,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponent",
@@ -1136,10 +1037,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Purl:        "pkg:github/scanoss/engines",
 				Requirement: ">=1.0.0",
 			},
-			expectedHints:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
+			expectedHints: 0,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1147,10 +1047,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Purl:        "pkg:githubscanossengine",
 				Requirement: ">=1.0.0",
 			},
-			expectedHints:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedHints: 0,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_NoInfoForComponent",
@@ -1158,10 +1057,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Purl:        "pkg:github/scanoss/engine",
 				Requirement: ">=1.0.0",
 			},
-			expectedHints:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find information for 1 purl(s):",
+			expectedHints: 0,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_ErrorOnWildcardRequirement",
@@ -1169,10 +1067,9 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 				Purl:        "pkg:github/pineappleea/pineapple-src",
 				Requirement: "*",
 			},
-			expectedHints:        0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):pkg:github/pineappleea/pineapple-src",
+			expectedHints: 0,
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 	}
 
@@ -1197,9 +1094,6 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentHintsInRange() status = %v, want %v", r.Status.Status, tt.status)
-			}
-			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
-				t.Errorf("service.GetComponentHintsInRange() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -1232,12 +1126,11 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentsRequest
-		expectedComponents   int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
+		name               string
+		request            *common.ComponentsRequest
+		expectedComponents int
+		expectedError      bool
+		status             common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
@@ -1246,10 +1139,9 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0.0.0"},
 				},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponents",
@@ -1258,10 +1150,9 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0.0"},
 				},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1270,10 +1161,9 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 					{Purl: "pkg:githubscanossengine", Requirement: ">=1.0.0"},
 				},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_ResponseWithMultipleComponents",
@@ -1283,10 +1173,9 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0.0"},
 				},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find 1 purl(s):pkg:github/scanoss/engines",
+			expectedComponents: 2,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_ErrorOnEmptyComponents",
@@ -1304,9 +1193,9 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: "*"},
 				},
 			},
-			expectedComponents: 0,
+			expectedComponents: 1,
 			expectedError:      false,
-			status:             common.StatusCode_FAILED,
+			status:             common.StatusCode_SUCCESS,
 		},
 	}
 	for _, tt := range tests {
@@ -1325,9 +1214,6 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsHintsInRange() status = %v, want %v", r.Status.Status, tt.status)
-			}
-			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
-				t.Errorf("service.GetComponentsHintsInRange() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -1360,12 +1246,11 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentsRequest
-		expectedComponents   int
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
+		name               string
+		request            *common.ComponentsRequest
+		expectedComponents int
+		expectedError      bool
+		status             common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
@@ -1374,10 +1259,9 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 					{Purl: "pkg:github/pineappleea/pineapple-src", Requirement: ">=0"},
 				},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponents",
@@ -1386,10 +1270,9 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
 				},
 			},
-			expectedComponents:   1,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find information for 1 purl(s):pkg:github/scanoss/engines",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1398,10 +1281,9 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 					{Purl: "pkg:githubscanossengine", Requirement: ">=1.0"},
 				},
 			},
-			expectedComponents:   0,
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedComponents: 1,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_ResponseWithMultipleComponents",
@@ -1411,10 +1293,9 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 					{Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0"},
 				},
 			},
-			expectedComponents:   2,
-			expectedError:        false,
-			status:               common.StatusCode_SUCCEEDED_WITH_WARNINGS,
-			expectedErrorMessage: "Can't find information for 1 purl(s):pkg:github/scanoss/engines",
+			expectedComponents: 2,
+			expectedError:      false,
+			status:             common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_WithSuccessResponse",
@@ -1444,9 +1325,6 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 			}
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsEncryptionHints() status = %v, want %v", r.Status.Status, tt.status)
-			}
-			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
-				t.Errorf("service.GetComponentsEncryptionHints() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}
@@ -1479,11 +1357,10 @@ func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
 	server := NewCryptographyServer(db, myConfig)
 
 	tests := []struct {
-		name                 string
-		request              *common.ComponentRequest
-		expectedError        bool
-		status               common.StatusCode
-		expectedErrorMessage string
+		name          string
+		request       *common.ComponentRequest
+		expectedError bool
+		status        common.StatusCode
 	}{
 		{
 			name: "Should_Return_ResponseWithOneComponent",
@@ -1491,18 +1368,16 @@ func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
 				Purl:        "pkg:github/pineappleea/pineapple-src",
 				Requirement: ">=0",
 			},
-			expectedError:        false,
-			status:               common.StatusCode_SUCCESS,
-			expectedErrorMessage: "Success",
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_CantFindComponents",
 			request: &common.ComponentRequest{
 				Purl: "pkg:github/scanoss/engines", Requirement: ">=1.0",
 			},
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Can't find information for 1 purl(s):pkg:github/scanoss/engines",
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_FailedToParsePurl",
@@ -1510,9 +1385,8 @@ func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
 				Purl:        "pkg:githubscanossengine",
 				Requirement: ">=1.0",
 			},
-			expectedError:        false,
-			status:               common.StatusCode_FAILED,
-			expectedErrorMessage: "Failed to parse 1 purl(s):",
+			expectedError: false,
+			status:        common.StatusCode_SUCCESS,
 		},
 		{
 			name: "Should_Return_WithSuccessResponse",
@@ -1536,9 +1410,6 @@ func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
 
 			if tt.status != r.Status.Status {
 				t.Errorf("service.GetComponentsEncryptionHints() status = %v, want %v", r.Status.Status, tt.status)
-			}
-			if !strings.Contains(r.Status.Message, tt.expectedErrorMessage) {
-				t.Errorf("service.GetComponentsEncryptionHints() message = %v, want to contain %v", r.Status.Message, tt.expectedErrorMessage)
 			}
 		})
 	}

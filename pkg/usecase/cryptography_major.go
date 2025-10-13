@@ -96,7 +96,6 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", c.Purl)}
 			continue
 		}
-		fmt.Printf("USES %v\n", uses)
 		for _, alg := range uses {
 			nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
@@ -104,7 +103,6 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 				c.Algorithms = append(c.Algorithms, domain.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
 			}
 		}
-		fmt.Printf("NONO DUP VERSIONS %v\n", nonDupVersions)
 		for k := range nonDupVersions {
 			c.Versions = append(c.Versions, k)
 		}

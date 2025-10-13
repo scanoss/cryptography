@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/utils"
@@ -38,9 +37,7 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -49,9 +46,9 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(db)
 
-	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeVersion("tablestyle", "gem", "0.0.12")
+	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeVersion(ctx, s, "tablestyle", "gem", "0.0.12")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
@@ -60,32 +57,32 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 	}
 	fmt.Printf("All Urls Version: %#v\n", allUrls)
 
-	allUrls, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle@0.0.7", "")
+	allUrls, err = allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle@0.0.7", "")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = failed to find purl by version string")
 	}
 	fmt.Printf("All Urls Version String: %#v\n", allUrls)
 
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion("", "", "")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion(ctx, s, "", "", "")
 	if err == nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() error = did not get an error")
 	} else {
 		fmt.Printf("Got expected error = %v\n", err)
 	}
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion("NONEXISTENT", "", "")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion(ctx, s, "NONEXISTENT", "", "")
 	if err == nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() error = did not get an error")
 	} else {
 		fmt.Printf("Got expected error = %v\n", err)
 	}
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion("NONEXISTENT", "NONEXISTENT", "")
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeVersion(ctx, s, "NONEXISTENT", "NONEXISTENT", "")
 	if err == nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() error = did not get an error")
 	} else {
 		fmt.Printf("Got expected error = %v\n", err)
 	}
 
-	allUrls, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "22.22.22") // Shouldn't exist
+	allUrls, err = allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle", "22.22.22") // Shouldn't exist
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = failed to find purl by version string")
 	} else if len(allUrls.PurlName) > 0 {
@@ -102,9 +99,7 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -113,9 +108,8 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	allUrls, err := allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", ">0.0.4")
+	allUrlsModel := NewAllURLModel(db)
+	allUrls, err := allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle", ">0.0.4")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
@@ -124,7 +118,7 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 	}
 	fmt.Printf("All Urls Version: %#v\n", allUrls)
 
-	allUrls, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "<0.0.4>")
+	allUrls, err = allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle", "<0.0.4>")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}
@@ -143,9 +137,8 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -154,9 +147,8 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", ">2.0", &QuerySummary{})
+	allUrlsModel := NewAllURLModel(db)
+	allUrls, err := allUrlsModel.GetUrlsByPurlNameTypeInRange(ctx, s, "scanoss/engine", "github", ">2.0")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
@@ -165,16 +157,16 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 	}
 	fmt.Printf("All Urls Version: %#v\n", allUrls)
 
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "github", "", &QuerySummary{})
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange(ctx, s, "scanoss/engine", "github", "")
 	if err == nil {
 		t.Errorf("expected error all_urls.GetUrlsByPurlNameTypeInRange() ")
 	}
 
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("", "github", ">2.0", &QuerySummary{})
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange(ctx, s, "", "github", ">2.0")
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
-	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange("scanoss/engine", "", ">2.0", &QuerySummary{})
+	_, err = allUrlsModel.GetUrlsByPurlNameTypeInRange(ctx, s, "scanoss/engine", "", ">2.0")
 	if err == nil {
 		t.Errorf("Expected all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
@@ -190,9 +182,7 @@ func TestAllUrlsSearchPurlList(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -201,9 +191,9 @@ func TestAllUrlsSearchPurlList(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
+	allUrlsModel := NewAllURLModel(db)
 	list := []utils.PurlReq{{Purl: "scanoss/engine", Version: "5.4.6"}, {Purl: "scanoss/dependencies", Version: "v0.0.1"}}
-	allUrls, err := allUrlsModel.GetUrlsByPurlList(list)
+	allUrls, err := allUrlsModel.GetUrlsByPurlList(ctx, s, list)
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlNameTypeInRange() error = %v", err)
 	}
@@ -222,9 +212,7 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -233,14 +221,13 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
+	//allUrlsModel := NewAllURLModel(db)
 	allUrls := []AllURL{{URLHash: "0", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.0", PurlType: "github"},
 		{URLHash: "1", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.1", PurlType: "github"},
 		{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},
 		{URLHash: "3", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.3", PurlType: "github"},
 	}
-	_, err = PickClosestUrls(allUrlsModel.s, allUrls, "scanoss/engine", "github", "v1.3")
+	_, err = PickClosestUrls(s, allUrls, "scanoss/engine", "github", "v1.3")
 	fmt.Printf("%+v", allUrls)
 }
 
@@ -254,9 +241,7 @@ func TestAllUrlsSearchNoLicense(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -265,9 +250,8 @@ func TestAllUrlsSearchNoLicense(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	allUrls, err := allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle@0.0.8", "")
+	allUrlsModel := NewAllURLModel(db)
+	allUrls, err := allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle@0.0.8", "")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = %v", err)
 	}
@@ -287,33 +271,31 @@ func TestAllUrlsSearchBadSql(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
 	myConfig, err := myconfig.NewServerConfig(nil)
 	if err != nil {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	allUrlsModel := NewAllURLModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	_, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle", "")
+	allUrlsModel := NewAllURLModel(db)
+	_, err = allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle", "")
 	if err == nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = did not get an error")
 	} else {
 		fmt.Printf("Got expected error = %v\n", err)
 	}
-	_, err = allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle@0.0.8", "")
+	_, err = allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle@0.0.8", "")
 	if err == nil {
 		t.Errorf("all_urls.GetUrlsByPurlString() error = did not get an error: %v", err)
 	} else {
 		fmt.Printf("Got expected error = %v\n", err)
 	}
+
 	// Load some tables (leaving out projects)
-	err = loadTestSQLDataFiles(db, ctx, conn, []string{"./tests/mines.sql", "./tests/all_urls.sql", "./tests/versions.sql"})
+	err = loadTestSQLDataFiles(db, ctx, []string{"./tests/mines.sql", "./tests/all_urls.sql", "./tests/versions.sql"})
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
-	allUrls, err := allUrlsModel.GetUrlsByPurlString("pkg:gem/tablestyle@0.0.8", "")
+	allUrls, err := allUrlsModel.GetUrlsByPurlString(ctx, s, "pkg:gem/tablestyle@0.0.8", "")
 	if err != nil {
 		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
 	}

@@ -91,7 +91,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err1)
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s")}
+			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
 			continue
 		}
 		if len(uses) == 0 {

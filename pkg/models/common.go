@@ -54,16 +54,15 @@ func LoadTestSQLData(db *sqlx.DB, ctx context.Context) error {
 	return loadTestSQLDataFiles(db, ctx, files)
 }
 
-func RunTestSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
-	return runSQL(db, ctx, conn, stm)
+func RunTestSQL(db *sqlx.DB, ctx context.Context, stm string) error {
+	return runSQL(db, ctx, stm)
 }
 
-func runSQL(db *sqlx.DB, ctx context.Context, conn *sqlx.Conn, stm string) error {
+func runSQL(db *sqlx.DB, ctx context.Context, stm string) error {
 	fmt.Printf("Running %+v\n", stm)
-
 	var err error
-	if conn != nil {
-		_, err = conn.ExecContext(ctx, stm)
+	if db != nil {
+		_, err = db.ExecContext(ctx, stm)
 	} else {
 		_, err = db.Exec(stm)
 	}

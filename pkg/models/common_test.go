@@ -17,6 +17,9 @@
 package models
 
 import (
+	"context"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -25,27 +28,28 @@ import (
 
 func TestDbLoad(t *testing.T) {
 	db, err := sqlx.Connect("sqlite", ":memory:")
+	ctx := ctxzap.ToContext(context.Background(), zlog.L)
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer CloseDB(db)
-	err = loadSQLData(db, nil, nil, "./tests/mines.sql")
+	err = loadSQLData(db, ctx, "./tests/mines.sql")
 	if err != nil {
 		t.Errorf("failed to load SQL test data: %v", err)
 	}
-	err = LoadTestSQLData(db, nil, nil)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Errorf("failed to load SQL test data: %v", err)
 	}
-	err = loadSQLData(db, nil, nil, "./tests/does-not-exist.sql")
+	err = loadSQLData(db, nil, "./tests/does-not-exist.sql")
 	if err == nil {
 		t.Errorf("did not fail to load SQL test data")
 	}
-	err = loadTestSQLDataFiles(db, nil, nil, []string{"./tests/does-not-exist.sql"})
+	err = loadTestSQLDataFiles(db, ctx, []string{"./tests/does-not-exist.sql"})
 	if err == nil {
 		t.Errorf("did not fail to load SQL test data")
 	}
-	err = loadSQLData(db, nil, nil, "./tests/bad_sql.sql")
+	err = loadSQLData(db, ctx, "./tests/bad_sql.sql")
 	if err == nil {
 		t.Errorf("did not fail to load SQL test data")
 	}

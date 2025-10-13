@@ -154,8 +154,8 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error was not expected")
 	}
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.Success {
-			t.Fatalf("Expected to get exactly one purl not found")
+		if v.Status.StatusCode != domain.InvalidSemver {
+			t.Fatalf("Expected to get 'inavlid semver' status, but get '%s'", v.Status.StatusCode)
 		}
 	}
 }

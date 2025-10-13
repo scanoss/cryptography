@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 )
@@ -37,9 +36,7 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 	s := ctxzap.Extract(ctx).Sugar()
 	db := sqliteSetup(t) // Setup SQL Lite DB
 	defer CloseDB(db)
-	conn := sqliteConn(t, ctx, db) // Get a connection from the pool
-	defer CloseConn(conn)
-	err = LoadTestSQLData(db, ctx, conn)
+	err = LoadTestSQLData(db, ctx)
 	if err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
@@ -49,9 +46,8 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 	}
 	myConfig.Database.Trace = true
 
-	cum := NewCryptoUsageModel(ctx, s, database.NewDBSelectContext(s, nil, conn, myConfig.Database.Trace))
-
-	usage, err := cum.GetCryptoUsageByURLHashes([]string{"7774ed78584b719f076bb92aa42fbc7f", "541bae26cbf8e2d2f33d20cd22d435dd"})
+	cum := NewCryptoUsageModel(db)
+	usage, err := cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774ed78584b719f076bb92aa42fbc7f", "541bae26cbf8e2d2f33d20cd22d435dd"})
 	if err != nil {
 		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
 	}
@@ -59,7 +55,7 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
 	}
 	fmt.Printf("All Urls Version: %#v\n", usage)
-	usage, err = cum.GetCryptoUsageByURLHashes([]string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
+	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
 	if err != nil {
 		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
 	}
@@ -67,7 +63,7 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
 	}
 
-	usage, err = cum.GetCryptoUsageByURLHashes([]string{"", ""})
+	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"", ""})
 	if err != nil {
 		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
 	}
@@ -75,8 +71,8 @@ func TestCryptoSearchUsageByList(t *testing.T) {
 		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
 	}
 
-	_ = RunTestSQL(db, ctx, conn, "DROP TABLE component_crypto;")
-	usage, err = cum.GetCryptoUsageByURLHashes([]string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
+	_ = RunTestSQL(db, ctx, "DROP TABLE component_crypto;")
+	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
 	if err == nil {
 		t.Errorf("Expected to get an error on GetCryptoUsageByURLHashes ")
 	}

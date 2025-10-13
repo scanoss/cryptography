@@ -27,13 +27,6 @@ import (
 	"strconv"
 )
 
-const (
-	// ResponseMessageSuccess is the default success message returned in responses.
-	ResponseMessageSuccess = "Success"
-	// ResponseMessageError is the default error message returned when an internal error occurs.
-	ResponseMessageError = "Internal error occurred"
-)
-
 // SetHTTPCodeOnTrailer sets the HTTP status code in the gRPC trailer metadata.
 // This allows clients to determine the appropriate HTTP response code for the request.
 func SetHTTPCodeOnTrailer(ctx context.Context, s *zap.SugaredLogger, code int) {
