@@ -27,18 +27,18 @@
 // - Supports exact version matching, version range queries, and semantic versioning
 // - Integrates with 'mines' and 'versions' tables for comprehensive package metadata
 // - Key operations:
-//   * GetUrlsByPurlList: Batch retrieval of components
-//   * GetUrlsByPurlNameType: Query by package name and type
-//   * GetUrlsByPurlNameTypeVersion: Query by specific version
-//   * GetUrlsByPurlNameTypeInRange: Query versions within semantic version ranges
-//   * PickClosestUrls: Version resolution and constraint matching
+//   - GetUrlsByPurlList: Batch retrieval of components
+//   - GetUrlsByPurlNameType: Query by package name and type
+//   - GetUrlsByPurlNameTypeVersion: Query by specific version
+//   - GetUrlsByPurlNameTypeInRange: Query versions within semantic version ranges
+//   - PickClosestUrls: Version resolution and constraint matching
 //
 // CryptoUsageModel (crypto_usage.go):
 // - Manages the 'component_crypto' table storing cryptographic algorithm usage
 // - Tracks which cryptographic algorithms and their strength levels are used in components
 // - Links URL hashes to specific cryptographic implementations
 // - Key operations:
-//   * GetCryptoUsageByURLHashes: Retrieves crypto algorithm usage for given component URLs
+//   - GetCryptoUsageByURLHashes: Retrieves crypto algorithm usage for given component URLs
 //
 // ECUsageModel (library_usage.go):
 // - Manages export control (EC) detection and library usage data
@@ -46,7 +46,7 @@
 // - Identifies libraries that may be subject to export control regulations
 // - Provides detection metadata including IDs, names, descriptions, and categories
 // - Key operations:
-//   * GetLibraryUsageByURLHashes: Retrieves EC hints and library detections for components
+//   - GetLibraryUsageByURLHashes: Retrieves EC hints and library detections for components
 //
 // Supporting Structures:
 //

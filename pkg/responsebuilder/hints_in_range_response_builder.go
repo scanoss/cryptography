@@ -72,6 +72,10 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output do
 		}
 		s.Debugf("Converted %d hints to components", len(output.Hints))
 	}
+	response.Status = &common.StatusResponse{
+		Status:  common.StatusCode_SUCCESS,
+		Message: "Hints in range retrieved successfully.",
+	}
 	httphelper.SetHTTPCodeOnTrailer(ctx, s, http.StatusOK)
 	return response, nil
 }

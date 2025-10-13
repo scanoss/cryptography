@@ -47,8 +47,8 @@
 // - Simple struct for holding PURL (Package URL) and version pairs
 // - Used for batch queries and component identification
 // - Fields:
-//   * Purl: Package URL name (e.g., "pkg:npm/lodash")
-//   * Version: Specific version string (e.g., "4.17.21")
+//   - Purl: Package URL name (e.g., "pkg:npm/lodash")
+//   - Version: Specific version string (e.g., "4.17.21")
 //
 // This package is designed to be lightweight and focused on common utilities
 // that don't fit into the domain, models, or usecase packages. All functions

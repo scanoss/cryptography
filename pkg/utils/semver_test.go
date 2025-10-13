@@ -127,6 +127,126 @@ func TestIsValidRequirement(t *testing.T) {
 			requirement: " >= 1.0.0 , < 2.0.0 ",
 			expected:    true,
 		},
+		{
+			name:        "version with multiple pre-release identifiers",
+			requirement: ">1.0.0-alpha.1.2",
+			expected:    true,
+		},
+		{
+			name:        "version with numeric pre-release",
+			requirement: ">1.0.0-123",
+			expected:    true,
+		},
+		{
+			name:        "version with complex build metadata",
+			requirement: ">1.0.0+20130313144700",
+			expected:    true,
+		},
+		{
+			name:        "major version zero",
+			requirement: ">=0.1.0",
+			expected:    true,
+		},
+		{
+			name:        "patch version zero",
+			requirement: ">=1.0.0",
+			expected:    true,
+		},
+		{
+			name:        "all zeros version",
+			requirement: ">=0.0.0",
+			expected:    true,
+		},
+		{
+			name:        "version with v prefix and tilde",
+			requirement: "~v1.2.3",
+			expected:    true,
+		},
+		{
+			name:        "version with v prefix and caret",
+			requirement: "^v1.2.3",
+			expected:    true,
+		},
+		{
+			name:        "multiple constraints with mixed operators",
+			requirement: ">=1.0.0, <=2.0.0, >1.5.0",
+			expected:    true,
+		},
+		{
+			name:        "three part constraint",
+			requirement: ">=1.0.0, <2.0.0, >=1.5.0",
+			expected:    true,
+		},
+		{
+			name:        "constraint with leading comma",
+			requirement: ",>=1.0.0",
+			expected:    false,
+		},
+		{
+			name:        "constraint with trailing comma",
+			requirement: ">=1.0.0,",
+			expected:    false,
+		},
+		{
+			name:        "version without minor and patch",
+			requirement: ">1",
+			expected:    false,
+		},
+		{
+			name:        "version without patch",
+			requirement: ">1.0",
+			expected:    false,
+		},
+		{
+			name:        "version with letters in numbers",
+			requirement: ">1.a.0",
+			expected:    false,
+		},
+		{
+			name:        "version with negative numbers",
+			requirement: ">-1.0.0",
+			expected:    false,
+		},
+		{
+			name:        "constraint with only tilde",
+			requirement: "~",
+			expected:    false,
+		},
+		{
+			name:        "constraint with only caret",
+			requirement: "^",
+			expected:    false,
+		},
+		{
+			name:        "large version numbers",
+			requirement: ">=999.999.999",
+			expected:    true,
+		},
+		{
+			name:        "version with dots only",
+			requirement: ">...",
+			expected:    false,
+		},
+		{
+			name:        "multiple operators without spaces",
+			requirement: ">=1.0.0,<=2.0.0,>1.5.0",
+			expected:    true,
+		},
+		{
+			name:        "version with pre-release and multiple constraints",
+			requirement: ">=1.0.0-alpha, <2.0.0-beta",
+			expected:    true,
+		},
+		{
+			name:        "single digit with v prefix",
+			requirement: "v1.0.0",
+			expected:    true,
+		},
+		{
+			name:        "constraint with multiple v prefixes in list",
+			requirement: ">=v1.0.0, <v2.0.0, >=v1.5.0",
+			expected:    true,
+		},
 	}
 
 	for _, tt := range tests {
