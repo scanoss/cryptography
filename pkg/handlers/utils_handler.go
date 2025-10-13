@@ -18,17 +18,8 @@ package handlers
 
 import (
 	"context"
-	"time"
-
 	myconfig "scanoss.com/cryptography/pkg/config"
-)
-
-const (
-	// ResponseMessageSuccess is the default success message for successful responses.
-	ResponseMessageSuccess = "Success"
-
-	// ResponseMessageError is the default error message for internal errors.
-	ResponseMessageError = "Internal error occurred"
+	"time"
 )
 
 // telemetryRequestTime records cryptographic algorithm request duration to OpenTelemetry.

@@ -28,22 +28,25 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
+	"time"
 )
 
 type VersionsInRangeHandler struct {
 	versionInRangeUseCase usecase.VersionsUsingCrypto
+	config                *myconfig.ServerConfig
 }
 
 // NewVersionsInRangeHandler creates a new instance of Cryptography Server.
 func NewVersionsInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *VersionsInRangeHandler {
 	//setupMetrics()
 	return &VersionsInRangeHandler{
+		config:                config,
 		versionInRangeUseCase: *usecase.NewVersionsUsingCrypto(db, config),
 	}
 }
 
 func (c VersionsInRangeHandler) GetVersionsInRange(ctx context.Context, request *common.PurlRequest) (*pb.VersionsInRangeResponse, error) {
-	// requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// Make sure we have Cryptography data to query
@@ -69,13 +72,12 @@ func (c VersionsInRangeHandler) GetVersionsInRange(ctx context.Context, request 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.VersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	// response.StatusCode = statusResp
-	// telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c VersionsInRangeHandler) GetComponentsVersionsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsVersionsInRangeResponse, error) {
-	// requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
@@ -101,11 +103,12 @@ func (c VersionsInRangeHandler) GetComponentsVersionsInRange(ctx context.Context
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsVersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	// telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c VersionsInRangeHandler) GetComponentVersionsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentVersionsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get versions in range...")
 	errorResp := rejectIfInvalid(ctx, s, request,
@@ -128,6 +131,6 @@ func (c VersionsInRangeHandler) GetComponentVersionsInRange(ctx context.Context,
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentVersionsInRangeResponse{Status: &statusResp}, nil
 	}
-	// telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }

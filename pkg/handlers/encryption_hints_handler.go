@@ -28,22 +28,25 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
+	"time"
 )
 
 type EncryptionHintsHandler struct {
 	encryptionHintsUseCase usecase.ECDetectionUseCase
+	config                 *myconfig.ServerConfig
 }
 
 // NewEncryptionHintsHandler creates a new instance of EncryptionHintsHandler.
 func NewEncryptionHintsHandler(db *sqlx.DB, config *myconfig.ServerConfig) *EncryptionHintsHandler {
 	//setupMetrics()
 	return &EncryptionHintsHandler{
+		config:                 config,
 		encryptionHintsUseCase: *usecase.NewECDetection(db, config),
 	}
 }
 
 func (c EncryptionHintsHandler) GetEncryptionHints(ctx context.Context, request *common.PurlRequest) (*pb.HintsResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
 	// Make sure we have Cryptography data to query
@@ -69,12 +72,12 @@ func (c EncryptionHintsHandler) GetEncryptionHints(ctx context.Context, request 
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.HintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-	//	telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c EncryptionHintsHandler) GetComponentsEncryptionHints(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsEncryptionHintsResponse, error) {
-	// requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing Crypto hints algorithms request...")
 	// handle request
@@ -99,11 +102,12 @@ func (c EncryptionHintsHandler) GetComponentsEncryptionHints(ctx context.Context
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c EncryptionHintsHandler) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get encryption hints...")
 	errorResp := rejectIfInvalid(ctx, s, request,
@@ -126,6 +130,6 @@ func (c EncryptionHintsHandler) GetComponentEncryptionHints(ctx context.Context,
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentEncryptionHintsResponse{Status: &statusResp}, errors.New("problems getting encryption hints")
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }

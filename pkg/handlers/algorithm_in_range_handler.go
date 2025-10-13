@@ -28,22 +28,25 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
+	"time"
 )
 
 type AlgorithmInRangeHandler struct {
 	CryptoMajorUseCase usecase.CryptoMajorUseCase
+	config             *myconfig.ServerConfig
 }
 
 // NewAlgorithmInRangeHandler creates a new instance of AlgorithmInRangeHandler.
 func NewAlgorithmInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *AlgorithmInRangeHandler {
 	//setupMetrics()
 	return &AlgorithmInRangeHandler{
+		config:             config,
 		CryptoMajorUseCase: *usecase.NewCryptoMajor(db, config),
 	}
 }
 
 func (c AlgorithmInRangeHandler) GetAlgorithmsInRange(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmsInRangeResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// Make sure we have Cryptography data to query
@@ -72,11 +75,12 @@ func (c AlgorithmInRangeHandler) GetAlgorithmsInRange(ctx context.Context, reque
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c AlgorithmInRangeHandler) GetComponentsAlgorithmsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
-	// requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
@@ -100,11 +104,12 @@ func (c AlgorithmInRangeHandler) GetComponentsAlgorithmsInRange(ctx context.Cont
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}
 		return &pb.ComponentsAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component algorithms request...")
 	errorResp := rejectIfInvalid(ctx, s, request,
@@ -128,7 +133,7 @@ func (c AlgorithmInRangeHandler) GetComponentAlgorithmsInRange(ctx context.Conte
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems converting algorithms to response"}
 		return &pb.ComponentAlgorithmsInRangeResponse{Status: &statusResp}, nil
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 
 }

@@ -27,6 +27,7 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
+	"time"
 )
 
 // CryptographyAlgorithmHandler handles gRPC requests for cryptographic algorithm information.
@@ -36,6 +37,7 @@ import (
 // the knowledge base and build appropriate responses.
 type CryptographyAlgorithmHandler struct {
 	cryptoUseCase usecase.CryptoUseCase
+	config        *myconfig.ServerConfig
 }
 
 // NewCryptographyAlgorithmHandler creates a new CryptographyAlgorithmHandler instance.
@@ -52,6 +54,7 @@ type CryptographyAlgorithmHandler struct {
 func NewCryptographyAlgorithmHandler(db *sqlx.DB, config *myconfig.ServerConfig) *CryptographyAlgorithmHandler {
 	//setupMetrics()
 	return &CryptographyAlgorithmHandler{
+		config:        config,
 		cryptoUseCase: *usecase.NewCrypto(db, config),
 	}
 }
@@ -73,7 +76,7 @@ func NewCryptographyAlgorithmHandler(db *sqlx.DB, config *myconfig.ServerConfig)
 //   - *pb.AlgorithmResponse: Response with algorithm data and status
 //   - error: Non-nil if request validation fails (response status also set to FAILED)
 func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request *common.PurlRequest) (*pb.AlgorithmResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// Make sure we have Cryptography data to query
@@ -99,6 +102,7 @@ func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request
 		statusResp := &common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.AlgorithmResponse{Status: statusResp}, nil
 	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
@@ -121,7 +125,7 @@ func (c CryptographyAlgorithmHandler) GetAlgorithms(ctx context.Context, request
 //   - *pb.ComponentsAlgorithmsResponse: Response with algorithms for all components and status
 //   - error: Always nil (errors are communicated via response status)
 func (c CryptographyAlgorithmHandler) GetComponentsAlgorithms(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsAlgorithmsResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
@@ -144,6 +148,7 @@ func (c CryptographyAlgorithmHandler) GetComponentsAlgorithms(ctx context.Contex
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsAlgorithmsResponse{Status: &statusResp}, nil
 	}
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
@@ -164,7 +169,7 @@ func (c CryptographyAlgorithmHandler) GetComponentsAlgorithms(ctx context.Contex
 //   - *pb.ComponentAlgorithmsResponse: Response with algorithms for the component and status
 //   - error: Always nil (errors are communicated via response status)
 func (c CryptographyAlgorithmHandler) GetComponentAlgorithms(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentAlgorithmsResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
@@ -187,7 +192,6 @@ func (c CryptographyAlgorithmHandler) GetComponentAlgorithms(ctx context.Context
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentAlgorithmsResponse{Status: &statusResp}, nil
 	}
-	//handler.telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
-
 }

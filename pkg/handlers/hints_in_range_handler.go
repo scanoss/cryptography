@@ -28,22 +28,25 @@ import (
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/responsebuilder"
 	"scanoss.com/cryptography/pkg/usecase"
+	"time"
 )
 
 type HintsRangeHandler struct {
 	hintsInRangeUseCase usecase.ECDetectionUseCase
+	config              *myconfig.ServerConfig
 }
 
 // NewHintsInRangeHandler creates a new instance of HintsRangeHandler.
 func NewHintsInRangeHandler(db *sqlx.DB, config *myconfig.ServerConfig) *HintsRangeHandler {
 	//setupMetrics()
 	return &HintsRangeHandler{
+		config:              config,
 		hintsInRangeUseCase: *usecase.NewECDetection(db, config),
 	}
 }
 
 func (c HintsRangeHandler) GetHintsInRange(ctx context.Context, request *common.PurlRequest) (*pb.HintsInRangeResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// Make sure we have Cryptography data to query
@@ -70,12 +73,12 @@ func (c HintsRangeHandler) GetHintsInRange(ctx context.Context, request *common.
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.HintsInRangeResponse{Status: &statusResp}, errors.New("problem parsing cryptography data")
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c HintsRangeHandler) GetComponentsHintsInRange(ctx context.Context, request *common.ComponentsRequest) (*pb.ComponentsHintsInRangeResponse, error) {
-	//requestStartTime := time.Now() // Capture the scan start time
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing crypto algorithms request...")
 	// handle request
@@ -100,11 +103,12 @@ func (c HintsRangeHandler) GetComponentsHintsInRange(ctx context.Context, reques
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentsHintsInRangeResponse{Status: &statusResp}, errors.New("problems getting hints in range")
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 }
 
 func (c HintsRangeHandler) GetComponentHintsInRange(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentHintsInRangeResponse, error) {
+	requestStartTime := time.Now() // Capture the scan start time
 	s := ctxzap.Extract(ctx).Sugar()
 	s.Info("Processing component to get hints in range...")
 	errorResp := rejectIfInvalid(ctx, s, request,
@@ -127,7 +131,7 @@ func (c HintsRangeHandler) GetComponentHintsInRange(ctx context.Context, request
 		statusResp := common.StatusResponse{Status: common.StatusCode_FAILED, Message: "Problems encountered extracting Cryptography data"}
 		return &pb.ComponentHintsInRangeResponse{Status: &statusResp}, errors.New("problems getting hints in range")
 	}
-	//telemetryRequestTime(ctx, c.config, requestStartTime)
+	telemetryRequestTime(ctx, c.config, requestStartTime)
 	return response, nil
 
 }
