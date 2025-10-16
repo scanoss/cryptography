@@ -4,6 +4,10 @@
 ### Added
 - Upcoming changes...
 
+## [0.8.1] - 2025-10-16
+### Fixed
+- Fixed OpenTelemetry metrics initialization by exporting SetupMetrics function and calling it on server startup
+
 ## [0.8.0] - 2025-10-13
 ### Added
 - Added telemetry request time in cryptography handlers
@@ -27,7 +31,6 @@
 
 ### Updated
 - Upgraded scanoss/papi dependency to v0.25.1
-
 
 ## [0.7.1] - 2025-10-02
 ### Bug
@@ -93,6 +96,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.8.1]: https://github.com/scanoss/cryptography/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/scanoss/cryptography/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/scanoss/cryptography/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scanoss/cryptography/compare/v0.6.0...v0.7.0

@@ -44,7 +44,8 @@ type cryptographyServer struct {
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
-	// setupMetrics()
+	// Setups metrics
+	handlers.SetupMetrics()
 	return &cryptographyServer{db: db, config: config,
 		algorithmHandler:        handlers.NewCryptographyAlgorithmHandler(db, config),
 		algorithmInRangeHandler: handlers.NewAlgorithmInRangeHandler(db, config),
