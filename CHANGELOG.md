@@ -4,6 +4,17 @@
 ### Added
 - Upcoming changes...
 
+## [0.9.0] - 2025-12-29
+### Added
+- Added gRPC DownloadRuleset and REST endpoint GET /v2/cryptography/rulesets/download
+  - Supports downloading cryptography detection rulesets by name and version
+  - Supports "latest" keyword for retrieving the most recent version
+  - Returns tarball with appropriate HTTP headers (Content-Disposition, SCANOSS-Ruleset-Name, SCANOSS-Ruleset-Version, X-Checksum-SHA256)
+  - Includes metadata validation and version resolution via symlinks
+
+### Fixed
+- Fixed OpenTelemetry metrics initialization by properly exporting SetupMetrics function 
+
 ## [0.8.1] - 2025-10-16
 ### Fixed
 - Fixed OpenTelemetry metrics initialization by exporting SetupMetrics function and calling it on server startup
@@ -96,6 +107,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.9.0]: https://github.com/scanoss/cryptography/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/scanoss/cryptography/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/scanoss/cryptography/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/scanoss/cryptography/compare/v0.7.0...v0.7.1

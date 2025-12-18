@@ -28,9 +28,12 @@ import (
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/testutils"
 )
 
 func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -103,6 +106,8 @@ func TestLibrariesDetectionUseCase_InRange(t *testing.T) {
 }
 
 func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -184,6 +189,8 @@ func TestLibrariesDetectionUseCase_ExactVersion(t *testing.T) {
 	}
 }
 func TestLibrariesDetectionUseCase_MalformedPurl(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)

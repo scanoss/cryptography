@@ -35,18 +35,21 @@ import (
 // about handler performance and request processing times.
 type metricsCounters struct {
 	cryptoAlgorithmsHistogram metric.Int64Histogram // Histogram for recording crypto algorithms request times in milliseconds
+	downloadRulesetHistogram  metric.Int64Histogram // Histogram for recording ruleset download request times in milliseconds
+	downloadRulesetCounter    metric.Int64Counter   // Counter for tracking the number of downloaded rulesets
 }
 
 var oltpMetrics = metricsCounters{}
 
-// setupMetrics configures all OpenTelemetry metric instruments for the handlers package.
+// SetupMetrics configures all OpenTelemetry metric instruments for the handlers package.
 //
 // This function initializes histogram metrics for tracking request durations.
 // It should be called once during handler initialization to set up the metrics infrastructure.
-
 func SetupMetrics() {
 	meter := otel.Meter("scanoss.com/cryptography")
 	oltpMetrics.cryptoAlgorithmsHistogram, _ = meter.Int64Histogram("crypto.algorithms.req_time", metric.WithDescription("The time taken to run a crypto algorithms request (ms)"))
+	oltpMetrics.downloadRulesetHistogram, _ = meter.Int64Histogram("crypto.rulesets.download_time", metric.WithDescription("The time taken to download a ruleset (ms)"))
+	oltpMetrics.downloadRulesetCounter, _ = meter.Int64Counter("crypto.rulesets.downloaded", metric.WithDescription("The number of downloaded rulesets"))
 }
 
 // ConvertPurlRequestToComponentDTO converts a legacy PurlRequest to ComponentDTO slice.
