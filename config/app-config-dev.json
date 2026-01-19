@@ -2,11 +2,14 @@
   "App": {
     "Name": "Cryptography Service",
     "Debug": true,
-    "Mode":  "dev"
+    "Mode": "dev"
   },
   "Database": {
     "Dsn": "./test-support/sqlite/scanoss.db?cache=shared&mode=memory",
     "Driver": "sqlite",
     "Trace": true
+  },
+  "Rulesets": {
+    "StoragePath": "test-support/rulesets"
   }
 }

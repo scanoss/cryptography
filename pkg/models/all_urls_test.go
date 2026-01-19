@@ -25,9 +25,12 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/utils"
+	"scanoss.com/cryptography/pkg/testutils"
 )
 
 func TestAllUrlsSearchVersion(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -90,6 +93,8 @@ func TestAllUrlsSearchVersion(t *testing.T) {
 	}
 }
 func TestAllUrlsSearchVersionRequirement(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -128,6 +133,8 @@ func TestAllUrlsSearchVersionRequirement(t *testing.T) {
 }
 
 func TestAllUrlsSearchVersionRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -173,6 +180,8 @@ func TestAllUrlsSearchVersionRange(t *testing.T) {
 }
 
 func TestAllUrlsSearchPurlList(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -203,6 +212,8 @@ func TestAllUrlsSearchPurlList(t *testing.T) {
 }
 
 func TestAllUrlsClosestVersionRequirement(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -232,6 +243,8 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 }
 
 func TestAllUrlsSearchNoLicense(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -262,6 +275,8 @@ func TestAllUrlsSearchNoLicense(t *testing.T) {
 }
 
 func TestAllUrlsSearchBadSql(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)

@@ -10,7 +10,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/scanoss/go-grpc-helper v0.9.0
 	github.com/scanoss/go-purl-helper v0.2.1
-	github.com/scanoss/papi v0.25.1
+	github.com/scanoss/papi v0.27.0
 	github.com/scanoss/zap-logging-helper v0.4.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.38.0
@@ -37,7 +37,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 )
 
@@ -70,6 +70,6 @@ require (
 // Details of how to use the "replace" command for local development
 // https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
 // ie. replace github.com/scanoss/papi => ../papi
-// replace github.com/scanoss/papi => ../papi
+//replace github.com/scanoss/papi => ../papi
 
 // require github.com/scanoss/papi v0.0.0-unpublished

@@ -17,6 +17,9 @@
 package config
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 )
@@ -68,6 +71,9 @@ type ServerConfig struct {
 		BlockByDefault bool   `env:"CRYPTO_BLOCK_BY_DEFAULT"` // Block request by default if they are not in the allow list
 		TrustProxy     bool   `env:"CRYPTO_TRUST_PROXY"`      // Trust the interim proxy or not (causes the source IP to be validated instead of the proxy)
 	}
+	Rulesets struct {
+		StoragePath string `env:"RULESETS_STORAGE_PATH"` // Path to directory containing cryptography detection rulesets
+	}
 }
 
 // NewServerConfig loads all config options and return a struct for use.
@@ -82,6 +88,9 @@ func NewServerConfig(feeders []config.Feeder) (*ServerConfig, error) {
 	c.AddStruct(&cfg)
 	err := c.Feed()
 	if err != nil {
+		return nil, err
+	}
+	if err := cfg.ValidateRulesetsFolder(); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
@@ -105,4 +114,26 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Logging.DynamicPort = "localhost:60054"
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
+	cfg.Rulesets.StoragePath = "/var/lib/scanoss/cryptography/rulesets"
+}
+
+// ValidateRulesetsFolder validates that the configured rulesets storage path exists and is a directory.
+func (cfg *ServerConfig) ValidateRulesetsFolder() error {
+	if cfg.Rulesets.StoragePath == "" {
+		return fmt.Errorf("rulesets storage path is not configured")
+	}
+
+	info, err := os.Stat(cfg.Rulesets.StoragePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("rulesets storage path does not exist: %s", cfg.Rulesets.StoragePath)
+		}
+		return fmt.Errorf("failed to access rulesets storage path: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("rulesets storage path is not a directory: %s", cfg.Rulesets.StoragePath)
+	}
+
+	return nil
 }

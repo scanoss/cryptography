@@ -33,9 +33,12 @@ import (
 	_ "modernc.org/sqlite"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/testutils"
 )
 
 func TestCryptographyServer_Echo(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -95,6 +98,8 @@ func TestCryptographyServer_Echo(t *testing.T) {
 }
 
 func TestCryptographyServer_GetAlgorithms(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -204,6 +209,8 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 }
 
 func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
@@ -258,6 +265,8 @@ func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 
 }
 func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -311,6 +320,8 @@ func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
@@ -365,6 +376,8 @@ func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetHints(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -414,6 +427,8 @@ func TestCryptographyServer_GetHints(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -529,6 +544,8 @@ func TestCryptographyServer_GetComponentsAlgorithms(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -620,6 +637,8 @@ func TestCryptographyServer_GetComponentAlgorithms(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -735,6 +754,8 @@ func TestCryptographyServer_GetComponentsAlgorithmsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -824,6 +845,8 @@ func TestCryptographyServer_GetComponentAlgorithmsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -898,6 +921,8 @@ func TestCryptographyServer_GetComponentVersionsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -989,6 +1014,8 @@ func TestCryptographyServer_GetComponentsVersionsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -1100,6 +1127,8 @@ func TestCryptographyServer_GetComponentHintsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -1220,6 +1249,8 @@ func TestCryptographyServer_GetComponentsHintsInRange(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -1331,6 +1362,8 @@ func TestCryptographyServer_GetComponentsEncryptionHints(t *testing.T) {
 }
 
 func TestCryptographyServer_GetComponentEncryptionHints(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

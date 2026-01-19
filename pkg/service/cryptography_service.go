@@ -24,6 +24,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
+	"google.golang.org/genproto/googleapis/api/httpbody"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/handlers"
 )
@@ -40,18 +41,21 @@ type cryptographyServer struct {
 	versionsInRangeHandler  *handlers.VersionsInRangeHandler
 	hintsInRangeHandler     *handlers.HintsRangeHandler
 	encryptionHintsHandler  *handlers.EncryptionHintsHandler
+	rulesetDownloadHandler  *handlers.RulesetDownloadHandler
 }
 
 // NewCryptographyServer creates a new instance of Cryptography Server.
 func NewCryptographyServer(db *sqlx.DB, config *myconfig.ServerConfig) pb.CryptographyServer {
 	// Setups metrics
 	handlers.SetupMetrics()
-	return &cryptographyServer{db: db, config: config,
+	return &cryptographyServer{
+		db: db, config: config,
 		algorithmHandler:        handlers.NewCryptographyAlgorithmHandler(db, config),
 		algorithmInRangeHandler: handlers.NewAlgorithmInRangeHandler(db, config),
 		versionsInRangeHandler:  handlers.NewVersionsInRangeHandler(db, config),
 		hintsInRangeHandler:     handlers.NewHintsInRangeHandler(db, config),
 		encryptionHintsHandler:  handlers.NewEncryptionHintsHandler(db, config),
+		rulesetDownloadHandler:  handlers.NewRulesetDownloadHandler(config),
 	}
 }
 
@@ -145,4 +149,9 @@ func (c cryptographyServer) GetComponentsEncryptionHints(ctx context.Context, re
 // GetComponentEncryptionHints retrieves encryption hints for a single component.
 func (c cryptographyServer) GetComponentEncryptionHints(ctx context.Context, request *common.ComponentRequest) (*pb.ComponentEncryptionHintsResponse, error) {
 	return c.encryptionHintsHandler.GetComponentEncryptionHints(ctx, request)
+}
+
+// DownloadRuleset serves cryptography detection ruleset tarballs for download.
+func (c cryptographyServer) DownloadRuleset(ctx context.Context, request *pb.RulesetDownloadRequest) (*httpbody.HttpBody, error) {
+	return c.rulesetDownloadHandler.DownloadRuleset(ctx, request)
 }

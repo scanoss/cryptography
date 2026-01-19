@@ -27,9 +27,12 @@ import (
 	_ "modernc.org/sqlite"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/testutils"
 )
 
 func TestNewHintsInRangeHandler(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("failed to initialize logger: %v", err)
@@ -57,6 +60,8 @@ func TestNewHintsInRangeHandler(t *testing.T) {
 }
 
 func TestHintsRangeHandler_GetHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -176,6 +181,8 @@ func TestHintsRangeHandler_GetHintsInRange(t *testing.T) {
 }
 
 func TestHintsRangeHandler_GetComponentsHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -324,6 +331,8 @@ func TestHintsRangeHandler_GetComponentsHintsInRange(t *testing.T) {
 }
 
 func TestHintsRangeHandler_GetComponentHintsInRange(t *testing.T) {
+	defer testutils.SetupTestRulesetsDir(t)()
+
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {

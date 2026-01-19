@@ -39,3 +39,34 @@ func telemetryRequestTime(ctx context.Context, config *myconfig.ServerConfig, re
 		oltpMetrics.cryptoAlgorithmsHistogram.Record(ctx, elapsedTime) // Record algorithm request time
 	}
 }
+
+// telemetryDownloadRulesetRequestTime records download ruleset request duration to OpenTelemetry.
+//
+// This function calculates the elapsed time since the request started and records it
+// to the OpenTelemetry histogram for performance monitoring. Recording only occurs
+// if telemetry is enabled in the server configuration.
+//
+// Parameters:
+//   - ctx: Context for the telemetry recording
+//   - config: Server configuration containing telemetry settings
+//   - requestStartTime: Time when the request processing began
+func telemetryDownloadRulesetRequestTime(ctx context.Context, config *myconfig.ServerConfig, requestStartTime time.Time) {
+	if config.Telemetry.Enabled {
+		elapsedTime := time.Since(requestStartTime).Milliseconds()    // Time taken to download ruleset request
+		oltpMetrics.downloadRulesetHistogram.Record(ctx, elapsedTime) // Record download ruleset request time
+	}
+}
+
+// telemetryAddRulesetDownloaded adds a record for downloaded rulesets to OpenTelemetry.
+//
+// This function increments the counter for downloaded rulesets in the OpenTelemetry metrics.
+// Recording only occurs if telemetry is enabled in the server configuration.
+//
+// Parameters:
+//   - ctx: Context for the telemetry recording
+//   - config: Server configuration containing telemetry settings
+func telemetryAddRulesetDownloaded(ctx context.Context, config *myconfig.ServerConfig) {
+	if config.Telemetry.Enabled {
+		oltpMetrics.downloadRulesetCounter.Add(ctx, 1)
+	}
+}
