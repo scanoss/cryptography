@@ -3,6 +3,9 @@
 ## [Unreleased]
 ### Added
 - Upcoming changes...
+### Changed
+- Updated dependencies to the latest versions
+
 
 ## [0.9.0] - 2025-12-29
 ### Added
