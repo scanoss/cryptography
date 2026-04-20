@@ -19,6 +19,7 @@ package responsebuilder
 import (
 	"context"
 	"errors"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -64,9 +65,11 @@ func ToAlgorithmResponse(ctx context.Context, s *zap.SugaredLogger, output domai
 			Version:    component.Version,
 			Algorithms: algorithms,
 		}
-		if component.Status.StatusCode != domain.Success {
-			compAlgorithms.ErrorMessage = &component.Status.Message
-			compAlgorithms.ErrorCode = statusCodeToErrorCode(component.Status.StatusCode)
+		if component.Status.StatusCode != status.Success {
+			code := component.Status.StatusCode.String()
+			msg := component.Status.Message
+			compAlgorithms.InfoMessage = &msg
+			compAlgorithms.InfoCode = &code
 		}
 		response.Purls = append(response.Purls, compAlgorithms)
 	}
@@ -93,9 +96,11 @@ func getComponentAlgorithms(cryptoOutputItem domain.CryptoOutputItem) *pb.Compon
 		Algorithms:  algorithms,
 	}
 
-	if cryptoOutputItem.Status.StatusCode != domain.Success {
-		componentAlgorithms.ErrorMessage = &cryptoOutputItem.Status.Message
-		componentAlgorithms.ErrorCode = statusCodeToErrorCode(cryptoOutputItem.Status.StatusCode)
+	if cryptoOutputItem.Status.StatusCode != status.Success {
+		code := cryptoOutputItem.Status.StatusCode.String()
+		msg := cryptoOutputItem.Status.Message
+		componentAlgorithms.InfoMessage = &msg
+		componentAlgorithms.InfoCode = &code
 	}
 	return componentAlgorithms
 }

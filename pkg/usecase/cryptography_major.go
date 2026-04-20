@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"sort"
 
 	"github.com/Masterminds/semver/v3"
@@ -67,17 +68,17 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 	// Prepare purls to query
 	for i := range out.Cryptography {
 		c := &out.Cryptography[i]
-		if c.Status.StatusCode != domain.Success {
+		if c.Status.StatusCode != status.Success {
 			continue
 		}
 		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageURL.Type, c.Requirement)
 		if err != nil {
 			s.Debugf("Failed to get cryptographic algorithms: %v", err)
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
+			c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
 		if len(res) == 0 {
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
+			c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
 			continue
 		}
 		var hashes []string
@@ -94,7 +95,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		// avoid duplicate algorithms
 		nonDupAlgorithms := make(map[models.CryptoItem]bool)
 		if len(uses) == 0 {
-			c.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component withput info %s", c.Purl)}
+			c.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info %s", c.Purl)}
 			continue
 		}
 		for _, alg := range uses {

@@ -18,21 +18,7 @@ package domain
 
 import (
 	"github.com/package-url/packageurl-go"
-)
-
-type ComponentStatus struct {
-	Message    string
-	StatusCode StatusCode
-}
-
-type StatusCode string
-
-const (
-	ComponentNotFound    StatusCode = "COMPONENT_NOT_FOUND"
-	InvalidPurl          StatusCode = "INVALID_PURL"
-	ComponentWithoutInfo StatusCode = "COMPONENT_WITHOUT_INFO"
-	Success              StatusCode = "SUCCESS"
-	InvalidSemver        StatusCode = "INVALID_SEMVER"
+	"github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 )
 
 type CryptoOutput struct {
@@ -40,11 +26,11 @@ type CryptoOutput struct {
 }
 
 type CryptoOutputItem struct {
-	Purl        string            `json:"purl"`
-	Version     string            `json:"version"`
-	Requirement string            `json:"requirement"`
-	Status      ComponentStatus   `json:"status"`
-	Algorithms  []CryptoUsageItem `json:"algorithms"`
+	Purl        string                 `json:"purl"`
+	Version     string                 `json:"version"`
+	Requirement string                 `json:"requirement"`
+	Status      domain.ComponentStatus `json:"status"`
+	Algorithms  []CryptoUsageItem      `json:"algorithms"`
 }
 
 type CryptoUsageItem struct {
@@ -61,7 +47,7 @@ type CryptoInRangeOutputItem struct {
 	Requirement string                 `json:"requirement"`
 	Versions    []string               `json:"versions"`
 	Algorithms  []CryptoUsageItem      `json:"algorithms"`
-	Status      ComponentStatus        `json:"status"`
+	Status      domain.ComponentStatus `json:"status"`
 	PackageURL  *packageurl.PackageURL `json:"package_url"`
 	PurlName    *string                `json:"purl_name"`
 }
@@ -72,7 +58,7 @@ type VersionsInRangeOutput struct {
 
 type VersionsInRangeUsingCryptoItem struct {
 	Purl            string                 `json:"purl"`
-	Status          ComponentStatus        `json:"status"`
+	Status          domain.ComponentStatus `json:"status"`
 	VersionsWith    []string               `json:"versions_with"`
 	VersionsWithout []string               `json:"versions_without"`
 	Requirement     string                 `json:"requirement"`

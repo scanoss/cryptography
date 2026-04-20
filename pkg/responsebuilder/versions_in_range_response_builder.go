@@ -19,6 +19,7 @@ package responsebuilder
 import (
 	"context"
 	"errors"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -55,9 +56,11 @@ func ToVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.StatusCode != domain.Success {
-			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
+		if v.Status.StatusCode != status.Success {
+			code := v.Status.StatusCode.String()
+			msg := v.Status.Message
+			componentVersionsInRange.InfoMessage = &msg
+			componentVersionsInRange.InfoCode = &code
 		}
 		response.Purls = append(response.Purls, componentVersionsInRange)
 	}
@@ -96,9 +99,11 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.StatusCode != domain.Success {
-			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
+		if v.Status.StatusCode != status.Success {
+			code := v.Status.StatusCode.String()
+			msg := v.Status.Message
+			componentVersionsInRange.InfoMessage = &msg
+			componentVersionsInRange.InfoCode = &code
 		}
 		response.Components = append(response.Components, componentVersionsInRange)
 	}
@@ -146,9 +151,11 @@ func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogge
 			VersionsWith:    v.VersionsWith,
 			VersionsWithout: v.VersionsWithout,
 		}
-		if v.Status.StatusCode != domain.Success {
-			componentVersionsInRange.ErrorMessage = &v.Status.Message
-			componentVersionsInRange.ErrorCode = statusCodeToErrorCode(v.Status.StatusCode)
+		if v.Status.StatusCode != status.Success {
+			code := v.Status.StatusCode.String()
+			msg := v.Status.Message
+			componentVersionsInRange.InfoMessage = &msg
+			componentVersionsInRange.InfoCode = &code
 		}
 
 		response.Component = componentVersionsInRange

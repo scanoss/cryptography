@@ -10,7 +10,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/scanoss/go-grpc-helper v0.15.1
 	github.com/scanoss/go-purl-helper v0.3.0
-	github.com/scanoss/papi v0.35.0
+	github.com/scanoss/papi v0.41.0
 	github.com/scanoss/zap-logging-helper v0.4.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.43.0

@@ -19,7 +19,7 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"scanoss.com/cryptography/pkg/domain"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -90,7 +90,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.InvalidPurl {
+		if v.Status.StatusCode != status.InvalidPurl {
 			t.Fatalf("Expected to get failed to parse purl ")
 		}
 	}
@@ -102,7 +102,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	versions, err = versionsUc.GetVersionsInRangeUsingCrypto(ctx, s, componentDTOS)
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.InvalidSemver {
+		if v.Status.StatusCode != status.InvalidSemver {
 			t.Fatalf("An invalid range error was expected")
 		}
 	}
@@ -122,7 +122,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 	}
 	failedToParse := 0
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.InvalidPurl {
+		if v.Status.StatusCode != status.InvalidPurl {
 			failedToParse++
 		}
 	}
@@ -141,7 +141,7 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error was not expected")
 	}
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.ComponentNotFound {
+		if v.Status.StatusCode != status.ComponentNotFound {
 			t.Fatalf("Expected to get exactly one purl not found")
 		}
 	}
@@ -157,8 +157,8 @@ func TestVersionsUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error was not expected")
 	}
 	for _, v := range versions.Versions {
-		if v.Status.StatusCode != domain.InvalidSemver {
-			t.Fatalf("Expected to get 'inavlid semver' status, but get '%s'", v.Status.StatusCode)
+		if v.Status.StatusCode != status.InvalidSemver {
+			t.Fatalf("Expected to get 'invalid semver' status, but got '%s'", v.Status.StatusCode)
 		}
 	}
 }
@@ -217,7 +217,7 @@ func TestVersionInRangeUsingCryptoUseCase(t *testing.T) {
 		t.Fatalf("error not expected: %v", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.Success {
+		if c.Status.StatusCode != status.Success {
 			t.Fatalf("Expected to get exactly one purl")
 		}
 	}

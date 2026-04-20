@@ -18,7 +18,7 @@ package usecase
 
 import (
 	"context"
-	"scanoss.com/cryptography/pkg/domain"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -66,7 +66,7 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("the error '%v' was not expected when getting cryptography", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.Success {
+		if c.Status.StatusCode != status.Success {
 			t.Fatalf("Expected to get at least 1 algorithm")
 		}
 	}
@@ -77,7 +77,7 @@ func TestCryptographyUseCase(t *testing.T) {
 	}
 	algorithms, err = cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.InvalidPurl {
+		if c.Status.StatusCode != status.InvalidPurl {
 			t.Fatalf("did not get an expected purl failed to parse")
 		}
 	}
@@ -90,7 +90,7 @@ func TestCryptographyUseCase(t *testing.T) {
 	}
 	algorithms, err = cryptoUc.GetComponentsAlgorithms(ctx, s, componentDTOS)
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode == domain.InvalidPurl {
+		if c.Status.StatusCode == status.InvalidPurl {
 			t.Fatalf("did not get an expected purl failed to parse")
 		}
 	}
@@ -105,7 +105,7 @@ func TestCryptographyUseCase(t *testing.T) {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.ComponentNotFound {
+		if c.Status.StatusCode != status.ComponentNotFound {
 			t.Fatalf("Expected to not found a purl")
 		}
 	}

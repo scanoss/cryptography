@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"os"
 	"path/filepath"
 	"scanoss.com/cryptography/pkg/domain"
@@ -220,13 +221,13 @@ func TestInRangeResponseForMultipleComponents(t *testing.T) {
 
 				// Verify error message
 				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.ErrorMessage, "expected error message at index %d", i)
-					if component.ErrorMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.ErrorMessage, "error message mismatch at index %d", i)
+					assert.NotNil(t, component.InfoMessage, "expected error message at index %d", i)
+					if component.InfoMessage != nil {
+						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage, "error message mismatch at index %d", i)
 					}
 				} else {
-					if component.ErrorMessage != nil {
-						assert.Empty(t, *component.ErrorMessage, "unexpected error message at index %d", i)
+					if component.InfoMessage != nil {
+						assert.Empty(t, *component.InfoMessage, "unexpected error message at index %d", i)
 					}
 				}
 			}
@@ -350,7 +351,7 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
-	noCryptoInput.Cryptography[0].Status.StatusCode = domain.ComponentWithoutInfo
+	noCryptoInput.Cryptography[0].Status.StatusCode = status.NoInfo
 	noCryptoInput.Cryptography[0].Status.Message = "No crypto found"
 
 	// Call the function under test
@@ -361,10 +362,10 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	}
 	assert.Equal(t, "pkg:github/scanoss/ldb", res.Component.Purl)
 	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
-	assert.NotNil(t, res.Component.ErrorMessage)
-	assert.Equal(t, "No crypto found", *res.Component.ErrorMessage)
-	assert.NotNil(t, res.Component.ErrorCode)
-	assert.Equal(t, commonv2.ErrorCode_NO_INFO, *res.Component.ErrorCode)
+	assert.NotNil(t, res.Component.InfoMessage)
+	assert.Equal(t, "No crypto found", *res.Component.InfoMessage)
+	assert.NotNil(t, res.Component.InfoCode)
+	assert.Equal(t, string(status.NoInfo), *res.Component.InfoCode)
 	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
 	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
 	//--------------------------------------- Purl not found ------------------------------------
@@ -386,7 +387,7 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse sample JSON: %v", err)
 	}
-	noPurlInput.Cryptography[0].Status.StatusCode = domain.ComponentNotFound
+	noPurlInput.Cryptography[0].Status.StatusCode = status.ComponentNotFound
 	noPurlInput.Cryptography[0].Status.Message = "purl not found"
 	// Call the function under test
 	res, err = ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, noPurlInput)
@@ -396,10 +397,10 @@ func TestInRangeResponseForSingleComponent(t *testing.T) {
 	}
 	assert.Equal(t, "pkg:github/scanoss/ldbo", res.Component.Purl)
 	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
-	assert.NotNil(t, res.Component.ErrorMessage)
-	assert.Equal(t, "purl not found", *res.Component.ErrorMessage)
-	assert.NotNil(t, res.Component.ErrorCode)
-	assert.Equal(t, commonv2.ErrorCode_COMPONENT_NOT_FOUND, *res.Component.ErrorCode)
+	assert.NotNil(t, res.Component.InfoMessage)
+	assert.Equal(t, "purl not found", *res.Component.InfoMessage)
+	assert.NotNil(t, res.Component.InfoCode)
+	assert.Equal(t, string(status.ComponentNotFound), *res.Component.InfoCode)
 	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
 	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -77,9 +78,11 @@ func getAlgorithmsInRange(output domain.CryptoInRangeOutputItem) *pb.ComponentsA
 		Versions:   output.Versions,
 		Algorithms: algorithms,
 	}
-	if output.Status.StatusCode != domain.Success {
-		algorithmsInRange.ErrorMessage = &output.Status.Message
-		algorithmsInRange.ErrorCode = statusCodeToErrorCode(output.Status.StatusCode)
+	if output.Status.StatusCode != status.Success {
+		code := output.Status.StatusCode.String()
+		msg := output.Status.Message
+		algorithmsInRange.InfoMessage = &msg
+		algorithmsInRange.InfoCode = &code
 	}
 	return algorithmsInRange
 }
@@ -156,9 +159,11 @@ func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLog
 			Purl:       algorithmsInRange.Purl,
 			Algorithms: algorithmsInRange.Algorithms,
 		}
-		if c.Status.StatusCode != domain.Success {
-			algorithmInRangeComponent.ErrorCode = algorithmsInRange.ErrorCode
-			algorithmInRangeComponent.ErrorMessage = algorithmsInRange.ErrorMessage
+		if c.Status.StatusCode != status.Success {
+			code := c.Status.StatusCode.String()
+			msg := c.Status.Message
+			algorithmInRangeComponent.InfoCode = &code
+			algorithmInRangeComponent.InfoMessage = &msg
 		}
 		response.Component = algorithmInRangeComponent
 	}
