@@ -1,406 +1,267 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2025 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package responsebuilder
 
 import (
 	"context"
-	"encoding/csv"
-	"encoding/json"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
-	"os"
-	"path/filepath"
-	"scanoss.com/cryptography/pkg/domain"
-	"strconv"
-	"strings"
 	"testing"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"github.com/scanoss/papi/api/commonv2"
 	"github.com/scanoss/papi/api/cryptographyv2"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"scanoss.com/cryptography/pkg/domain"
 )
 
-// mockServerTransportStream implements grpc.ServerTransportStream for testing
-type mockServerTransportStream struct {
-	ctx context.Context
-}
+// ptr returns a pointer to v. Package-level helper shared across test files in this package.
+func ptr[T any](v T) *T { return &v }
 
-func (m *mockServerTransportStream) Method() string {
-	return "test.method"
-}
-
-func (m *mockServerTransportStream) SetHeader(md metadata.MD) error {
-	return nil
-}
-
-func (m *mockServerTransportStream) SendHeader(md metadata.MD) error {
-	return nil
-}
-
-func (m *mockServerTransportStream) SetTrailer(md metadata.MD) error {
-	return nil
-}
-
-// TestCase represents a single test case loaded from CSV
-type TestCase struct {
-	Name                   string
-	RequestJSON            string
-	ExpectedStatusCode     string
-	ExpectedStatusMessage  string
-	ExpectedComponentCount int
-	ComponentPurls         []string
-	ComponentVersions      [][]string
-	ComponentRequirements  []string
-	ComponentAlgorithms    [][]*cryptographyv2.Algorithm
-	ComponentErrorMessages []string
-}
-
-// loadTestCases loads test cases from a CSV file
-func loadTestCases(t *testing.T, filename string) []TestCase {
-	t.Helper()
-
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open test cases file: %v", err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.LazyQuotes = true
-	reader.TrimLeadingSpace = true
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatalf("failed to read CSV: %v", err)
-	}
-
-	if len(records) < 2 {
-		t.Fatal("CSV file must have header and at least one test case")
-	}
-
-	// Skip header row
-	var testCases []TestCase
-	for _, record := range records[1:] {
-		minColumns := 9
-		if len(record) < minColumns {
-			t.Fatalf("invalid CSV record (expected at least %d columns): %v", minColumns, record)
-		}
-
-		componentCount, err := strconv.Atoi(record[4])
-		if err != nil {
-			t.Fatalf("invalid component count: %v", record[4])
-		}
-
-		// Parse pipe-separated values for components
-		purls := strings.Split(record[5], "|")
-		versionsStr := strings.Split(record[6], "|")
-
-		// Check if we have requirements field (new format)
-		var requirementsStr []string
-		var algorithmsStr []string
-		var errorMessages []string
-
-		if len(record) >= 10 {
-			// New format with requirements
-			requirementsStr = strings.Split(record[7], "|")
-			algorithmsStr = strings.Split(record[8], "|")
-			errorMessages = strings.Split(record[9], "|")
-		} else {
-			// Old format without requirements
-			requirementsStr = make([]string, len(purls))
-			algorithmsStr = strings.Split(record[7], "|")
-			errorMessages = strings.Split(record[8], "|")
-		}
-
-		// Parse versions (semicolon-separated within each component)
-		versions := make([][]string, len(versionsStr))
-		for i, v := range versionsStr {
-			if v != "" {
-				versions[i] = strings.Split(v, ";")
-			} else {
-				versions[i] = []string{}
-			}
-		}
-
-		// Parse algorithms (algorithm:strength format, semicolon-separated)
-		algorithms := make([][]*cryptographyv2.Algorithm, len(algorithmsStr))
-		for i, algStr := range algorithmsStr {
-			algorithms[i] = []*cryptographyv2.Algorithm{}
-			if algStr != "" {
-				for _, alg := range strings.Split(algStr, ";") {
-					parts := strings.Split(alg, ":")
-					if len(parts) == 2 {
-						algorithms[i] = append(algorithms[i], &cryptographyv2.Algorithm{
-							Algorithm: parts[0],
-							Strength:  parts[1],
-						})
-					}
-				}
-			}
-		}
-
-		testCases = append(testCases, TestCase{
-			Name:                   record[0],
-			RequestJSON:            record[1],
-			ExpectedStatusCode:     record[2],
-			ExpectedStatusMessage:  record[3],
-			ExpectedComponentCount: componentCount,
-			ComponentPurls:         purls,
-			ComponentVersions:      versions,
-			ComponentRequirements:  requirementsStr,
-			ComponentAlgorithms:    algorithms,
-			ComponentErrorMessages: errorMessages,
-		})
-	}
-
-	return testCases
-}
+const inRangeOKMessage = "Algorithms in range retrieved successfully."
 
 func TestInRangeResponseForMultipleComponents(t *testing.T) {
-	// Create a mock server stream context
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	tests := []struct {
+		name  string
+		input domain.CryptoInRangeOutput
+		want  *cryptographyv2.ComponentsAlgorithmsInRangeResponse
+	}{
+		{
+			name: "two_components_ok",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{
+					{
+						Purl:        "pkg:github/scanoss/engine",
+						Requirement: ">v5.4.5",
+						Versions:    []string{"v5.4.6", "v5.4.7", "v5.5.0"},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+					{
+						Purl:        "pkg:github/scanoss/ldb",
+						Requirement: ">v1.0.0",
+						Versions:    []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms:  []domain.CryptoUsageItem{{Algorithm: "MD5", Strength: "16"}},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+				},
+			},
+			want: &cryptographyv2.ComponentsAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Components: []*cryptographyv2.ComponentsAlgorithmsInRangeResponse_Component{
+					{
+						Purl:       "pkg:github/scanoss/engine",
+						Versions:   []string{"v5.4.6", "v5.4.7", "v5.5.0"},
+						Algorithms: []*cryptographyv2.Algorithm{},
+					},
+					{
+						Purl:       "pkg:github/scanoss/ldb",
+						Versions:   []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "MD5", Strength: "16"}},
+					},
+				},
+			},
+		},
+		{
+			name: "one_malformed_purl",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{
+					{
+						Purl:        "pkg:githubscanossengine",
+						Requirement: ">v5.4.5",
+						Status: status.ComponentStatus{
+							Message:    "Failed to parse 1 purl(s):pkg:githubscanossengine",
+							StatusCode: status.InvalidPurl,
+						},
+					},
+					{
+						Purl:        "pkg:github/scanoss/ldb",
+						Requirement: ">v1.0.0",
+						Versions:    []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms:  []domain.CryptoUsageItem{{Algorithm: "MD5", Strength: "16"}},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+				},
+			},
+			want: &cryptographyv2.ComponentsAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Components: []*cryptographyv2.ComponentsAlgorithmsInRangeResponse_Component{
+					{
+						Purl:        "pkg:githubscanossengine",
+						Algorithms:  []*cryptographyv2.Algorithm{},
+						InfoMessage: ptr("Failed to parse 1 purl(s):pkg:githubscanossengine"),
+						InfoCode:    ptr(string(status.InvalidPurl)),
+					},
+					{
+						Purl:       "pkg:github/scanoss/ldb",
+						Versions:   []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "MD5", Strength: "16"}},
+					},
+				},
+			},
+		},
+		{
+			name: "one_not_found_purl",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{
+					{
+						Purl:        "pkg:github/scanoss/engines",
+						Requirement: ">v5.4.5",
+						Status: status.ComponentStatus{
+							Message:    "Can't find 1 purl(s):scanoss/engines",
+							StatusCode: status.ComponentNotFound,
+						},
+					},
+					{
+						Purl:        "pkg:github/scanoss/ldb",
+						Requirement: ">v1.0.0",
+						Versions:    []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms:  []domain.CryptoUsageItem{{Algorithm: "MD5", Strength: "16"}},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+				},
+			},
+			want: &cryptographyv2.ComponentsAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Components: []*cryptographyv2.ComponentsAlgorithmsInRangeResponse_Component{
+					{
+						Purl:        "pkg:github/scanoss/engines",
+						Algorithms:  []*cryptographyv2.Algorithm{},
+						InfoMessage: ptr("Can't find 1 purl(s):scanoss/engines"),
+						InfoCode:    ptr(string(status.ComponentNotFound)),
+					},
+					{
+						Purl:       "pkg:github/scanoss/ldb",
+						Versions:   []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+						Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "MD5", Strength: "16"}},
+					},
+				},
+			},
+		},
 	}
-	defer zlog.SyncZap()
 
-	// Load test cases from CSV
-	testCasesFile := filepath.Join("testdata", "algorithms_in_range_test_cases.csv")
-	testCases := loadTestCases(t, testCasesFile)
-
-	// Run all test cases
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			// Parse input
-			var input domain.CryptoInRangeOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse sample JSON: %v", err)
-			}
-
-			// Call the function under test
-			res, err := ToComponentsAlgorithmsInRangeResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error on creating response: %v", err)
-				return
-			}
-
-			// Verify status
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message, "status message mismatch")
-			assert.Equal(t, expectedStatusCode, res.Status.Status, "status code mismatch")
-
-			// Verify component count
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Components), "component count mismatch")
-
-			// Verify each component
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Components); i++ {
-				component := res.Components[i]
-
-				// Verify purl
-				assert.Equal(t, tc.ComponentPurls[i], component.Purl, "purl mismatch at index %d", i)
-
-				// Verify versions (handle nil vs empty slice)
-				if len(tc.ComponentVersions[i]) == 0 && len(component.Versions) == 0 {
-					// Both empty, consider equal
-				} else {
-					assert.Equal(t, tc.ComponentVersions[i], component.Versions, "versions mismatch at index %d", i)
-				}
-
-				// Verify algorithms (handle nil vs empty slice)
-				if len(tc.ComponentAlgorithms[i]) == 0 && len(component.Algorithms) == 0 {
-					// Both empty, consider equal
-				} else {
-					assert.Equal(t, tc.ComponentAlgorithms[i], component.Algorithms, "algorithms mismatch at index %d", i)
-				}
-
-				// Verify error message
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.InfoMessage, "expected error message at index %d", i)
-					if component.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage, "error message mismatch at index %d", i)
-					}
-				} else {
-					if component.InfoMessage != nil {
-						assert.Empty(t, *component.InfoMessage, "unexpected error message at index %d", i)
-					}
-				}
-			}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentsAlgorithmsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
 		})
-	}
-}
-
-// parseStatusCode converts string status code to commonv2.StatusCode
-func parseStatusCode(code string) commonv2.StatusCode {
-	switch code {
-	case "SUCCESS":
-		return commonv2.StatusCode_SUCCESS
-	case "FAILED":
-		return commonv2.StatusCode_FAILED
-	case "SUCCEEDED_WITH_WARNINGS":
-		return commonv2.StatusCode_SUCCEEDED_WITH_WARNINGS
-	default:
-		return commonv2.StatusCode_SUCCESS
 	}
 }
 
 func TestToAlgorithmsInRangeResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
-
-	inputJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","requirement":">v5.4.5","versions":["v5.4.6","v5.4.7"],"algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"statusCode":"SUCCESS"}}]}`
-
-	var input domain.CryptoInRangeOutput
-	err = json.Unmarshal([]byte(inputJSON), &input)
-	if err != nil {
-		t.Fatalf("failed to parse request JSON: %v", err)
+	input := domain.CryptoInRangeOutput{
+		Cryptography: []domain.CryptoInRangeOutputItem{{
+			Purl:        "pkg:github/scanoss/engine",
+			Requirement: ">v5.4.5",
+			Versions:    []string{"v5.4.6", "v5.4.7"},
+			Algorithms:  []domain.CryptoUsageItem{{Algorithm: "SHA256", Strength: "256"}},
+			Status:      status.ComponentStatus{StatusCode: status.Success},
+		}},
 	}
 
-	res, err := ToAlgorithmsInRangeResponse(ctx, zlog.S, input)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
-	assert.Equal(t, 1, len(res.Purls))
-	assert.Equal(t, "pkg:github/scanoss/engine", res.Purls[0].Purl)
-	assert.Equal(t, []string{"v5.4.6", "v5.4.7"}, res.Purls[0].Versions)
+	got, err := ToAlgorithmsInRangeResponse(ctx, log, input)
+	require.NoError(t, err)
+	assert.Equal(t, commonv2.StatusCode_SUCCESS, got.Status.Status)
+	assert.Equal(t, inRangeOKMessage, got.Status.Message)
+	require.Len(t, got.Purls, 1)
+	assert.Equal(t, "pkg:github/scanoss/engine", got.Purls[0].Purl)
+	assert.Equal(t, []string{"v5.4.6", "v5.4.7"}, got.Purls[0].Versions)
 }
 
 func TestInRangeResponseForSingleComponent(t *testing.T) {
-	// Create a mock server stream context
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
-	s := ctxzap.Extract(ctx).Sugar()
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
+
+	tests := []struct {
+		name  string
+		input domain.CryptoInRangeOutput
+		want  *cryptographyv2.ComponentAlgorithmsInRangeResponse
+	}{
+		{
+			name: "good_purl",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{{
+					Purl:        "pkg:github/scanoss/ldb",
+					Requirement: ">v1.0.0",
+					Versions:    []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+					Algorithms:  []domain.CryptoUsageItem{{Algorithm: "MD5", Strength: "16"}},
+					Status:      status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+			want: &cryptographyv2.ComponentAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Component: &cryptographyv2.ComponentAlgorithmsInRangeResponse_Component{
+					Purl:       "pkg:github/scanoss/ldb",
+					Versions:   []string{"v1.0.1", "v1.0.2", "v1.0.3"},
+					Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "MD5", Strength: "16"}},
+				},
+			},
+		},
+		{
+			name: "no_crypto",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{{
+					Purl:        "pkg:github/scanoss/ldb",
+					Requirement: ">v1.0.0",
+					Status:      status.ComponentStatus{Message: "No crypto found", StatusCode: status.NoInfo},
+				}},
+			},
+			want: &cryptographyv2.ComponentAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Component: &cryptographyv2.ComponentAlgorithmsInRangeResponse_Component{
+					Purl:        "pkg:github/scanoss/ldb",
+					Algorithms:  []*cryptographyv2.Algorithm{},
+					InfoMessage: ptr("No crypto found"),
+					InfoCode:    ptr(string(status.NoInfo)),
+				},
+			},
+		},
+		{
+			name: "purl_not_found",
+			input: domain.CryptoInRangeOutput{
+				Cryptography: []domain.CryptoInRangeOutputItem{{
+					Purl:        "pkg:github/scanoss/ldbo",
+					Requirement: ">v1.0.0",
+					Status:      status.ComponentStatus{Message: "purl not found", StatusCode: status.ComponentNotFound},
+				}},
+			},
+			want: &cryptographyv2.ComponentAlgorithmsInRangeResponse{
+				Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: inRangeOKMessage},
+				Component: &cryptographyv2.ComponentAlgorithmsInRangeResponse_Component{
+					Purl:        "pkg:github/scanoss/ldbo",
+					Algorithms:  []*cryptographyv2.Algorithm{},
+					InfoMessage: ptr("purl not found"),
+					InfoCode:    ptr(string(status.ComponentNotFound)),
+				},
+			},
+		},
 	}
 
-	goodPurl := `{"purls": [
-         {
-            "purl": "pkg:github/scanoss/ldb",
-            "requirement": ">v1.0.0",
-            "versions": [
-                "v1.0.1",
-                "v1.0.2",
-                "v1.0.3"
-            ],
-            "algorithms": [
-                {
-                    "algorithm": "MD5",
-                    "strength": "16"
-                }
-            ],
-			"status":{"statusCode":"SUCCESS"}
-        }
-    ]}`
-
-	var input domain.CryptoInRangeOutput
-	err = json.Unmarshal([]byte(goodPurl), &input)
-	if err != nil {
-		t.Fatalf("failed to parse sample JSON: %v", err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentAlgorithmsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
-
-	// Call the function under test
-	res, err := ToComponentAlgorithmsInRangeResponse(ctx, s, input)
-	if err != nil {
-		t.Errorf("unexpected error on creating response: %v", err)
-		return
-	}
-	assert.Equal(t, res.Component.Purl, "pkg:github/scanoss/ldb")
-	assert.Equal(t, res.Component.Versions, []string{"v1.0.1", "v1.0.2", "v1.0.3"})
-	assert.Equal(t, res.Component.Algorithms, []*cryptographyv2.Algorithm{{Algorithm: "MD5", Strength: "16"}})
-	assert.Equal(t, res.Status.Status, commonv2.StatusCode_SUCCESS)
-	assert.Equal(t, res.Status.Message, "Algorithms in range retrieved successfully.")
-
-	// ---------------------------------------------Purl without cryptography-------------------------------
-
-	noCryptoJson := `{"purls": [
-		         {
-		            "purl": "pkg:github/scanoss/ldb",
-		            "requirement": ">v1.0.0",
-					"status": {
-						"statusCode": "NO_INFO",
-						"message": "No crypto found",
-						"error_message": ""
-						}
-
-		        }
-		    ]}`
-
-	var noCryptoInput domain.CryptoInRangeOutput
-	err = json.Unmarshal([]byte(noCryptoJson), &noCryptoInput)
-	if err != nil {
-		t.Fatalf("failed to parse sample JSON: %v", err)
-	}
-	noCryptoInput.Cryptography[0].Status.StatusCode = status.NoInfo
-	noCryptoInput.Cryptography[0].Status.Message = "No crypto found"
-
-	// Call the function under test
-	res, err = ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, noCryptoInput)
-	if err != nil {
-		t.Errorf("unexpected error on creating response: %v", err)
-		return
-	}
-	assert.Equal(t, "pkg:github/scanoss/ldb", res.Component.Purl)
-	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
-	assert.NotNil(t, res.Component.InfoMessage)
-	assert.Equal(t, "No crypto found", *res.Component.InfoMessage)
-	assert.NotNil(t, res.Component.InfoCode)
-	assert.Equal(t, string(status.NoInfo), *res.Component.InfoCode)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
-	//--------------------------------------- Purl not found ------------------------------------
-
-	noPurlJson := `{"purls": [
-	         {
-	            "purl": "pkg:github/scanoss/ldbo",
-	            "requirement": ">v1.0.0",
-	            			"status": {
-					"statusCode": "COMPONENT_NOT_FOUND",
-					"message": "purl not found"
-					}
-
-	        }
-	    ]}`
-
-	var noPurlInput domain.CryptoInRangeOutput
-	err = json.Unmarshal([]byte(noPurlJson), &noPurlInput)
-	if err != nil {
-		t.Fatalf("failed to parse sample JSON: %v", err)
-	}
-	noPurlInput.Cryptography[0].Status.StatusCode = status.ComponentNotFound
-	noPurlInput.Cryptography[0].Status.Message = "purl not found"
-	// Call the function under test
-	res, err = ToComponentAlgorithmsInRangeResponse(ctx, zlog.S, noPurlInput)
-	if err != nil {
-		t.Errorf("unexpected error on creating response: %v", err)
-		return
-	}
-	assert.Equal(t, "pkg:github/scanoss/ldbo", res.Component.Purl)
-	assert.Equal(t, []*cryptographyv2.Algorithm{}, res.Component.Algorithms)
-	assert.NotNil(t, res.Component.InfoMessage)
-	assert.Equal(t, "purl not found", *res.Component.InfoMessage)
-	assert.NotNil(t, res.Component.InfoCode)
-	assert.Equal(t, string(status.ComponentNotFound), *res.Component.InfoCode)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "Algorithms in range retrieved successfully.", res.Status.Message)
 }

@@ -1,220 +1,218 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2025 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package responsebuilder
 
 import (
 	"context"
-	"encoding/csv"
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"scanoss.com/cryptography/pkg/domain"
-	"strconv"
-	"strings"
 	"testing"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"github.com/scanoss/papi/api/commonv2"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/scanoss/papi/api/cryptographyv2"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"scanoss.com/cryptography/pkg/domain"
 )
 
-type HintsInRangeTestCase struct {
-	Name                   string
-	RequestJSON            string
-	ExpectedStatusCode     string
-	ExpectedStatusMessage  string
-	ExpectedComponentCount int
-	ComponentPurls         []string
-	ComponentVersions      []string
-	ComponentHintsCount    []int
-	ComponentErrorMessages []string
+const hintsInRangeOKMessage = "Hints in range retrieved successfully."
+
+type hintsInRangeCase struct {
+	name  string
+	input domain.ECOutput
 }
 
-func loadHintsInRangeTestCases(t *testing.T, filename string) []HintsInRangeTestCase {
-	t.Helper()
+func hintsInRangeFixtures() []hintsInRangeCase {
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
+	rsa := domain.ECDetectedItem{ID: "2", Name: "RSA", Purl: "pkg:crypto/rsa", Description: "RSA encryption", Category: "asymmetric", URL: "https://example.com/rsa"}
 
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open test cases file: %v", err)
+	return []hintsInRangeCase{
+		{
+			name: "one_component_with_hints",
+			input: domain.ECOutput{
+				Hints: []domain.ECOutputItem{{
+					Purl:       "pkg:github/scanoss/engine",
+					Versions:   []string{"v5.4.6", "v5.4.7"},
+					Detections: []domain.ECDetectedItem{aes},
+					Status:     status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
+		{
+			name: "two_components_mixed",
+			input: domain.ECOutput{
+				Hints: []domain.ECOutputItem{
+					{
+						Purl:       "pkg:github/scanoss/engine",
+						Versions:   []string{"v5.4.6", "v5.4.7"},
+						Detections: []domain.ECDetectedItem{aes},
+						Status:     status.ComponentStatus{StatusCode: status.Success},
+					},
+					{
+						Purl:     "pkg:npm/react",
+						Versions: []string{},
+						Status:   status.ComponentStatus{Message: "No hints found", StatusCode: status.ComponentWithoutInfo},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple_hints",
+			input: domain.ECOutput{
+				Hints: []domain.ECOutputItem{{
+					Purl:       "pkg:maven/org.apache/commons",
+					Versions:   []string{"3.0.0", "3.0.1"},
+					Detections: []domain.ECDetectedItem{aes, rsa},
+					Status:     status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
 	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.LazyQuotes = true
-	reader.TrimLeadingSpace = true
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatalf("failed to read CSV: %v", err)
-	}
-
-	if len(records) < 2 {
-		t.Fatal("CSV file must have header and at least one test case")
-	}
-
-	var testCases []HintsInRangeTestCase
-	for _, record := range records[1:] {
-		if len(record) < 9 {
-			t.Fatalf("invalid CSV record: %v", record)
-		}
-
-		componentCount, err := strconv.Atoi(record[4])
-		if err != nil {
-			t.Fatalf("invalid component count: %v", record[4])
-		}
-
-		purls := strings.Split(record[5], "|")
-		versions := strings.Split(record[6], "|")
-		hintsCountStr := strings.Split(record[7], "|")
-		errorMessages := strings.Split(record[8], "|")
-
-		hintsCounts := make([]int, len(hintsCountStr))
-		for i, hc := range hintsCountStr {
-			count, err := strconv.Atoi(hc)
-			if err != nil {
-				t.Fatalf("invalid hints count: %v", hc)
-			}
-			hintsCounts[i] = count
-		}
-
-		testCases = append(testCases, HintsInRangeTestCase{
-			Name:                   record[0],
-			RequestJSON:            record[1],
-			ExpectedStatusCode:     record[2],
-			ExpectedStatusMessage:  record[3],
-			ExpectedComponentCount: componentCount,
-			ComponentPurls:         purls,
-			ComponentVersions:      versions,
-			ComponentHintsCount:    hintsCounts,
-			ComponentErrorMessages: errorMessages,
-		})
-	}
-
-	return testCases
 }
 
-func TestHintsInRangeResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+func TestToHintsInRangeResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
+	rsa := domain.ECDetectedItem{ID: "2", Name: "RSA", Purl: "pkg:crypto/rsa", Description: "RSA encryption", Category: "asymmetric", URL: "https://example.com/rsa"}
+
+	wants := map[string]*cryptographyv2.HintsInRangeResponse{
+		"one_component_with_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Purls: []*cryptographyv2.HintsInRangeResponse_Purl{{
+				Purl:     "pkg:github/scanoss/engine",
+				Versions: []string{"v5.4.6", "v5.4.7"},
+				Hints:    hintsFromDetections(aes),
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Purls: []*cryptographyv2.HintsInRangeResponse_Purl{
+				{
+					Purl:     "pkg:github/scanoss/engine",
+					Versions: []string{"v5.4.6", "v5.4.7"},
+					Hints:    hintsFromDetections(aes),
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Versions:    []string{},
+					Hints:       []*cryptographyv2.Hint{},
+					InfoMessage: ptr("No hints found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Purls: []*cryptographyv2.HintsInRangeResponse_Purl{{
+				Purl:     "pkg:maven/org.apache/commons",
+				Versions: []string{"3.0.0", "3.0.1"},
+				Hints:    hintsFromDetections(aes, rsa),
+			}},
+		},
 	}
-	defer zlog.SyncZap()
 
-	testCasesFile := filepath.Join("testdata", "hints_in_range_test_cases.csv")
-	testCases := loadHintsInRangeTestCases(t, testCasesFile)
-
-	for _, tc := range testCases {
-		t.Run(tc.Name+"_ToHintsInRangeResponse", func(t *testing.T) {
-			var input domain.ECOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
-
-			res, err := ToHintsInRangeResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Purls))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Purls); i++ {
-				purl := res.Purls[i]
-				assert.Equal(t, tc.ComponentPurls[i], purl.Purl)
-
-				// Parse versions from CSV format
-				expectedVersions := []string{}
-				if tc.ComponentVersions[i] != "" {
-					expectedVersions = strings.Split(tc.ComponentVersions[i], ";")
-				}
-				assert.Equal(t, expectedVersions, purl.Versions)
-				assert.Equal(t, tc.ComponentHintsCount[i], len(purl.Hints))
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, purl.InfoMessage)
-					if purl.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range hintsInRangeFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToHintsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
+	}
+}
 
-		t.Run(tc.Name+"_ToComponentsHintsInRangeResponse", func(t *testing.T) {
-			var input domain.ECOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
+func TestToComponentsHintsInRangeResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-			res, err := ToComponentsHintsInRangeResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
+	rsa := domain.ECDetectedItem{ID: "2", Name: "RSA", Purl: "pkg:crypto/rsa", Description: "RSA encryption", Category: "asymmetric", URL: "https://example.com/rsa"}
 
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Components))
+	wants := map[string]*cryptographyv2.ComponentsHintsInRangeResponse{
+		"one_component_with_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsHintsInRangeResponse_Component{{
+				Purl:     "pkg:github/scanoss/engine",
+				Versions: []string{"v5.4.6", "v5.4.7"},
+				Hints:    hintsFromDetections(aes),
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsHintsInRangeResponse_Component{
+				{
+					Purl:     "pkg:github/scanoss/engine",
+					Versions: []string{"v5.4.6", "v5.4.7"},
+					Hints:    hintsFromDetections(aes),
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Versions:    []string{},
+					Hints:       []*cryptographyv2.Hint{},
+					InfoMessage: ptr("No hints found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsHintsInRangeResponse_Component{{
+				Purl:     "pkg:maven/org.apache/commons",
+				Versions: []string{"3.0.0", "3.0.1"},
+				Hints:    hintsFromDetections(aes, rsa),
+			}},
+		},
+	}
 
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Components); i++ {
-				component := res.Components[i]
-				assert.Equal(t, tc.ComponentPurls[i], component.Purl)
-
-				// Parse versions from CSV format
-				expectedVersions := []string{}
-				if tc.ComponentVersions[i] != "" {
-					expectedVersions = strings.Split(tc.ComponentVersions[i], ";")
-				}
-				assert.Equal(t, expectedVersions, component.Versions)
-				assert.Equal(t, tc.ComponentHintsCount[i], len(component.Hints))
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.InfoMessage)
-					if component.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range hintsInRangeFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentsHintsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
 	}
 }
 
 func TestComponentHintsInRangeResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
 
-	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","versions":["v5.4.6","v5.4.7"],"hints":[{"id":"1","name":"AES","purl":"pkg:crypto/aes","description":"AES encryption","category":"symmetric","url":"https://example.com/aes"}],"status":{"status":"SUCCESS"}}]}`
-
-	var input domain.ECOutput
-	err = json.Unmarshal([]byte(singleComponentJSON), &input)
-	if err != nil {
-		t.Fatalf("failed to parse request JSON: %v", err)
+	input := domain.ECOutput{
+		Hints: []domain.ECOutputItem{{
+			Purl:       "pkg:github/scanoss/engine",
+			Versions:   []string{"v5.4.6", "v5.4.7"},
+			Detections: []domain.ECDetectedItem{aes},
+			Status:     status.ComponentStatus{StatusCode: status.Success},
+		}},
 	}
 
-	res, err := ToComponentHintsInRangeResponse(ctx, zlog.S, input)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
+	want := &cryptographyv2.ComponentHintsInRangeResponse{
+		Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsInRangeOKMessage},
+		Component: &cryptographyv2.ComponentHintsInRangeResponse_Component{
+			Purl:     "pkg:github/scanoss/engine",
+			Versions: []string{"v5.4.6", "v5.4.7"},
+			Hints:    hintsFromDetections(aes),
+		},
 	}
 
-	assert.Equal(t, "Hints in range retrieved successfully.", res.Status.Message)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "pkg:github/scanoss/engine", res.Component.Purl)
-	assert.Equal(t, []string{"v5.4.6", "v5.4.7"}, res.Component.Versions)
-	assert.Equal(t, 1, len(res.Component.Hints))
-	assert.Equal(t, "1", res.Component.Hints[0].Id)
-	assert.Equal(t, "AES", res.Component.Hints[0].Name)
+	got, err := ToComponentHintsInRangeResponse(ctx, log, input)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

@@ -1,259 +1,218 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2025 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package responsebuilder
 
 import (
 	"context"
-	"encoding/csv"
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"scanoss.com/cryptography/pkg/domain"
-	"strconv"
-	"strings"
 	"testing"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"github.com/scanoss/papi/api/commonv2"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/scanoss/papi/api/cryptographyv2"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"scanoss.com/cryptography/pkg/domain"
 )
 
-type VersionsTestCase struct {
-	Name                   string
-	RequestJSON            string
-	ExpectedStatusCode     string
-	ExpectedStatusMessage  string
-	ExpectedComponentCount int
-	ComponentPurls         []string
-	VersionsWith           []string
-	VersionsWithout        []string
-	ComponentErrorMessages []string
+const versionsInRangeOKMessage = "Versions in range retrieved successfully."
+
+type versionsInRangeCase struct {
+	name  string
+	input domain.VersionsInRangeOutput
 }
 
-func loadVersionsTestCases(t *testing.T, filename string) []VersionsTestCase {
-	t.Helper()
-
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open test cases file: %v", err)
+func versionsInRangeFixtures() []versionsInRangeCase {
+	return []versionsInRangeCase{
+		{
+			name: "one_component_with_versions",
+			input: domain.VersionsInRangeOutput{
+				Versions: []domain.VersionsInRangeUsingCryptoItem{{
+					Purl:            "pkg:github/scanoss/engine",
+					VersionsWith:    []string{"v5.4.6", "v5.4.7"},
+					VersionsWithout: []string{"v5.4.5"},
+					Status:          status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
+		{
+			name: "two_components_mixed",
+			input: domain.VersionsInRangeOutput{
+				Versions: []domain.VersionsInRangeUsingCryptoItem{
+					{
+						Purl:            "pkg:github/scanoss/engine",
+						VersionsWith:    []string{"v5.4.6"},
+						VersionsWithout: []string{"v5.4.5"},
+						Status:          status.ComponentStatus{StatusCode: status.Success},
+					},
+					{
+						Purl:            "pkg:npm/react",
+						VersionsWith:    []string{},
+						VersionsWithout: []string{"18.0.0"},
+						Status:          status.ComponentStatus{Message: "No crypto found", StatusCode: status.ComponentWithoutInfo},
+					},
+				},
+			},
+		},
+		{
+			name: "all_versions_with_crypto",
+			input: domain.VersionsInRangeOutput{
+				Versions: []domain.VersionsInRangeUsingCryptoItem{{
+					Purl:            "pkg:maven/org.apache/commons",
+					VersionsWith:    []string{"3.0.0", "3.0.1", "3.0.2"},
+					VersionsWithout: []string{},
+					Status:          status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
 	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.LazyQuotes = true
-	reader.TrimLeadingSpace = true
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatalf("failed to read CSV: %v", err)
-	}
-
-	if len(records) < 2 {
-		t.Fatal("CSV file must have header and at least one test case")
-	}
-
-	var testCases []VersionsTestCase
-	for _, record := range records[1:] {
-		if len(record) < 9 {
-			t.Fatalf("invalid CSV record: %v", record)
-		}
-
-		componentCount, err := strconv.Atoi(record[4])
-		if err != nil {
-			t.Fatalf("invalid component count: %v", record[4])
-		}
-
-		purls := strings.Split(record[5], "|")
-		versionsWith := strings.Split(record[6], "|")
-		versionsWithout := strings.Split(record[7], "|")
-		errorMessages := strings.Split(record[8], "|")
-
-		testCases = append(testCases, VersionsTestCase{
-			Name:                   record[0],
-			RequestJSON:            record[1],
-			ExpectedStatusCode:     record[2],
-			ExpectedStatusMessage:  record[3],
-			ExpectedComponentCount: componentCount,
-			ComponentPurls:         purls,
-			VersionsWith:           versionsWith,
-			VersionsWithout:        versionsWithout,
-			ComponentErrorMessages: errorMessages,
-		})
-	}
-
-	return testCases
 }
 
-func TestVersionsInRangeResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+func TestToVersionsInRangeResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	wants := map[string]*cryptographyv2.VersionsInRangeResponse{
+		"one_component_with_versions": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Purls: []*cryptographyv2.VersionsInRangeResponse_Purl{{
+				Purl:            "pkg:github/scanoss/engine",
+				VersionsWith:    []string{"v5.4.6", "v5.4.7"},
+				VersionsWithout: []string{"v5.4.5"},
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Purls: []*cryptographyv2.VersionsInRangeResponse_Purl{
+				{
+					Purl:            "pkg:github/scanoss/engine",
+					VersionsWith:    []string{"v5.4.6"},
+					VersionsWithout: []string{"v5.4.5"},
+				},
+				{
+					Purl:            "pkg:npm/react",
+					VersionsWith:    []string{},
+					VersionsWithout: []string{"18.0.0"},
+					InfoMessage:     ptr("No crypto found"),
+					InfoCode:        ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"all_versions_with_crypto": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Purls: []*cryptographyv2.VersionsInRangeResponse_Purl{{
+				Purl:            "pkg:maven/org.apache/commons",
+				VersionsWith:    []string{"3.0.0", "3.0.1", "3.0.2"},
+				VersionsWithout: []string{},
+			}},
+		},
 	}
-	defer zlog.SyncZap()
 
-	testCasesFile := filepath.Join("testdata", "versions_in_range_test_cases.csv")
-	testCases := loadVersionsTestCases(t, testCasesFile)
-
-	for _, tc := range testCases {
-		t.Run(tc.Name+"_ToVersionsInRangeResponse", func(t *testing.T) {
-			var input domain.VersionsInRangeOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
-
-			res, err := ToVersionsInRangeResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Purls))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Purls); i++ {
-				purl := res.Purls[i]
-				assert.Equal(t, tc.ComponentPurls[i], purl.Purl)
-
-				// Parse versions from CSV format
-				expectedVersionsWith := []string{}
-				if tc.VersionsWith[i] != "" {
-					expectedVersionsWith = strings.Split(tc.VersionsWith[i], ";")
-				}
-				expectedVersionsWithout := []string{}
-				if tc.VersionsWithout[i] != "" {
-					expectedVersionsWithout = strings.Split(tc.VersionsWithout[i], ";")
-				}
-
-				if len(expectedVersionsWith) == 0 && len(purl.VersionsWith) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, expectedVersionsWith, purl.VersionsWith)
-				}
-
-				if len(expectedVersionsWithout) == 0 && len(purl.VersionsWithout) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, expectedVersionsWithout, purl.VersionsWithout)
-				}
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, purl.InfoMessage)
-					if purl.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range versionsInRangeFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToVersionsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
+	}
+}
 
-		t.Run(tc.Name+"_ToComponentsVersionsInRangeResponse", func(t *testing.T) {
-			var input domain.VersionsInRangeOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
+func TestToComponentsVersionsInRangeResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-			res, err := ToComponentsVersionsInRangeResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+	wants := map[string]*cryptographyv2.ComponentsVersionsInRangeResponse{
+		"one_component_with_versions": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsVersionsInRangeResponse_Component{{
+				Purl:            "pkg:github/scanoss/engine",
+				VersionsWith:    []string{"v5.4.6", "v5.4.7"},
+				VersionsWithout: []string{"v5.4.5"},
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsVersionsInRangeResponse_Component{
+				{
+					Purl:            "pkg:github/scanoss/engine",
+					VersionsWith:    []string{"v5.4.6"},
+					VersionsWithout: []string{"v5.4.5"},
+				},
+				{
+					Purl:            "pkg:npm/react",
+					VersionsWith:    []string{},
+					VersionsWithout: []string{"18.0.0"},
+					InfoMessage:     ptr("No crypto found"),
+					InfoCode:        ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"all_versions_with_crypto": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+			Components: []*cryptographyv2.ComponentsVersionsInRangeResponse_Component{{
+				Purl:            "pkg:maven/org.apache/commons",
+				VersionsWith:    []string{"3.0.0", "3.0.1", "3.0.2"},
+				VersionsWithout: []string{},
+			}},
+		},
+	}
 
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Components))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Components); i++ {
-				component := res.Components[i]
-				assert.Equal(t, tc.ComponentPurls[i], component.Purl)
-
-				// Parse versions from CSV format
-				expectedVersionsWith := []string{}
-				if tc.VersionsWith[i] != "" {
-					expectedVersionsWith = strings.Split(tc.VersionsWith[i], ";")
-				}
-				expectedVersionsWithout := []string{}
-				if tc.VersionsWithout[i] != "" {
-					expectedVersionsWithout = strings.Split(tc.VersionsWithout[i], ";")
-				}
-
-				if len(expectedVersionsWith) == 0 && len(component.VersionsWith) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, expectedVersionsWith, component.VersionsWith)
-				}
-
-				if len(expectedVersionsWithout) == 0 && len(component.VersionsWithout) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, expectedVersionsWithout, component.VersionsWithout)
-				}
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.InfoMessage)
-					if component.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range versionsInRangeFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentsVersionsInRangeResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
 	}
 }
 
 func TestComponentVersionsInRangeResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
-
-	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","versions_with":["v5.4.6","v5.4.7"],"versions_without":["v5.4.5"],"status":{"status":"SUCCESS"}}]}`
-
-	var input domain.VersionsInRangeOutput
-	err = json.Unmarshal([]byte(singleComponentJSON), &input)
-	if err != nil {
-		t.Fatalf("failed to parse request JSON: %v", err)
+	input := domain.VersionsInRangeOutput{
+		Versions: []domain.VersionsInRangeUsingCryptoItem{{
+			Purl:            "pkg:github/scanoss/engine",
+			VersionsWith:    []string{"v5.4.6", "v5.4.7"},
+			VersionsWithout: []string{"v5.4.5"},
+			Status:          status.ComponentStatus{StatusCode: status.Success},
+		}},
 	}
 
-	res, err := ToComponentVersionsInRangeResponse(ctx, zlog.S, input)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
+	want := &cryptographyv2.ComponentVersionsInRangeResponse{
+		Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: versionsInRangeOKMessage},
+		Component: &cryptographyv2.ComponentVersionsInRangeResponse_Component{
+			Purl:            "pkg:github/scanoss/engine",
+			VersionsWith:    []string{"v5.4.6", "v5.4.7"},
+			VersionsWithout: []string{"v5.4.5"},
+		},
 	}
 
-	assert.Equal(t, "Versions in range retrieved successfully.", res.Status.Message)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "pkg:github/scanoss/engine", res.Component.Purl)
-	assert.Equal(t, []string{"v5.4.6", "v5.4.7"}, res.Component.VersionsWith)
-	assert.Equal(t, []string{"v5.4.5"}, res.Component.VersionsWithout)
+	got, err := ToComponentVersionsInRangeResponse(ctx, log, input)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
 func TestComponentVersionsInRangeResponseNilInput(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
-
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
 	emptyInput := domain.VersionsInRangeOutput{Versions: nil}
 
-	_, err = ToComponentVersionsInRangeResponse(ctx, zlog.S, emptyInput)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no versions found")
+	_, err := ToComponentVersionsInRangeResponse(ctx, log, emptyInput)
+	assert.ErrorContains(t, err, "no versions found")
 }

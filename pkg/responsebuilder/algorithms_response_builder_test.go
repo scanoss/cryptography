@@ -1,177 +1,244 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2025 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package responsebuilder
 
 import (
 	"context"
-	"encoding/json"
-	"path/filepath"
-	"scanoss.com/cryptography/pkg/domain"
 	"testing"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"github.com/scanoss/papi/api/commonv2"
 	"github.com/scanoss/papi/api/cryptographyv2"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"scanoss.com/cryptography/pkg/domain"
 )
 
-func TestAlgorithmsResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+const algorithmsOKMessage = "Algorithms retrieved successfully."
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+// algorithmsFixtures returns the three scenarios shared between ToAlgorithmResponse
+// and ToComponentsAlgorithmsResponse (same input, different expected output shapes).
+type algorithmsCase struct {
+	name  string
+	input domain.CryptoOutput
+}
+
+func algorithmsFixtures() []algorithmsCase {
+	return []algorithmsCase{
+		{
+			name: "one_component_with_algorithms",
+			input: domain.CryptoOutput{
+				Cryptography: []domain.CryptoOutputItem{{
+					Purl:        "pkg:github/scanoss/engine",
+					Version:     "v5.4.5",
+					Requirement: ">=v5.4.0",
+					Algorithms:  []domain.CryptoUsageItem{{Algorithm: "SHA256", Strength: "256"}},
+					Status:      status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
+		{
+			name: "two_components_mixed",
+			input: domain.CryptoOutput{
+				Cryptography: []domain.CryptoOutputItem{
+					{
+						Purl:        "pkg:github/scanoss/engine",
+						Version:     "v5.4.5",
+						Requirement: ">=v5.4.0",
+						Algorithms:  []domain.CryptoUsageItem{{Algorithm: "SHA256", Strength: "256"}},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+					{
+						Purl:        "pkg:npm/react",
+						Version:     "18.0.0",
+						Requirement: "^18.0.0",
+						Status:      status.ComponentStatus{Message: "No crypto found", StatusCode: status.ComponentWithoutInfo},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple_algorithms",
+			input: domain.CryptoOutput{
+				Cryptography: []domain.CryptoOutputItem{{
+					Purl:        "pkg:maven/org.apache/commons",
+					Version:     "3.0.0",
+					Requirement: "*",
+					Algorithms: []domain.CryptoUsageItem{
+						{Algorithm: "MD5", Strength: "128"},
+						{Algorithm: "SHA256", Strength: "256"},
+					},
+					Status: status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
 	}
-	defer zlog.SyncZap()
+}
 
-	testCasesFile := filepath.Join("testdata", "algorithms_response_test_cases.csv")
-	testCases := loadTestCases(t, testCasesFile)
+func TestToAlgorithmResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	for _, tc := range testCases {
-		t.Run(tc.Name+"_ToAlgorithmResponse", func(t *testing.T) {
-			var input domain.CryptoOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
+	wants := map[string]*cryptographyv2.AlgorithmResponse{
+		"one_component_with_algorithms": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Purls: []*cryptographyv2.AlgorithmResponse_Purls{{
+				Purl:       "pkg:github/scanoss/engine",
+				Version:    "v5.4.5",
+				Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}},
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Purls: []*cryptographyv2.AlgorithmResponse_Purls{
+				{
+					Purl:       "pkg:github/scanoss/engine",
+					Version:    "v5.4.5",
+					Algorithms: []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}},
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Version:     "18.0.0",
+					Algorithms:  []*cryptographyv2.Algorithm{},
+					InfoMessage: ptr("No crypto found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_algorithms": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Purls: []*cryptographyv2.AlgorithmResponse_Purls{{
+				Purl:    "pkg:maven/org.apache/commons",
+				Version: "3.0.0",
+				Algorithms: []*cryptographyv2.Algorithm{
+					{Algorithm: "MD5", Strength: "128"},
+					{Algorithm: "SHA256", Strength: "256"},
+				},
+			}},
+		},
+	}
 
-			res, err := ToAlgorithmResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Purls))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Purls); i++ {
-				purl := res.Purls[i]
-				assert.Equal(t, tc.ComponentPurls[i], purl.Purl)
-				// ComponentVersions is [][]string, but we need just first element for non-range responses
-				if len(tc.ComponentVersions[i]) > 0 {
-					assert.Equal(t, tc.ComponentVersions[i][0], purl.Version)
-				}
-
-				if len(tc.ComponentAlgorithms[i]) == 0 && len(purl.Algorithms) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, tc.ComponentAlgorithms[i], purl.Algorithms)
-				}
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, purl.InfoMessage)
-					if purl.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range algorithmsFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToAlgorithmResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
+	}
+}
 
-		t.Run(tc.Name+"_ToComponentsAlgorithmsResponse", func(t *testing.T) {
-			var input domain.CryptoOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
+func TestToComponentsAlgorithmsResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-			res, err := ToComponentsAlgorithmsResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+	wants := map[string]*cryptographyv2.ComponentsAlgorithmsResponse{
+		"one_component_with_algorithms": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Components: []*cryptographyv2.ComponentAlgorithms{{
+				Purl:        "pkg:github/scanoss/engine",
+				Version:     "v5.4.5",
+				Requirement: ">=v5.4.0",
+				Algorithms:  []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}},
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Components: []*cryptographyv2.ComponentAlgorithms{
+				{
+					Purl:        "pkg:github/scanoss/engine",
+					Version:     "v5.4.5",
+					Requirement: ">=v5.4.0",
+					Algorithms:  []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}},
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Version:     "18.0.0",
+					Requirement: "^18.0.0",
+					Algorithms:  []*cryptographyv2.Algorithm{},
+					InfoMessage: ptr("No crypto found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_algorithms": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+			Components: []*cryptographyv2.ComponentAlgorithms{{
+				Purl:        "pkg:maven/org.apache/commons",
+				Version:     "3.0.0",
+				Requirement: "*",
+				Algorithms: []*cryptographyv2.Algorithm{
+					{Algorithm: "MD5", Strength: "128"},
+					{Algorithm: "SHA256", Strength: "256"},
+				},
+			}},
+		},
+	}
 
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Components))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Components); i++ {
-				component := res.Components[i]
-				assert.Equal(t, tc.ComponentPurls[i], component.Purl)
-				// ComponentVersions is [][]string, but we need just first element for non-range responses
-				if len(tc.ComponentVersions[i]) > 0 {
-					assert.Equal(t, tc.ComponentVersions[i][0], component.Version)
-				}
-				assert.Equal(t, tc.ComponentRequirements[i], component.Requirement)
-
-				if len(tc.ComponentAlgorithms[i]) == 0 && len(component.Algorithms) == 0 {
-					// Both empty
-				} else {
-					assert.Equal(t, tc.ComponentAlgorithms[i], component.Algorithms)
-				}
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.InfoMessage)
-					if component.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage)
-					}
-				}
-			}
+	for _, tc := range algorithmsFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentsAlgorithmsResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
 	}
 }
 
 func TestComponentAlgorithmsResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
-
-	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","version":"v5.4.5","requirement":">=v5.4.0","algorithms":[{"algorithm":"SHA256","strength":"256"}],"status":{"statusCode":"SUCCESS"}}]}`
-
-	var input domain.CryptoOutput
-	err = json.Unmarshal([]byte(singleComponentJSON), &input)
-	if err != nil {
-		t.Fatalf("failed to parse request JSON: %v", err)
+	input := domain.CryptoOutput{
+		Cryptography: []domain.CryptoOutputItem{{
+			Purl:        "pkg:github/scanoss/engine",
+			Version:     "v5.4.5",
+			Requirement: ">=v5.4.0",
+			Algorithms:  []domain.CryptoUsageItem{{Algorithm: "SHA256", Strength: "256"}},
+			Status:      status.ComponentStatus{StatusCode: status.Success},
+		}},
 	}
 
-	res, err := ToComponentAlgorithmsResponse(ctx, zlog.S, input)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
+	want := &cryptographyv2.ComponentAlgorithmsResponse{
+		Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: algorithmsOKMessage},
+		Component: &cryptographyv2.ComponentAlgorithms{
+			Purl:        "pkg:github/scanoss/engine",
+			Version:     "v5.4.5",
+			Requirement: ">=v5.4.0",
+			Algorithms:  []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}},
+		},
 	}
 
-	assert.Equal(t, "Algorithms retrieved successfully.", res.Status.Message)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "pkg:github/scanoss/engine", res.Component.Purl)
-	assert.Equal(t, "v5.4.5", res.Component.Version)
-	assert.Equal(t, ">=v5.4.0", res.Component.Requirement)
-	assert.Equal(t, []*cryptographyv2.Algorithm{{Algorithm: "SHA256", Strength: "256"}}, res.Component.Algorithms)
+	got, err := ToComponentAlgorithmsResponse(ctx, log, input)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
 func TestAlgorithmsResponseNilInput(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
-
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
 	emptyInput := domain.CryptoOutput{Cryptography: nil}
 
-	_, err = ToAlgorithmResponse(ctx, zlog.S, emptyInput)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no cryptography found")
+	_, err := ToAlgorithmResponse(ctx, log, emptyInput)
+	assert.ErrorContains(t, err, "no cryptography found")
 
-	_, err = ToComponentsAlgorithmsResponse(ctx, zlog.S, emptyInput)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no cryptography found")
+	_, err = ToComponentsAlgorithmsResponse(ctx, log, emptyInput)
+	assert.ErrorContains(t, err, "no cryptography found")
 
-	_, err = ToComponentAlgorithmsResponse(ctx, zlog.S, emptyInput)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no cryptography found")
+	_, err = ToComponentAlgorithmsResponse(ctx, log, emptyInput)
+	assert.ErrorContains(t, err, "no cryptography found")
 }
