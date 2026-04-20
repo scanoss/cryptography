@@ -18,7 +18,7 @@ package usecase
 
 import (
 	"context"
-	"scanoss.com/cryptography/pkg/domain"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -75,7 +75,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 
 	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	for _, v := range algorithms.Cryptography {
-		if v.Status.StatusCode != domain.Success {
+		if v.Status.StatusCode != status.Success {
 			t.Fatal("Expected to get All purls")
 		}
 	}
@@ -94,7 +94,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("error not expected: %v", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.Success {
+		if c.Status.StatusCode != status.Success {
 			t.Fatal("Expected to get All purls")
 		}
 	}
@@ -118,7 +118,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 	}
 	failedToParse := 0
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.InvalidPurl {
+		if c.Status.StatusCode != status.InvalidPurl {
 			failedToParse++
 		}
 	}
@@ -141,7 +141,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 	}
 	algorithms, err = cryptoUc.GetCryptoInRange(ctx, s, componentDTOS)
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode == domain.Success {
+		if c.Status.StatusCode == status.Success {
 			t.Fatal("expected error on malformed requirement")
 		}
 	}
@@ -157,7 +157,7 @@ func TestAlgorithmsInRangeUseCase(t *testing.T) {
 		t.Fatalf("error not expected: %v", err)
 	}
 	for _, c := range algorithms.Cryptography {
-		if c.Status.StatusCode != domain.Success {
+		if c.Status.StatusCode != status.Success {
 			t.Fatal("Expected to get All purls")
 		}
 	}

@@ -1,9 +1,9 @@
 # Changelog
 
 ## [Unreleased]
-### Added
-- Upcoming changes...
 ### Changed
+- Replaced `error_message`/`error_code` fields with `info_message`/`info_code` across response builders and domain structs (algorithms, algorithms in range, encryption hints, hints in range, versions in range)
+- Removed `error_code_response_builder` in favor of info-based status handling in each response builder
 - Updated dependencies to the latest versions
 
 

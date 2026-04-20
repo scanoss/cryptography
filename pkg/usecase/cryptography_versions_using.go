@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"sort"
 
 	"scanoss.com/cryptography/pkg/domain"
@@ -70,12 +71,12 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 	// Prepare purls to query
 	for i := range out.Versions {
 		component := &out.Versions[i]
-		if component.Status.StatusCode != domain.Success {
+		if component.Status.StatusCode != status.Success {
 			continue
 		}
 		res, errQ := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
 		if len(res) == 0 {
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl)}
+			component.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", component.Purl)}
 			continue
 		}
 		_ = errQ
@@ -90,11 +91,11 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
 		if err1 != nil {
 			d.s.Infof("error getting algorithms usage for purl '%s': %s", component.Purl, err1)
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
+			component.Status = status.ComponentStatus{StatusCode: status.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
 			continue
 		}
 		if len(uses) == 0 {
-			component.Status = domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
+			component.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info %s", component.Purl)}
 			continue
 		}
 		for _, alg := range uses {

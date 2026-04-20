@@ -19,6 +19,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"sort"
 
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
@@ -61,7 +62,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 	}
 
 	for i, component := range out.Hints {
-		if component.Status.StatusCode != domain.Success {
+		if component.Status.StatusCode != status.Success {
 			continue
 		}
 		item := d.processSinglePurl(ctx, s, component)
@@ -80,7 +81,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 			out.Hints = append(out.Hints, domain.HintsOutputItem{
 				Purl: component.Purl, Version: "",
 				Requirement: component.Requirement,
-				Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+				Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 				Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -93,7 +94,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+					Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -104,7 +105,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
+					Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -117,7 +118,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 					Purl:        component.Purl,
 					Version:     "",
 					Requirement: component.Requirement,
-					Status:      domain.ComponentStatus{StatusCode: domain.ComponentNotFound, Message: fmt.Sprintf("Component not found: '%s'", component.Purl)},
+					Status:      status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info: '%s'", component.Purl)},
 					Detections:  []domain.ECDetectedItem{}})
 			continue
 		}
@@ -127,7 +128,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 				Purl:        component.Purl,
 				Version:     "",
 				Requirement: component.Requirement,
-				Status:      domain.ComponentStatus{StatusCode: domain.ComponentWithoutInfo, Message: fmt.Sprintf("Component with out  info: '%s'", component.Purl)},
+				Status:      status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without  info: '%s'", component.Purl)},
 				Detections:  []domain.ECDetectedItem{},
 			})
 			continue
@@ -136,7 +137,7 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 		// avoid duplicate detections (if any)
 		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
 		nonDupAlgorithms := make(map[string]bool)
-		item := domain.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: domain.ComponentStatus{StatusCode: domain.Success}}
+		item := domain.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: status.ComponentStatus{StatusCode: status.Success}}
 		for _, alg := range uses {
 			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
 			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
@@ -223,13 +224,13 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 
 // processSinglePurl processes a single PURL and returns whether to continue processing.
 func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, component domain.ECOutputItem) domain.ECOutputItem {
-	componentStatus := domain.ComponentStatus{
-		StatusCode: domain.InvalidPurl,
+	componentStatus := status.ComponentStatus{
+		StatusCode: status.InvalidPurl,
 		Message:    fmt.Sprintf("Invalid purl: '%s'", component.Purl),
 	}
 
 	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
-	componentStatus.StatusCode = domain.ComponentNotFound
+	componentStatus.StatusCode = status.ComponentNotFound
 	componentStatus.Message = fmt.Sprintf("Component not found '%s'", component.Purl)
 	if err != nil {
 		s.Errorf("error getting urls for purl '%s': %s", component.Purl, err)
@@ -241,10 +242,10 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 	}
 	item, hashes := d.processURLResults(ctx, s, res, component)
 	if len(hashes) == 0 {
-		componentStatus.StatusCode = domain.ComponentWithoutInfo
+		componentStatus.StatusCode = status.NoInfo
 		componentStatus.Message = fmt.Sprintf("Component without info '%s'", component.Purl)
 		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
 	}
-	item.Status = domain.ComponentStatus{StatusCode: domain.Success}
+	item.Status = status.ComponentStatus{StatusCode: status.Success}
 	return item
 }

@@ -18,6 +18,7 @@ package responsebuilder
 
 import (
 	"context"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -63,9 +64,11 @@ func ToHintsResponse(ctx context.Context, s *zap.SugaredLogger, output domain.Hi
 			Version: hint.Version,
 			Hints:   hints,
 		}
-		if hint.Status.StatusCode != domain.Success {
-			componentHints.ErrorMessage = &hint.Status.Message
-			componentHints.ErrorCode = statusCodeToErrorCode(hint.Status.StatusCode)
+		if hint.Status.StatusCode != status.Success {
+			code := hint.Status.StatusCode.String()
+			msg := hint.Status.Message
+			componentHints.InfoMessage = &msg
+			componentHints.InfoCode = &code
 		}
 		response.Purls = append(response.Purls, componentHints)
 	}
@@ -95,9 +98,11 @@ func getComponentHints(output domain.HintsOutputItem) *pb.ComponentHints {
 		Requirement: output.Requirement,
 		Hints:       hints,
 	}
-	if output.Status.StatusCode != domain.Success {
-		componentHints.ErrorMessage = &output.Status.Message
-		componentHints.ErrorCode = statusCodeToErrorCode(output.Status.StatusCode)
+	if output.Status.StatusCode != status.Success {
+		code := output.Status.StatusCode.String()
+		msg := output.Status.Message
+		componentHints.InfoMessage = &msg
+		componentHints.InfoCode = &code
 	}
 	return componentHints
 }

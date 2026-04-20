@@ -143,9 +143,9 @@ func TestVersionsInRangeResponse(t *testing.T) {
 				}
 
 				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, purl.ErrorMessage)
-					if purl.ErrorMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.ErrorMessage)
+					assert.NotNil(t, purl.InfoMessage)
+					if purl.InfoMessage != nil {
+						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.InfoMessage)
 					}
 				}
 			}
@@ -196,9 +196,9 @@ func TestVersionsInRangeResponse(t *testing.T) {
 				}
 
 				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.ErrorMessage)
-					if component.ErrorMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.ErrorMessage)
+					assert.NotNil(t, component.InfoMessage)
+					if component.InfoMessage != nil {
+						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage)
 					}
 				}
 			}

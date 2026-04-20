@@ -18,6 +18,7 @@ package domain
 
 import (
 	"github.com/package-url/packageurl-go"
+	"github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 )
 
 type ECOutput struct {
@@ -28,7 +29,7 @@ type ECOutputItem struct {
 	Purl        string                 `json:"purl"`
 	Versions    []string               `json:"versions"`
 	Detections  []ECDetectedItem       `json:"hints"`
-	Status      ComponentStatus        `json:"status"`
+	Status      domain.ComponentStatus `json:"status"`
 	Requirement string                 `json:"requirement"`
 	PackageURL  *packageurl.PackageURL `json:"package_url"`
 	PurlName    *string                `json:"purl_name"`
@@ -48,9 +49,9 @@ type HintsOutput struct {
 }
 
 type HintsOutputItem struct {
-	Purl        string           `json:"purl"`
-	Version     string           `json:"version"`
-	Requirement string           `json:"requirement"`
-	Detections  []ECDetectedItem `json:"hints"`
-	Status      ComponentStatus  `json:"status"`
+	Purl        string                 `json:"purl"`
+	Version     string                 `json:"version"`
+	Requirement string                 `json:"requirement"`
+	Detections  []ECDetectedItem       `json:"hints"`
+	Status      domain.ComponentStatus `json:"status"`
 }

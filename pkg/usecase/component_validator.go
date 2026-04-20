@@ -22,12 +22,12 @@ package usecase
 
 import (
 	"fmt"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"strings"
 
 	"github.com/package-url/packageurl-go"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
-	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/utils"
 )
@@ -67,25 +67,25 @@ import (
 //   - componentStatus: Validation result with status code, message, and error code
 //   - packageURL: Parsed PackageURL object (nil on validation failure)
 //   - purlName: Extracted package name from PURL (nil on validation failure)
-func parseAndValidateComponent(s *zap.SugaredLogger, component dtos.ComponentDTO) (domain.ComponentStatus, *packageurl.PackageURL, *string) {
+func parseAndValidateComponent(s *zap.SugaredLogger, component dtos.ComponentDTO) (status.ComponentStatus, *packageurl.PackageURL, *string) {
 	purl, err := purlhelper.PurlFromString(component.Purl)
 	if err != nil {
 		s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-		return domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", component.Purl)}, nil, nil
+		return status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", component.Purl)}, nil, nil
 	}
 	if component.Requirement == "*" || strings.HasPrefix(component.Requirement, "v*") {
-		return domain.ComponentStatus{StatusCode: domain.InvalidSemver, Message: fmt.Sprintf("Invalid requirement: %s", purl)}, nil, nil
+		return status.ComponentStatus{StatusCode: status.InvalidSemver, Message: fmt.Sprintf("Invalid requirement: %s", purl)}, nil, nil
 	}
 	if component.Requirement == "" {
-		return domain.ComponentStatus{StatusCode: domain.InvalidSemver, Message: fmt.Sprintf("Empty requirement %s", component.Requirement)}, nil, nil
+		return status.ComponentStatus{StatusCode: status.InvalidSemver, Message: fmt.Sprintf("Empty requirement %s", component.Requirement)}, nil, nil
 	}
 	if !utils.IsValidRequirement(component.Requirement) {
-		return domain.ComponentStatus{StatusCode: domain.InvalidSemver, Message: fmt.Sprintf("Invalid requirement: %s", component.Requirement)}, nil, nil
+		return status.ComponentStatus{StatusCode: status.InvalidSemver, Message: fmt.Sprintf("Invalid requirement: %s", component.Requirement)}, nil, nil
 	}
 	pName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
 	if err != nil {
 		s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-		return domain.ComponentStatus{StatusCode: domain.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl)}, nil, nil
+		return status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Failed to parse purl %s", purl)}, nil, nil
 	}
-	return domain.ComponentStatus{StatusCode: domain.Success}, &purl, &pName
+	return status.ComponentStatus{StatusCode: status.Success}, &purl, &pName
 }

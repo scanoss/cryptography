@@ -18,6 +18,7 @@ package responsebuilder
 
 import (
 	"context"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
 	common "github.com/scanoss/papi/api/commonv2"
@@ -64,9 +65,11 @@ func ToHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output do
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.StatusCode != domain.Success {
-				componentHintsInRange.ErrorMessage = &hint.Status.Message
-				componentHintsInRange.ErrorCode = statusCodeToErrorCode(hint.Status.StatusCode)
+			if hint.Status.StatusCode != status.Success {
+				code := hint.Status.StatusCode.String()
+				msg := hint.Status.Message
+				componentHintsInRange.InfoMessage = &msg
+				componentHintsInRange.InfoCode = &code
 			}
 			response.Purls = append(response.Purls, componentHintsInRange)
 		}
@@ -121,9 +124,11 @@ func ToComponentsHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger,
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.StatusCode != domain.Success {
-				componentHintsInRange.ErrorMessage = &hint.Status.Message
-				componentHintsInRange.ErrorCode = statusCodeToErrorCode(hint.Status.StatusCode)
+			if hint.Status.StatusCode != status.Success {
+				code := hint.Status.StatusCode.String()
+				msg := hint.Status.Message
+				componentHintsInRange.InfoMessage = &msg
+				componentHintsInRange.InfoCode = &code
 			}
 			response.Components = append(response.Components, componentHintsInRange)
 		}
@@ -181,9 +186,11 @@ func ToComponentHintsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, 
 				Versions: hint.Versions,
 				Hints:    hints,
 			}
-			if hint.Status.StatusCode != domain.Success {
-				componentHintsInRange.ErrorMessage = &hint.Status.Message
-				componentHintsInRange.ErrorCode = statusCodeToErrorCode(hint.Status.StatusCode)
+			if hint.Status.StatusCode != status.Success {
+				code := hint.Status.StatusCode.String()
+				msg := hint.Status.Message
+				componentHintsInRange.InfoMessage = &msg
+				componentHintsInRange.InfoCode = &code
 			}
 			response.Component = componentHintsInRange
 		}
