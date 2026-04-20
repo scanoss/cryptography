@@ -1,216 +1,252 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2025 SCANOSS.COM
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package responsebuilder
 
 import (
 	"context"
-	"encoding/csv"
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"scanoss.com/cryptography/pkg/domain"
-	"strconv"
-	"strings"
 	"testing"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"github.com/scanoss/papi/api/commonv2"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/scanoss/papi/api/cryptographyv2"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"scanoss.com/cryptography/pkg/domain"
 )
 
-type HintsTestCase struct {
-	Name                   string
-	RequestJSON            string
-	ExpectedStatusCode     string
-	ExpectedStatusMessage  string
-	ExpectedComponentCount int
-	ComponentPurls         []string
-	ComponentVersions      []string
-	ComponentRequirements  []string
-	ComponentHintsCount    []int
-	ComponentErrorMessages []string
+const hintsOKMessage = "Encryption's hints retrieved successfully."
+
+type encryptionHintsCase struct {
+	name  string
+	input domain.HintsOutput
 }
 
-func loadHintsTestCases(t *testing.T, filename string) []HintsTestCase {
-	t.Helper()
-
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open test cases file: %v", err)
+func encryptionHintsFixtures() []encryptionHintsCase {
+	aesDetection := domain.ECDetectedItem{
+		ID:          "1",
+		Name:        "AES",
+		Purl:        "pkg:crypto/aes",
+		Description: "AES encryption",
+		Category:    "symmetric",
+		URL:         "https://example.com/aes",
 	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.LazyQuotes = true
-	reader.TrimLeadingSpace = true
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatalf("failed to read CSV: %v", err)
-	}
-
-	if len(records) < 2 {
-		t.Fatal("CSV file must have header and at least one test case")
+	rsaDetection := domain.ECDetectedItem{
+		ID:          "2",
+		Name:        "RSA",
+		Purl:        "pkg:crypto/rsa",
+		Description: "RSA encryption",
+		Category:    "asymmetric",
+		URL:         "https://example.com/rsa",
 	}
 
-	var testCases []HintsTestCase
-	for _, record := range records[1:] {
-		if len(record) < 10 {
-			t.Fatalf("invalid CSV record: %v", record)
-		}
-
-		componentCount, err := strconv.Atoi(record[4])
-		if err != nil {
-			t.Fatalf("invalid component count: %v", record[4])
-		}
-
-		purls := strings.Split(record[5], "|")
-		versions := strings.Split(record[6], "|")
-		requirements := strings.Split(record[7], "|")
-		hintsCountStr := strings.Split(record[8], "|")
-		errorMessages := strings.Split(record[9], "|")
-
-		hintsCounts := make([]int, len(hintsCountStr))
-		for i, hc := range hintsCountStr {
-			count, err := strconv.Atoi(hc)
-			if err != nil {
-				t.Fatalf("invalid hints count: %v", hc)
-			}
-			hintsCounts[i] = count
-		}
-
-		testCases = append(testCases, HintsTestCase{
-			Name:                   record[0],
-			RequestJSON:            record[1],
-			ExpectedStatusCode:     record[2],
-			ExpectedStatusMessage:  record[3],
-			ExpectedComponentCount: componentCount,
-			ComponentPurls:         purls,
-			ComponentVersions:      versions,
-			ComponentRequirements:  requirements,
-			ComponentHintsCount:    hintsCounts,
-			ComponentErrorMessages: errorMessages,
-		})
+	return []encryptionHintsCase{
+		{
+			name: "one_component_with_hints",
+			input: domain.HintsOutput{
+				Hints: []domain.HintsOutputItem{{
+					Purl:        "pkg:github/scanoss/engine",
+					Version:     "v5.4.5",
+					Requirement: ">=v5.4.0",
+					Detections:  []domain.ECDetectedItem{aesDetection},
+					Status:      status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
+		{
+			name: "two_components_mixed",
+			input: domain.HintsOutput{
+				Hints: []domain.HintsOutputItem{
+					{
+						Purl:        "pkg:github/scanoss/engine",
+						Version:     "v5.4.5",
+						Requirement: ">=v5.4.0",
+						Detections:  []domain.ECDetectedItem{aesDetection},
+						Status:      status.ComponentStatus{StatusCode: status.Success},
+					},
+					{
+						Purl:        "pkg:npm/react",
+						Version:     "18.0.0",
+						Requirement: "^18.0.0",
+						Status:      status.ComponentStatus{Message: "No hints found", StatusCode: status.ComponentWithoutInfo},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple_hints",
+			input: domain.HintsOutput{
+				Hints: []domain.HintsOutputItem{{
+					Purl:        "pkg:maven/org.apache/commons",
+					Version:     "3.0.0",
+					Requirement: "*",
+					Detections:  []domain.ECDetectedItem{aesDetection, rsaDetection},
+					Status:      status.ComponentStatus{StatusCode: status.Success},
+				}},
+			},
+		},
 	}
-
-	return testCases
 }
 
-func TestEncryptionHintsResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
-
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
-
-	testCasesFile := filepath.Join("testdata", "encryption_hints_response_test_cases.csv")
-	testCases := loadHintsTestCases(t, testCasesFile)
-
-	for _, tc := range testCases {
-		t.Run(tc.Name+"_ToHintsResponse", func(t *testing.T) {
-			var input domain.HintsOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
-
-			res, err := ToHintsResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Purls))
-
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Purls); i++ {
-				purl := res.Purls[i]
-				assert.Equal(t, tc.ComponentPurls[i], purl.Purl)
-				assert.Equal(t, tc.ComponentVersions[i], purl.Version)
-				assert.Equal(t, tc.ComponentHintsCount[i], len(purl.Hints))
-
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, purl.InfoMessage)
-					if purl.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *purl.InfoMessage)
-					}
-				}
-			}
+func hintsFromDetections(dets ...domain.ECDetectedItem) []*cryptographyv2.Hint {
+	out := make([]*cryptographyv2.Hint, 0, len(dets))
+	for _, d := range dets {
+		out = append(out, &cryptographyv2.Hint{
+			Id: d.ID, Name: d.Name, Purl: d.Purl, Description: d.Description, Category: d.Category, Url: d.URL,
 		})
+	}
+	return out
+}
 
-		t.Run(tc.Name+"_ToComponentsEncryptionHintsResponse", func(t *testing.T) {
-			var input domain.HintsOutput
-			err := json.Unmarshal([]byte(tc.RequestJSON), &input)
-			if err != nil {
-				t.Fatalf("failed to parse request JSON: %v", err)
-			}
+func TestToHintsResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-			res, err := ToComponentsEncryptionHintsResponse(ctx, zlog.S, input)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
+	rsa := domain.ECDetectedItem{ID: "2", Name: "RSA", Purl: "pkg:crypto/rsa", Description: "RSA encryption", Category: "asymmetric", URL: "https://example.com/rsa"}
 
-			expectedStatusCode := parseStatusCode(tc.ExpectedStatusCode)
-			assert.Equal(t, tc.ExpectedStatusMessage, res.Status.Message)
-			assert.Equal(t, expectedStatusCode, res.Status.Status)
-			assert.Equal(t, tc.ExpectedComponentCount, len(res.Components))
+	wants := map[string]*cryptographyv2.HintsResponse{
+		"one_component_with_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Purls: []*cryptographyv2.HintsResponse_Purls{{
+				Purl:    "pkg:github/scanoss/engine",
+				Version: "v5.4.5",
+				Hints:   hintsFromDetections(aes),
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Purls: []*cryptographyv2.HintsResponse_Purls{
+				{
+					Purl:    "pkg:github/scanoss/engine",
+					Version: "v5.4.5",
+					Hints:   hintsFromDetections(aes),
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Version:     "18.0.0",
+					Hints:       []*cryptographyv2.Hint{},
+					InfoMessage: ptr("No hints found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Purls: []*cryptographyv2.HintsResponse_Purls{{
+				Purl:    "pkg:maven/org.apache/commons",
+				Version: "3.0.0",
+				Hints:   hintsFromDetections(aes, rsa),
+			}},
+		},
+	}
 
-			for i := 0; i < tc.ExpectedComponentCount && i < len(res.Components); i++ {
-				component := res.Components[i]
-				assert.Equal(t, tc.ComponentPurls[i], component.Purl)
-				assert.Equal(t, tc.ComponentVersions[i], component.Version)
-				assert.Equal(t, tc.ComponentRequirements[i], component.Requirement)
-				assert.Equal(t, tc.ComponentHintsCount[i], len(component.Hints))
+	for _, tc := range encryptionHintsFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToHintsResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
+		})
+	}
+}
 
-				if tc.ComponentErrorMessages[i] != "" {
-					assert.NotNil(t, component.InfoMessage)
-					if component.InfoMessage != nil {
-						assert.Equal(t, tc.ComponentErrorMessages[i], *component.InfoMessage)
-					}
-				}
-			}
+func TestToComponentsEncryptionHintsResponse(t *testing.T) {
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
+
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
+	rsa := domain.ECDetectedItem{ID: "2", Name: "RSA", Purl: "pkg:crypto/rsa", Description: "RSA encryption", Category: "asymmetric", URL: "https://example.com/rsa"}
+
+	wants := map[string]*cryptographyv2.ComponentsEncryptionHintsResponse{
+		"one_component_with_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Components: []*cryptographyv2.ComponentHints{{
+				Purl:        "pkg:github/scanoss/engine",
+				Version:     "v5.4.5",
+				Requirement: ">=v5.4.0",
+				Hints:       hintsFromDetections(aes),
+			}},
+		},
+		"two_components_mixed": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Components: []*cryptographyv2.ComponentHints{
+				{
+					Purl:        "pkg:github/scanoss/engine",
+					Version:     "v5.4.5",
+					Requirement: ">=v5.4.0",
+					Hints:       hintsFromDetections(aes),
+				},
+				{
+					Purl:        "pkg:npm/react",
+					Version:     "18.0.0",
+					Requirement: "^18.0.0",
+					Hints:       []*cryptographyv2.Hint{},
+					InfoMessage: ptr("No hints found"),
+					InfoCode:    ptr(string(status.ComponentWithoutInfo)),
+				},
+			},
+		},
+		"multiple_hints": {
+			Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+			Components: []*cryptographyv2.ComponentHints{{
+				Purl:        "pkg:maven/org.apache/commons",
+				Version:     "3.0.0",
+				Requirement: "*",
+				Hints:       hintsFromDetections(aes, rsa),
+			}},
+		},
+	}
+
+	for _, tc := range encryptionHintsFixtures() {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToComponentsEncryptionHintsResponse(ctx, log, tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, wants[tc.name], got)
 		})
 	}
 }
 
 func TestComponentEncryptionHintsResponse(t *testing.T) {
-	ctx := grpc.NewContextWithServerTransportStream(
-		context.Background(),
-		&mockServerTransportStream{ctx: context.Background()},
-	)
+	ctx := context.Background()
+	log := zap.NewNop().Sugar()
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
-	}
-	defer zlog.SyncZap()
+	aes := domain.ECDetectedItem{ID: "1", Name: "AES", Purl: "pkg:crypto/aes", Description: "AES encryption", Category: "symmetric", URL: "https://example.com/aes"}
 
-	singleComponentJSON := `{"purls":[{"purl":"pkg:github/scanoss/engine","version":"v5.4.5","requirement":">=v5.4.0","hints":[{"id":"1","name":"AES","purl":"pkg:crypto/aes","description":"AES encryption","category":"symmetric","url":"https://example.com/aes"}],"status":{"status":"SUCCESS"}}]}`
-
-	var input domain.HintsOutput
-	err = json.Unmarshal([]byte(singleComponentJSON), &input)
-	if err != nil {
-		t.Fatalf("failed to parse request JSON: %v", err)
+	input := domain.HintsOutput{
+		Hints: []domain.HintsOutputItem{{
+			Purl:        "pkg:github/scanoss/engine",
+			Version:     "v5.4.5",
+			Requirement: ">=v5.4.0",
+			Detections:  []domain.ECDetectedItem{aes},
+			Status:      status.ComponentStatus{StatusCode: status.Success},
+		}},
 	}
 
-	res, err := ToComponentEncryptionHintsResponse(ctx, zlog.S, input)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
+	want := &cryptographyv2.ComponentEncryptionHintsResponse{
+		Status: &commonv2.StatusResponse{Status: commonv2.StatusCode_SUCCESS, Message: hintsOKMessage},
+		Component: &cryptographyv2.ComponentHints{
+			Purl:        "pkg:github/scanoss/engine",
+			Version:     "v5.4.5",
+			Requirement: ">=v5.4.0",
+			Hints:       hintsFromDetections(aes),
+		},
 	}
 
-	assert.Equal(t, "Encryption's hints retrieved successfully.", res.Status.Message)
-	assert.Equal(t, commonv2.StatusCode_SUCCESS, res.Status.Status)
-	assert.Equal(t, "pkg:github/scanoss/engine", res.Component.Purl)
-	assert.Equal(t, "v5.4.5", res.Component.Version)
-	assert.Equal(t, ">=v5.4.0", res.Component.Requirement)
-	assert.Equal(t, 1, len(res.Component.Hints))
-	assert.Equal(t, "1", res.Component.Hints[0].Id)
-	assert.Equal(t, "AES", res.Component.Hints[0].Name)
+	got, err := ToComponentEncryptionHintsResponse(ctx, log, input)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

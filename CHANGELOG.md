@@ -5,6 +5,8 @@
 - Replaced `error_message`/`error_code` fields with `info_message`/`info_code` across response builders and domain structs (algorithms, algorithms in range, encryption hints, hints in range, versions in range)
 - Removed `error_code_response_builder` in favor of info-based status handling in each response builder
 - Updated dependencies to the latest versions
+- Converted all `pkg/responsebuilder/` tests from CSV-driven cases to inline Go table tests with full-struct `assert.Equal` comparisons
+- Removed `pkg/responsebuilder/testdata/` and its five CSV fixtures, along with the `mockServerTransportStream`, `TestCase`, `loadTestCases`, and `parseStatusCode` helpers that only existed to bridge the CSV encoding
 
 
 ## [0.9.0] - 2025-12-29
