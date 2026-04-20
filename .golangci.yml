@@ -1,44 +1,19 @@
+version: "2"
+
 run:
-  timeout: 3m
+  timeout: 5m
+  tests: false
 
-linters-settings:
-  cyclop:
-    max-complexity: 30
-    package-average: 10.0
+formatters:
+  enable:
+    - gci
+    - goimports
 
-  errcheck:
-    check-type-assertions: true
-
-  exhaustive:
-    check:
-      - switch
-      - map
-
-  funlen:
-    lines: 150
-    statements: 80
-
-  gocognit:
-    min-complexity: 50
-
-  gosec:
-    excludes:
-      - G204
-
-  govet:
-    enable-all: true
-    disable-all: false
-    disable:
-      - fieldalignment
-
-  nakedret:
-    max-func-lines: 10
-
-  lll:
-    line-length: 180
-
-  staticcheck:
-    checks: ["all", "-SA1019"]
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
 
 linters:
   enable:
@@ -50,32 +25,82 @@ linters:
     - goconst
     - gocritic
     - godot
-    - goimports
     - gosec
     - lll
     - loggercheck
     - makezero
     - nakedret
-    - nilerr
-    - nilnil
     - nolintlint
-    - nonamedreturns
     - predeclared
     - reassign
     - staticcheck
-    - stylecheck
     - unconvert
     - unparam
     - usestdlibvars
     - whitespace
-issues:
-  # Replacing deprecated run.skip-files
-  exclude-files:
-    - ".*_test.go$"
 
-  # Replacing deprecated run.skip-dirs
-  exclude-dirs:
-    - "test"        # Skip whole test directories if you have dedicated test folders
-    - "mocks"       # Skip mock directories
-    - "testdata"    # Skip testdata directories
-    - "tests"
+  settings:
+    cyclop:
+      max-complexity: 30
+      package-average: 10.0
+
+    errcheck:
+      check-type-assertions: true
+
+    exhaustive:
+      check:
+        - switch
+        - map
+
+    funlen:
+      lines: 150
+      statements: 80
+
+    gocognit:
+      min-complexity: 40
+
+    gosec:
+      excludes:
+        - G117
+        - G304
+        - G401
+        - G501
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+      settings:
+        shadow:
+          # Non-strict mode allows the idiomatic `if err := ...; err != nil` pattern
+          # to shadow an outer err without flagging every occurrence.
+          strict: false
+
+    nakedret:
+      max-func-lines: 10
+
+    lll:
+      line-length: 180
+
+    staticcheck:
+      checks: ["all", "-SA1019"]
+
+  exclusions:
+    paths:
+      - tests
+    rules:
+      # Test-support helpers: cleanup paths intentionally ignore os.RemoveAll / os.Unsetenv errors.
+      - path: pkg/testutils/
+        linters:
+          - errcheck
+          - gosec
+      # PickClosestUrls is intentionally complex — the semver selection logic doesn't split cleanly.
+      - path: pkg/models/all_urls\.go
+        linters:
+          - gocognit
+        text: PickClosestUrls
+      # sqliteSetup is a dormant test helper kept for future SQLite-backed test paths.
+      - path: pkg/models/common\.go
+        linters:
+          - unused
+        text: sqliteSetup

@@ -14,6 +14,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package dtos contains data transfer objects used to decode incoming requests
+// and pass structured input between the service, handlers, and use cases.
 package dtos
 
 // ComponentDTO represents a software component with its Package URL and version information.

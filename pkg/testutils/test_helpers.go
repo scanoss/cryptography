@@ -14,6 +14,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package testutils provides shared helpers used across the cryptography
+// service's test suites (filesystem fixtures, environment setup, etc.).
 package testutils
 
 import (
@@ -26,10 +28,11 @@ import (
 // Returns a cleanup function that should be deferred.
 //
 // Usage:
-//   func TestMyFunction(t *testing.T) {
-//       defer testutils.SetupTestRulesetsDir(t)()
-//       // ... test code
-//   }
+//
+//	func TestMyFunction(t *testing.T) {
+//	    defer testutils.SetupTestRulesetsDir(t)()
+//	    // ... test code
+//	}
 func SetupTestRulesetsDir(t *testing.T) func() {
 	tmpDir, err := os.MkdirTemp("", "rulesets-test-*")
 	if err != nil {

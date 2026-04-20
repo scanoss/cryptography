@@ -34,7 +34,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	_ "modernc.org/sqlite"
 	myconfig "scanoss.com/cryptography/pkg/config"
-
 	"scanoss.com/cryptography/pkg/protocol/grpc"
 	"scanoss.com/cryptography/pkg/protocol/rest"
 	"scanoss.com/cryptography/pkg/service"

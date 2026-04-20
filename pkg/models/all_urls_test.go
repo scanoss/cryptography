@@ -24,8 +24,8 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	myconfig "scanoss.com/cryptography/pkg/config"
-	"scanoss.com/cryptography/pkg/utils"
 	"scanoss.com/cryptography/pkg/testutils"
+	"scanoss.com/cryptography/pkg/utils"
 )
 
 func TestAllUrlsSearchVersion(t *testing.T) {
@@ -232,7 +232,7 @@ func TestAllUrlsClosestVersionRequirement(t *testing.T) {
 		t.Fatalf("failed to load Config: %v", err)
 	}
 	myConfig.Database.Trace = true
-	//allUrlsModel := NewAllURLModel(db)
+	// allUrlsModel := NewAllURLModel(db)
 	allUrls := []AllURL{{URLHash: "0", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.0", PurlType: "github"},
 		{URLHash: "1", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.1", PurlType: "github"},
 		{URLHash: "2", Component: "engine", PurlName: "scanoss/engine", SemVer: "v1.2", PurlType: "github"},

@@ -24,9 +24,7 @@ import (
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-
 	"github.com/jmoiron/sqlx"
-
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
@@ -211,7 +209,6 @@ func TestCryptographyServer_GetAlgorithms(t *testing.T) {
 func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 	defer testutils.SetupTestRulesetsDir(t)()
 
-
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
@@ -262,7 +259,6 @@ func TestCryptographyServer_GetAlgorithmsInRange(t *testing.T) {
 	} else if len(r.Purls) != 2 {
 		t.Errorf("Expected to get exactly one purl")
 	}
-
 }
 func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 	defer testutils.SetupTestRulesetsDir(t)()
@@ -321,7 +317,6 @@ func TestCryptographyServer_GetVersionsInRange(t *testing.T) {
 
 func TestCryptographyServer_GetHintsInRange(t *testing.T) {
 	defer testutils.SetupTestRulesetsDir(t)()
-
 
 	ctx := context.Background()
 	err := zlog.NewSugaredDevLogger()

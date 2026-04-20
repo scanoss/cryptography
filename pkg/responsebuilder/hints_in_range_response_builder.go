@@ -18,9 +18,9 @@ package responsebuilder
 
 import (
 	"context"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"

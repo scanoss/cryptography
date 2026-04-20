@@ -2,10 +2,11 @@ package httphelper
 
 import (
 	"context"
-	"go.uber.org/zap"
-	"google.golang.org/grpc/metadata"
 	"net/http"
 	"testing"
+
+	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 )
 
 func Test_setHTTPCodeOnTrailer(t *testing.T) {

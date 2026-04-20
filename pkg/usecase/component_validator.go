@@ -22,10 +22,10 @@ package usecase
 
 import (
 	"fmt"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"strings"
 
 	"github.com/package-url/packageurl-go"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"

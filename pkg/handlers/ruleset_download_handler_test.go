@@ -27,7 +27,6 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
 	myconfig "scanoss.com/cryptography/pkg/config"
 )
 
@@ -383,7 +382,7 @@ func TestRulesetDownloadHandler_handleUseCaseError(t *testing.T) {
 	}
 }
 
-// customError is a helper type for testing error handling
+// customError is a helper type for testing error handling.
 type customError struct {
 	msg string
 }

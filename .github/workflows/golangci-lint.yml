@@ -19,10 +19,18 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.x
+          go-version-file: 'go.mod'
 
       - name: Setup Version
         run: make version
 
+      - name: Read linter version from Makefile
+        id: linter
+        run: echo "version=$(grep '^LINTER_VERSION' Makefile | cut -d':' -f2 | tr -d '= ')" >> "$GITHUB_OUTPUT"
+
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ steps.linter.outputs.version }}
+          args: --timeout=5m
+
