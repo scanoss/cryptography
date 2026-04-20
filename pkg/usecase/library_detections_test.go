@@ -18,11 +18,11 @@ package usecase
 
 import (
 	"context"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jmoiron/sqlx"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	_ "modernc.org/sqlite"
 	myconfig "scanoss.com/cryptography/pkg/config"

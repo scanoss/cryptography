@@ -21,10 +21,9 @@ package grpc
 import (
 	"github.com/scanoss/go-grpc-helper/pkg/grpc/otel"
 	gs "github.com/scanoss/go-grpc-helper/pkg/grpc/server"
-	myconfig "scanoss.com/cryptography/pkg/config"
-
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"google.golang.org/grpc"
+	myconfig "scanoss.com/cryptography/pkg/config"
 )
 
 // RunServer runs gRPC service to publish.

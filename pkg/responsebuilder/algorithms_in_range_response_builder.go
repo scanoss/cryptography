@@ -20,9 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
@@ -106,7 +106,7 @@ func getAlgorithmsInRange(output domain.CryptoInRangeOutputItem) *pb.ComponentsA
 //   - error: Non-nil if cryptography data is missing or empty
 func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoInRangeOutput) (*pb.ComponentsAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
-	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+	if len(output.Cryptography) == 0 {
 		return nil, errors.New("no cryptography found")
 	}
 	var response = &pb.ComponentsAlgorithmsInRangeResponse{
@@ -144,7 +144,7 @@ func ToComponentsAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLo
 //   - error: Non-nil if cryptography data is missing or empty
 func ToComponentAlgorithmsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.CryptoInRangeOutput) (*pb.ComponentAlgorithmsInRangeResponse, error) {
 	s.Debugf("convertComponentsCryptoInRangeOutput: %v", output)
-	if (output.Cryptography == nil) || (len(output.Cryptography) == 0) {
+	if len(output.Cryptography) == 0 {
 		return nil, errors.New("no cryptography found")
 	}
 	var response = &pb.ComponentAlgorithmsInRangeResponse{

@@ -19,9 +19,9 @@ package responsebuilder
 import (
 	"context"
 	"errors"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"net/http"
 
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	common "github.com/scanoss/papi/api/commonv2"
 	pb "github.com/scanoss/papi/api/cryptographyv2"
 	"go.uber.org/zap"
@@ -138,7 +138,7 @@ func ToComponentsVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogg
 //   - error: Non-nil if version data is missing or empty
 func ToComponentVersionsInRangeResponse(ctx context.Context, s *zap.SugaredLogger, output domain.VersionsInRangeOutput) (*pb.ComponentVersionsInRangeResponse, error) {
 	s.Debugf("convertToComponentsVersionInRangeOutput: %v", output)
-	if (output.Versions == nil) || (len(output.Versions) == 0) {
+	if len(output.Versions) == 0 {
 		return nil, errors.New("no versions found")
 	}
 	var response = &pb.ComponentVersionsInRangeResponse{

@@ -21,11 +21,10 @@ import (
 	"errors"
 	"strings"
 
+	common "github.com/scanoss/papi/api/commonv2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
-
-	common "github.com/scanoss/papi/api/commonv2"
 	"scanoss.com/cryptography/pkg/dtos"
 )
 

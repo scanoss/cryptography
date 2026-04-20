@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/httphelper"
 	"scanoss.com/cryptography/pkg/usecase"

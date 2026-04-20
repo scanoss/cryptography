@@ -20,11 +20,10 @@ import (
 	"context"
 	"testing"
 
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	_ "modernc.org/sqlite"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func TestParseCryptoInput(t *testing.T) {

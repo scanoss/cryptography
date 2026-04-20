@@ -19,16 +19,15 @@ package usecase
 import (
 	"context"
 	"fmt"
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"sort"
-
-	purlhelper "github.com/scanoss/go-purl-helper/pkg"
-	myconfig "scanoss.com/cryptography/pkg/config"
-	"scanoss.com/cryptography/pkg/domain"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
+	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
+	myconfig "scanoss.com/cryptography/pkg/config"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 )

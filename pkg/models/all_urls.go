@@ -23,12 +23,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
-
 	"github.com/Masterminds/semver/v3"
+	"github.com/jmoiron/sqlx"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
-
+	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/utils"
 )
 

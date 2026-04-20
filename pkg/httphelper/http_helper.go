@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package httpresponsehelper provides utilities for building standardized HTTP responses
+// Package httphelper provides utilities for building standardized HTTP responses
 // and status codes for gRPC services. It handles response status determination based on
 // various error conditions and provides helpers for setting HTTP codes in gRPC trailers.
 package httphelper

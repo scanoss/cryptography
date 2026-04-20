@@ -20,16 +20,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"scanoss.com/cryptography/pkg/domain"
 	"strings"
-
-	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/package-url/packageurl-go"
+	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
+	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
 	"scanoss.com/cryptography/pkg/utils"
