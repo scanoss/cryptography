@@ -94,11 +94,6 @@ linters:
         linters:
           - errcheck
           - gosec
-      # PickClosestUrls is intentionally complex — the semver selection logic doesn't split cleanly.
-      - path: pkg/models/all_urls\.go
-        linters:
-          - gocognit
-        text: PickClosestUrls
       # sqliteSetup is a dormant test helper kept for future SQLite-backed test paths.
       - path: pkg/models/common\.go
         linters:

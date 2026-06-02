@@ -97,10 +97,7 @@ func (d CryptoUseCase) getComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 		}
 		d.processUrls(urls, componentCryptoMetadata)
 	}
-	urlHashes, err := d.collectURLHashes(s, componentCryptoMetadata)
-	if err != nil {
-		return domain.CryptoOutput{}, err
-	}
+	urlHashes := d.collectURLHashes(componentCryptoMetadata)
 	var usage []models.CryptoUsage
 	if len(urlHashes) > 0 {
 		usage, err = d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, urlHashes)
@@ -122,7 +119,10 @@ func (d CryptoUseCase) getComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 // source-code purl. When the source purl yields crypto, the result replaces the original item
 // (keeping the original purl/requirement) and is flagged with a warning status so callers know
 // the data comes from the upstream source. The retry runs with fallback disabled to bound depth.
-func (d CryptoUseCase) applySourceFallback(ctx context.Context, s *zap.SugaredLogger, output *domain.CryptoOutput, metadata []ComponentCryptoMetadata, components []dtos.ComponentDTO) {
+func (d CryptoUseCase) applySourceFallback(
+	ctx context.Context, s *zap.SugaredLogger, output *domain.CryptoOutput,
+	metadata []ComponentCryptoMetadata, components []dtos.ComponentDTO,
+) {
 	var srcDTOs []dtos.ComponentDTO
 	var outIdx []int
 	for i := range output.Cryptography {
@@ -213,7 +213,7 @@ func (d CryptoUseCase) buildMetadata(ctx context.Context, s *zap.SugaredLogger, 
 	return purlMap
 }*/
 
-func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMetadata []ComponentCryptoMetadata) ([]string, error) {
+func (d CryptoUseCase) collectURLHashes(componentCryptoMetadata []ComponentCryptoMetadata) []string {
 	var urlHashes []string
 	for i := range componentCryptoMetadata {
 		// Skip malformed components
@@ -245,7 +245,7 @@ func (d CryptoUseCase) collectURLHashes(s *zap.SugaredLogger, componentCryptoMet
 			componentCryptoMetadata[i].SelectedURLS = []models.AllURL{}
 		}
 	}
-	return urlHashes, nil
+	return urlHashes
 }
 
 func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]models.CryptoItem {
