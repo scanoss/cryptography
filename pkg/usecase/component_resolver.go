@@ -53,7 +53,8 @@ func sourceFallbackMessage(sourcePurl string) string {
 // when the component helper linked a usable source purl (populated only on a successful
 // resolution that has a source-mine entry in the projects table). ok is false otherwise.
 func sourcePurlForFallback(c componenthelper.Component) (name, purlType string, ok bool) {
-	if c.SourcePurl != nil && c.SourcePurl.Status.StatusCode == status.Success && c.SourcePurl.Name != "" {
+	if c.SourcePurl != nil && c.SourcePurl.Status.StatusCode == status.Success &&
+		c.SourcePurl.Name != "" && c.SourcePurl.PurlType != "" {
 		return c.SourcePurl.Name, c.SourcePurl.PurlType, true
 	}
 	return "", "", false
@@ -92,7 +93,13 @@ func resolveComponentVersions(ctx context.Context, s *zap.SugaredLogger, db *sql
 
 	ordered := make([]componenthelper.Component, len(components))
 	for i, k := range keys {
-		ordered[i] = byKey[k]
+		if r, ok := byKey[k]; ok {
+			ordered[i] = r
+		} else {
+			// Defensive: the helper returns one result per input, so this should not happen.
+			// Log it instead of silently emitting a zero-value component (treated as not found downstream).
+			s.Warnf("Component helper returned no result for purl %q (requirement %q); treating as not found", components[i].Purl, components[i].Requirement)
+		}
 	}
 	return ordered
 }
@@ -104,14 +111,27 @@ func componentResolverKey(purl, requirement string) string {
 	return purl + "\x00" + requirement
 }
 
+// isWildcardRequirement reports whether a range requirement is a wildcard such as "*", "v*"
+// or an operator-prefixed form like ">v*" / ">=v*". semver accepts all of these as match-all,
+// so the range endpoints reject them: a range query needs a real version bound.
+func isWildcardRequirement(requirement string) bool {
+	for _, part := range strings.Split(requirement, ",") {
+		norm := strings.TrimLeft(strings.TrimSpace(part), "<>=~^ ")
+		if norm == "*" || strings.HasPrefix(norm, "v*") {
+			return true
+		}
+	}
+	return false
+}
+
 // filterUrlsInRange keeps the URLs whose semantic version satisfies the requirement
 // constraint (and whose purl type matches, when provided). It replaces the range filtering
 // previously embedded in AllUrlsModel.GetUrlsByPurlNameTypeInRange, operating on an
 // already-fetched URL set so version resolution stays in the component helper / model layer.
 func filterUrlsInRange(urls []models.AllURL, purlType, requirement string) ([]models.AllURL, error) {
 	// Reject empty and wildcard requirements: a range query needs an explicit constraint.
-	// (semver accepts "*" as match-all, but the range endpoints treat it as invalid.)
-	if requirement == "" || requirement == "*" || strings.HasPrefix(requirement, "v*") {
+	// (semver accepts "*", "v*" and even ">v*"/">=v*" as match-all, so they are all caught here.)
+	if requirement == "" || isWildcardRequirement(requirement) {
 		return nil, fmt.Errorf("invalid range requirement '%s'", requirement)
 	}
 	constraint, err := semver.NewConstraint(requirement)
@@ -120,7 +140,8 @@ func filterUrlsInRange(urls []models.AllURL, purlType, requirement string) ([]mo
 	}
 	var filtered []models.AllURL
 	for _, u := range urls {
-		if purlType != "" && u.PurlType != "" && u.PurlType != purlType {
+		// When a type is requested, only keep URLs of that exact type (drop empty/other types).
+		if purlType != "" && u.PurlType != purlType {
 			continue
 		}
 		if u.SemVer == "" {

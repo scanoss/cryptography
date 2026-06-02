@@ -67,6 +67,16 @@ func TestSourcePurlForFallback(t *testing.T) {
 			},
 			wantOK: false,
 		},
+		{
+			name: "source purl success but empty purl type is not usable",
+			component: componenthelper.Component{
+				SourcePurl: &componenthelper.SourcePurl{
+					PurlInfo: componenthelper.PurlInfo{Name: "jonschlinkert/word-wrap"},
+					Status:   status.ComponentStatus{StatusCode: status.Success},
+				},
+			},
+			wantOK: false,
+		},
 	}
 
 	for _, tt := range tests {

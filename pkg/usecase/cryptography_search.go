@@ -45,6 +45,7 @@ type CryptoWorkerStruct struct {
 type ComponentCryptoMetadata struct {
 	Purl          string
 	ComponentName string
+	PurlType      string
 	Requirement   string
 	Version       string
 	Status        status.ComponentStatus
@@ -199,6 +200,7 @@ func (d CryptoUseCase) buildMetadata(ctx context.Context, s *zap.SugaredLogger, 
 				Status:        c.Status,
 				Requirement:   components[i].Requirement,
 				ComponentName: c.Name,
+				PurlType:      c.PurlType,
 				SourcePurl:    srcPurl,
 			})
 	}
@@ -221,10 +223,11 @@ func (d CryptoUseCase) collectURLHashes(componentCryptoMetadata []ComponentCrypt
 			continue
 		}
 
-		// Keep only the URLs for the version the component helper resolved for this requirement.
+		// Keep only the URLs matching the resolved purl type and version, so same-name packages
+		// from different ecosystems don't share crypto hits.
 		var selectedURLs []models.AllURL
 		for _, url := range componentCryptoMetadata[i].SelectedURLS {
-			if url.Version == componentCryptoMetadata[i].Version {
+			if url.PurlType == componentCryptoMetadata[i].PurlType && url.Version == componentCryptoMetadata[i].Version {
 				selectedURLs = append(selectedURLs, url)
 			}
 		}
