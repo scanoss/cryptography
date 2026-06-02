@@ -30,15 +30,18 @@ import (
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/utils"
 )
 
 type ECDetectionUseCase struct {
+	db         *sqlx.DB
 	allUrls    *models.AllUrlsModel
 	usageModel *models.ECUsageModel
 }
 
 func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseCase {
 	return &ECDetectionUseCase{
+		db:         db,
 		allUrls:    models.NewAllURLModel(db),
 		usageModel: models.NewECUsageModel(db),
 	}
@@ -47,25 +50,35 @@ func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseC
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
 func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.ECOutput, error) {
 	out := domain.ECOutput{}
-	for _, component := range components {
-		status, packageURL, purlName := parseAndValidateComponent(s, component)
-		hintOutputItem := domain.ECOutputItem{
-			Purl:        component.Purl,
-			Status:      status,
+	resolved := resolveComponentVersions(ctx, s, d.db, components)
+	for i := range resolved {
+		c := &resolved[i]
+		item := domain.ECOutputItem{
+			Purl:        components[i].Purl,
+			Status:      c.Status,
 			Detections:  []domain.ECDetectedItem{},
-			Requirement: component.Requirement,
-			PackageURL:  packageURL,
-			PurlName:    purlName,
+			Requirement: components[i].Requirement,
+			Versions:    []string{},
 		}
-		out.Hints = append(out.Hints, hintOutputItem)
-	}
-
-	for i, component := range out.Hints {
-		if component.Status.StatusCode != status.Success {
-			continue
+		// VERSION_NOT_FOUND is acceptable: the helper resolves one version, but a range query
+		// inspects every known version against the requirement constraint.
+		if c.Status.StatusCode != status.InvalidPurl && c.Status.StatusCode != status.ComponentNotFound {
+			item = d.processSinglePurl(ctx, s, item, c.Name, c.PurlType)
+			// Fallback: the package purl has no detections, retry against the source-code purl.
+			if item.Status.StatusCode == status.NoInfo {
+				if srcName, srcType, ok := sourcePurlForFallback(*c); ok {
+					srcItem := d.processSinglePurl(ctx, s, domain.ECOutputItem{
+						Purl: components[i].Purl, Requirement: components[i].Requirement,
+						Detections: []domain.ECDetectedItem{}, Versions: []string{},
+					}, srcName, srcType)
+					if srcItem.Status.StatusCode == status.Success {
+						srcItem.Status = status.ComponentStatus{StatusCode: sourceFallbackStatus, Message: sourceFallbackMessage(c.SourcePurl.Purl)}
+						item = srcItem
+					}
+				}
+			}
 		}
-		item := d.processSinglePurl(ctx, s, component)
-		out.Hints[i] = item
+		out.Hints = append(out.Hints, item)
 	}
 	return out, nil
 }
@@ -221,30 +234,42 @@ func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string
 	return result
 }
 
-// processSinglePurl processes a single PURL and returns whether to continue processing.
-func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, component domain.ECOutputItem) domain.ECOutputItem {
-	componentStatus := status.ComponentStatus{
-		StatusCode: status.InvalidPurl,
-		Message:    fmt.Sprintf("Invalid purl: '%s'", component.Purl),
+// processSinglePurl resolves the versions in range for a component and their library detections.
+// Version enumeration is delegated to the model layer (GetUrlsByPurlList + filterUrlsInRange)
+// rather than a bespoke range query.
+func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, component domain.ECOutputItem, purlName, purlType string) domain.ECOutputItem {
+	notFound := func(code status.StatusCode, msg string) domain.ECOutputItem {
+		return domain.ECOutputItem{
+			Purl:        component.Purl,
+			Requirement: component.Requirement,
+			Versions:    []string{},
+			Detections:  []domain.ECDetectedItem{},
+			Status:      status.ComponentStatus{StatusCode: code, Message: msg},
+		}
 	}
 
-	res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *component.PurlName, component.PackageURL.Type, component.Requirement)
-	componentStatus.StatusCode = status.ComponentNotFound
-	componentStatus.Message = fmt.Sprintf("Component not found '%s'", component.Purl)
+	urls, err := d.allUrls.GetUrlsByPurlList(ctx, s, []utils.PurlReq{{Purl: purlName}})
 	if err != nil {
 		s.Errorf("error getting urls for purl '%s': %s", component.Purl, err)
-		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
+		return notFound(status.ComponentNotFound, fmt.Sprintf("Component not found '%s'", component.Purl))
 	}
-
+	// No URLs at all: the component is not in the knowledge base.
+	if len(urls) == 0 {
+		return notFound(status.ComponentNotFound, fmt.Sprintf("Component not found '%s'", component.Purl))
+	}
+	res, err := filterUrlsInRange(urls, purlType, component.Requirement)
+	if err != nil {
+		return notFound(status.InvalidSemver, fmt.Sprintf("Invalid requirement '%s' for %s", component.Requirement, component.Purl))
+	}
+	// Component exists but no known version satisfies the requirement.
 	if len(res) == 0 {
-		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
+		return notFound(status.VersionNotFound, fmt.Sprintf("No version of %s satisfies '%s'", component.Purl, component.Requirement))
 	}
 	item, hashes := d.processURLResults(ctx, s, res, component)
 	if len(hashes) == 0 {
-		componentStatus.StatusCode = status.NoInfo
-		componentStatus.Message = fmt.Sprintf("Component without info '%s'", component.Purl)
-		return domain.ECOutputItem{Purl: component.Purl, Versions: []string{}, Detections: []domain.ECDetectedItem{}, Status: componentStatus}
+		return notFound(status.NoInfo, fmt.Sprintf("Component without info '%s'", component.Purl))
 	}
+	item.Requirement = component.Requirement
 	item.Status = status.ComponentStatus{StatusCode: status.Success}
 	return item
 }

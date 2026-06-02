@@ -18,29 +18,6 @@
 // across the cryptography service. It contains helper functions for validation and
 // data transformation that are used throughout the application.
 //
-// Semantic Version Validation (semver.go):
-//
-// IsValidRequirement:
-// - Validates version requirement strings against semantic versioning rules
-// - Supports multiple comma-separated constraints
-// - Accepts comparison operators: >, <, >=, <=, ~ (tilde), ^ (caret)
-// - Each constraint must contain a valid semantic version
-// - Returns true if all constraints are syntactically valid, false otherwise
-//
-// Examples of valid requirements:
-//   - ">=1.0.0"                 - Greater than or equal to 1.0.0
-//   - "^2.3.4"                  - Compatible with 2.3.4 (caret range)
-//   - "~1.2.3"                  - Approximately 1.2.3 (tilde range)
-//   - ">=1.0.0, <2.0.0"         - Multiple constraints (comma-separated)
-//   - ">1.2.3, <=4.5.6"         - Range with multiple operators
-//
-// Examples of invalid requirements:
-//   - ""                        - Empty string
-//   - "*"                       - Wildcard (not supported)
-//   - "v*"                      - Version wildcard (not supported)
-//   - "invalid"                 - Non-semantic version string
-//   - "1.0"                     - Incomplete semantic version
-//
 // Data Structures (purl_req.go):
 //
 // PurlReq:

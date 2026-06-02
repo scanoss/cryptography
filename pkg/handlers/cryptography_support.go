@@ -104,9 +104,6 @@ func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.Purl
 func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 	p := purl
 	req := requirement
-	if requirement != "" {
-		req = requirement
-	}
 	purlParts := strings.Split(purl, "@")
 	if len(purlParts) > 1 {
 		p = purlParts[0]

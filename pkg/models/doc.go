@@ -30,8 +30,6 @@
 //   - GetUrlsByPurlList: Batch retrieval of components
 //   - GetUrlsByPurlNameType: Query by package name and type
 //   - GetUrlsByPurlNameTypeVersion: Query by specific version
-//   - GetUrlsByPurlNameTypeInRange: Query versions within semantic version ranges
-//   - PickClosestUrls: Version resolution and constraint matching
 //
 // CryptoUsageModel (crypto_usage.go):
 // - Manages the 'component_crypto' table storing cryptographic algorithm usage
