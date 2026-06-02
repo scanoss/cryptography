@@ -46,6 +46,11 @@ func loadSQLData(db *sqlx.DB, ctx context.Context, filename string) error {
 
 // LoadTestSQLData loads all the required test SQL files.
 func LoadTestSQLData(db *sqlx.DB, ctx context.Context) error {
+	// In-memory SQLite gives each pooled connection its OWN empty database. The component
+	// helper resolves versions concurrently (worker pool), so multiple connections would race
+	// and some queries would hit a connection without the loaded fixtures ("no such table").
+	// Pin the pool to a single connection so every query sees the same in-memory database.
+	db.SetMaxOpenConns(1)
 	files := []string{"../models/tests/mines.sql", "../models/tests/all_urls.sql", "../models/tests/versions.sql",
 		"../models/tests/licenses.sql",
 		"../models/tests/component_crypto.sql", "../models/tests/component_crypto_libraries.sql",
