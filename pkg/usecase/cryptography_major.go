@@ -30,15 +30,18 @@ import (
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/utils"
 )
 
 type CryptoMajorUseCase struct {
+	db          *sqlx.DB
 	allUrls     *models.AllUrlsModel
 	cryptoUsage *models.CryptoUsageModel
 }
 
 func NewCryptoMajor(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoMajorUseCase {
 	return &CryptoMajorUseCase{
+		db:          db,
 		allUrls:     models.NewAllURLModel(db),
 		cryptoUsage: models.NewCryptoUsageModel(db),
 	}
@@ -51,69 +54,98 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 		return domain.CryptoInRangeOutput{}, errors.New("empty list of purls")
 	}
 	out := domain.CryptoInRangeOutput{}
-	for _, component := range components {
-		status, packageURL, purlName := parseAndValidateComponent(s, component)
+	resolved := resolveComponentVersions(ctx, s, d.db, components)
+	for i := range resolved {
+		c := &resolved[i]
 		cryptoItem := domain.CryptoInRangeOutputItem{
-			Status:      status,
-			Purl:        component.Purl,
-			Requirement: component.Requirement,
+			Status:      c.Status,
+			Purl:        components[i].Purl,
+			Requirement: components[i].Requirement,
 			Versions:    []string{},
 			Algorithms:  []domain.CryptoUsageItem{},
-			PackageURL:  packageURL,
-			PurlName:    purlName,
+		}
+		// Resolve algorithms for components whose purl is valid and that exist in the KB.
+		// VERSION_NOT_FOUND is acceptable here: the helper resolves a single version, but a
+		// range query still inspects every known version against the requirement constraint.
+		if c.Status.StatusCode != status.InvalidPurl && c.Status.StatusCode != status.ComponentNotFound {
+			d.fillCryptoInRange(ctx, s, &cryptoItem, c.Name, c.PurlType)
+			// Fallback: the package purl has no crypto info, retry against the source-code purl.
+			if cryptoItem.Status.StatusCode == status.NoInfo {
+				if srcName, srcType, ok := sourcePurlForFallback(*c); ok {
+					srcItem := domain.CryptoInRangeOutputItem{
+						Purl: components[i].Purl, Requirement: components[i].Requirement,
+						Versions: []string{}, Algorithms: []domain.CryptoUsageItem{},
+					}
+					d.fillCryptoInRange(ctx, s, &srcItem, srcName, srcType)
+					if srcItem.Status.StatusCode == status.Success {
+						srcItem.Status = status.ComponentStatus{StatusCode: sourceFallbackStatus, Message: sourceFallbackMessage(c.SourcePurl.Purl)}
+						cryptoItem = srcItem
+					}
+				}
+			}
 		}
 		out.Cryptography = append(out.Cryptography, cryptoItem)
 	}
-	// Prepare purls to query
-	for i := range out.Cryptography {
-		c := &out.Cryptography[i]
-		if c.Status.StatusCode != status.Success {
-			continue
-		}
-		res, err := d.allUrls.GetUrlsByPurlNameTypeInRange(ctx, s, *c.PurlName, c.PackageURL.Type, c.Requirement)
-		if err != nil {
-			s.Debugf("Failed to get cryptographic algorithms: %v", err)
-			c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
-			continue
-		}
-		if len(res) == 0 {
-			c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
-			continue
-		}
-		var hashes []string
-		nonDupVersions := make(map[string]bool)
-		mapVersionHash := make(map[string]string)
-		for _, url := range res {
-			hashes = append(hashes, url.URLHash)
-			mapVersionHash[url.URLHash] = url.SemVer
-		}
-		uses, err1 := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
-		if err1 != nil {
-			s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
-		}
-		// avoid duplicate algorithms
-		nonDupAlgorithms := make(map[models.CryptoItem]bool)
-		if len(uses) == 0 {
-			c.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info %s", c.Purl)}
-			continue
-		}
-		for _, alg := range uses {
-			nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
-				nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
-				c.Algorithms = append(c.Algorithms, domain.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
-			}
-		}
-		for k := range nonDupVersions {
-			c.Versions = append(c.Versions, k)
-		}
-
-		sort.Slice(c.Versions, func(j, k int) bool {
-			versionA, _ := semver.NewVersion(c.Versions[j])
-			versionB, _ := semver.NewVersion(c.Versions[k])
-
-			return versionA.LessThan(versionB)
-		})
-	}
 	return out, nil
+}
+
+// fillCryptoInRange resolves the versions in range and their cryptographic algorithms for a single
+// component, mutating the output item's Status, Versions and Algorithms accordingly. Version
+// enumeration is delegated to the component helper / model layer (GetUrlsByPurlList +
+// filterUrlsInRange) instead of a bespoke range query.
+func (d CryptoMajorUseCase) fillCryptoInRange(ctx context.Context, s *zap.SugaredLogger, c *domain.CryptoInRangeOutputItem, purlName, purlType string) {
+	urls, err := d.allUrls.GetUrlsByPurlList(ctx, s, []utils.PurlReq{{Purl: purlName}})
+	if err != nil {
+		s.Debugf("Failed to get urls for purl '%s': %v", c.Purl, err)
+		c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
+		return
+	}
+	// No URLs at all: the component is not in the knowledge base.
+	if len(urls) == 0 {
+		c.Status = status.ComponentStatus{StatusCode: status.ComponentNotFound, Message: fmt.Sprintf("Component not found %s", c.Purl)}
+		return
+	}
+	res, err := filterUrlsInRange(urls, purlType, c.Requirement)
+	if err != nil {
+		c.Status = status.ComponentStatus{StatusCode: status.InvalidSemver, Message: fmt.Sprintf("Invalid requirement '%s' for %s", c.Requirement, c.Purl)}
+		return
+	}
+	// Component exists but no known version satisfies the requirement.
+	if len(res) == 0 {
+		c.Status = status.ComponentStatus{StatusCode: status.VersionNotFound, Message: fmt.Sprintf("No version of %s satisfies '%s'", c.Purl, c.Requirement)}
+		return
+	}
+	var hashes []string
+	nonDupVersions := make(map[string]bool)
+	mapVersionHash := make(map[string]string)
+	for _, url := range res {
+		hashes = append(hashes, url.URLHash)
+		mapVersionHash[url.URLHash] = url.SemVer
+	}
+	uses, err := d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, hashes)
+	if err != nil {
+		s.Errorf("error getting algorithms usage for purl '%s': %s", c.Purl, err)
+	}
+	if len(uses) == 0 {
+		c.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info %s", c.Purl)}
+		return
+	}
+	// avoid duplicate algorithms
+	nonDupAlgorithms := make(map[models.CryptoItem]bool)
+	for _, alg := range uses {
+		nonDupVersions[mapVersionHash[alg.URLHash]] = true
+		if _, exist := nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}]; !exist {
+			nonDupAlgorithms[models.CryptoItem{Algorithm: alg.Algorithm, Strength: alg.Strength}] = true
+			c.Algorithms = append(c.Algorithms, domain.CryptoUsageItem{Algorithm: alg.Algorithm, Strength: alg.Strength})
+		}
+	}
+	for k := range nonDupVersions {
+		c.Versions = append(c.Versions, k)
+	}
+	sort.Slice(c.Versions, func(j, k int) bool {
+		versionA, _ := semver.NewVersion(c.Versions[j])
+		versionB, _ := semver.NewVersion(c.Versions[k])
+		return versionA.LessThan(versionB)
+	})
+	c.Status = status.ComponentStatus{StatusCode: status.Success}
 }

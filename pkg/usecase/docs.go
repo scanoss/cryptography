@@ -20,9 +20,11 @@
 //
 // The package contains the following use cases:
 //
-// Component Validation:
-//   - parseAndValidateComponent: Validates and parses component DTOs, ensuring PURLs and version
-//     requirements are correctly formatted and semantically valid according to Package URL specifications.
+// Component Resolution:
+//   - resolveComponentVersions (component_resolver.go): resolves each component's version
+//     requirement to concrete version(s) via the shared go-component-helper, which queries the
+//     same knowledge base (all_urls/versions/mines). It is the single source of truth for purl
+//     validation and version resolution across every use case.
 //
 // Cryptographic Analysis:
 //

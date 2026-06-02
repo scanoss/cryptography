@@ -1,0 +1,23 @@
+{
+    "purls": [
+         {
+            "purl": "pkg:github/scanoss/ldb",
+            "requirement": ">v1.0.0",
+            "versions": [
+                "v1.0.1",
+                "v1.0.2",
+                "v1.0.3"
+            ],
+            "algorithms": [
+                {
+                    "algorithm": "MD5",
+                    "strength": "16"
+                }
+            ]
+        }
+    ],
+    "status": {
+        "status": "SUCCESS",
+        "message": "Algorithms in range Successfully retrieved"
+    }
+}

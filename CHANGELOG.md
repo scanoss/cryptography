@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-02
+### Added
+- Integrated `go-component-helper` (`componenthelper.GetComponentsVersion`) as the single source of truth for resolving and validating version requirements, querying the same knowledge base (`all_urls`/`versions`/`mines`)
+- Added a source-code purl fallback: when a cryptography or library lookup returns no info, the query is retried against the component's linked source purl; recovered results are flagged with a `WARNING` info_code and the message `Showing results from the source code purl (<source purl>)`
+- Added `github.com/scanoss/go-component-helper` and `github.com/scanoss/go-models` dependencies
+
+### Changed
+- Centralized requirement resolution in `pkg/usecase/component_resolver.go`, replacing the divergent per-endpoint validation/resolution logic
+- Range endpoints now return `VERSION_NOT_FOUND` (instead of `COMPONENT_NOT_FOUND`) when the component exists but no known version satisfies the requirement
+
+### Removed
+- Removed redundant local resolution helpers now provided by the component helper: `parseAndValidateComponent`, `utils.IsValidRequirement`, `processPurlVersion`, `models.PickClosestUrls`, `models.GetUrlsByPurlNameTypeInRange`
+
+### Fixed
+- Fixed `golangci-lint` issues (line length, unused parameter and always-nil return) and removed a stale lint exclusion
+
+
 ## [0.10.0] - 2026-04-20
 ### Changed
 - Replaced `error_message`/`error_code` fields with `info_message`/`info_code` across response builders and domain structs (algorithms, algorithms in range, encryption hints, hints in range, versions in range)
@@ -115,6 +132,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.11.0]: https://github.com/scanoss/cryptography/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/scanoss/cryptography/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/scanoss/cryptography/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/scanoss/cryptography/compare/v0.8.0...v0.8.1
