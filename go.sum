@@ -628,8 +628,8 @@ github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0t
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/scanoss/go-component-helper v0.7.0 h1:NB0gJdzYQ8kg/UEifAkVnXzdrVT1IaoyipRaYopdsj0=
 github.com/scanoss/go-component-helper v0.7.0/go.mod h1:rvdEl0tRWndm7LeaN1m7iD4QoIryI70fIfzdS+EHylY=
-github.com/scanoss/go-grpc-helper v0.15.1 h1:tiI7JXVj2LYpktkYVqCcUd6XyMi6aVcAKRecNR5QGCA=
-github.com/scanoss/go-grpc-helper v0.15.1/go.mod h1:UjrF9hewgZxstUC3+F0PJnuOXH0bChmsbcJp7e7OsH4=
+github.com/scanoss/go-grpc-helper v0.16.0 h1:RwFY2iZQ9JQWR0kewBviF1MevfpCBdkijoh+KaYRuEI=
+github.com/scanoss/go-grpc-helper v0.16.0/go.mod h1:UjrF9hewgZxstUC3+F0PJnuOXH0bChmsbcJp7e7OsH4=
 github.com/scanoss/go-models v0.10.0 h1:x+9XirwTpbLQBj3X9J+D8Lauu0oYB9bxjLafkEMpFtI=
 github.com/scanoss/go-models v0.10.0/go.mod h1:vRSlL4kxtprSwTIAARXVcVZ820tCQfkx6yn6038oY6A=
 github.com/scanoss/go-purl-helper v0.3.0 h1:zH5rcYbmYTvKms2oWrYV+8rWZ2ElLgDIOy2jZ9XhAg0=
