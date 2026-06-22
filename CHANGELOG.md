@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-22
+### Added
+- `/health` liveness endpoint (GET) on the REST gateway
+
+### Changed
+- Upgraded `scanoss/go-grpc-helper` to `v0.16.0`
+
 ## [0.11.0] - 2026-06-02
 ### Added
 - Integrated `go-component-helper` (`componenthelper.GetComponentsVersion`) as the single source of truth for resolving and validating version requirements, querying the same knowledge base (`all_urls`/`versions`/`mines`)
@@ -132,6 +139,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.12.0]: https://github.com/scanoss/cryptography/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/scanoss/cryptography/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/scanoss/cryptography/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/scanoss/cryptography/compare/v0.8.1...v0.9.0
