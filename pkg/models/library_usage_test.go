@@ -22,46 +22,125 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/testutils"
 )
 
-func TestECSearchUsage(t *testing.T) {
-	defer testutils.SetupTestRulesetsDir(t)()
+// The fixture's pkg:github/pineappleea/pineapple-src, the component whose
+// crypto-library detections the serving fixtures carry.
+const (
+	pineappleID      = "018327fd-8993-5c93-a7eb-3320b845a4d5"
+	pineappleVersion = "v5.4.7"
+)
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
+func setupECModel(t *testing.T) (context.Context, *ECUsageModel, func()) {
+	t.Helper()
+	cleanupRulesets := testutils.SetupTestRulesetsDir(t)
+	if err := zlog.NewSugaredDevLogger(); err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
-	defer zlog.SyncZap()
 	ctx := ctxzap.ToContext(context.Background(), zlog.L)
-	s := ctxzap.Extract(ctx).Sugar()
-	db := sqliteSetup(t) // Setup SQL Lite DB
-	defer CloseDB(db)
-	err = LoadTestSQLData(db, ctx)
-	if err != nil {
+	db := sqliteSetup(t)
+	if err := LoadTestSQLData(db, ctx); err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
-	myConfig, err := myconfig.NewServerConfig(nil)
-	if err != nil {
-		t.Fatalf("failed to load Config: %v", err)
+	return ctx, NewECUsageModel(db), func() {
+		CloseDB(db)
+		zlog.SyncZap()
+		cleanupRulesets()
 	}
-	myConfig.Database.Trace = true
+}
 
-	cum := NewECUsageModel(db)
-	usage, err := cum.GetLibraryUsageByURLHashes(ctx, s, []string{"c8b569083fe8d7b94ad429c445800253"})
-	if err != nil {
-		t.Errorf("all_urls.GetUrlsByPurlName() error = %v", err)
+func TestGetLibraryUsageByPurlIDs(t *testing.T) {
+	ctx, model, cleanup := setupECModel(t)
+	defer cleanup()
+	s := ctxzap.Extract(ctx).Sugar()
+
+	t.Run("known component version", func(t *testing.T) {
+		usage, err := model.GetLibraryUsageByPurlIDs(ctx, s, []string{pineappleID}, []string{pineappleVersion})
+		if err != nil {
+			t.Fatalf("GetLibraryUsageByPurlIDs error = %v", err)
+		}
+		if len(usage) == 0 {
+			t.Fatal("no library detections returned for a component the fixture carries")
+		}
+		for _, u := range usage {
+			if u.PurlID != pineappleID || u.Version != pineappleVersion {
+				t.Errorf("row = (%s, %s), want (%s, %s)", u.PurlID, u.Version, pineappleID, pineappleVersion)
+			}
+			if u.ID == "" {
+				t.Error("detection has no library id")
+			}
+		}
+	})
+
+	t.Run("library metadata is joined in", func(t *testing.T) {
+		usage, err := model.GetLibraryUsageByPurlIDs(ctx, s, []string{pineappleID}, []string{pineappleVersion})
+		if err != nil {
+			t.Fatalf("GetLibraryUsageByPurlIDs error = %v", err)
+		}
+		var found bool
+		for _, u := range usage {
+			if u.ID != "library/boringssl" {
+				continue
+			}
+			found = true
+			if u.Name == "" || u.Category == "" || u.Description == "" {
+				t.Errorf("library/boringssl came back without its metadata: %+v", u)
+			}
+		}
+		if !found {
+			t.Error("library/boringssl not among the detections")
+		}
+	})
+
+	// The join is inner: a detection naming a library the catalogue does not carry
+	// is dropped rather than surfacing with empty metadata. The mining query behaved
+	// the same way, and the fixture keeps such a dangling reference to pin it.
+	t.Run("detections without a catalogue entry are dropped", func(t *testing.T) {
+		usage, err := model.GetLibraryUsageByPurlIDs(ctx, s, []string{pineappleID}, []string{pineappleVersion})
+		if err != nil {
+			t.Fatalf("GetLibraryUsageByPurlIDs error = %v", err)
+		}
+		for _, u := range usage {
+			if u.ID == "library/openssl" {
+				t.Error("library/openssl has no crypto_library row; it should not be returned")
+			}
+		}
+	})
+
+	t.Run("unknown component or version returns nothing", func(t *testing.T) {
+		for name, args := range map[string][2][]string{
+			"unknown purl_id": {{"00000000-0000-0000-0000-000000000000"}, {pineappleVersion}},
+			"unknown version": {{pineappleID}, {"99.99.99"}},
+			"empty inputs":    {{""}, {""}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				usage, err := model.GetLibraryUsageByPurlIDs(ctx, s, args[0], args[1])
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if len(usage) != 0 {
+					t.Errorf("got %d rows, want none", len(usage))
+				}
+			})
+		}
+	})
+}
+
+// A missing table is a query failure, not an empty result.
+func TestGetLibraryUsageByPurlIDsReportsQueryFailure(t *testing.T) {
+	ctx, model, cleanup := setupECModel(t)
+	defer cleanup()
+	s := ctxzap.Extract(ctx).Sugar()
+
+	if err := RunTestSQL(model.db, ctx, "DROP TABLE component_version_crypto_library;"); err != nil {
+		t.Fatalf("failed to drop the table: %v", err)
 	}
-	if len(usage) == 0 {
-		t.Errorf("all_urls.GetUrlsByPurlNameTypeVersion() No URLs returned from query")
-	}
-	_, err = cum.GetLibraryUsageByURLHashes(ctx, s, []string{})
+	usage, err := model.GetLibraryUsageByPurlIDs(ctx, s, []string{pineappleID}, []string{pineappleVersion})
 	if err == nil {
-		t.Errorf("Expected to get an error on empy list")
+		t.Error("want an error once the table is gone")
 	}
-	_, err = cum.GetLibraryUsageByURLHashes(ctx, s, []string{"", ""})
-	if err == nil {
-		t.Errorf(" Expected to get an error on full list of empty urls")
+	if len(usage) != 0 {
+		t.Errorf("got %d rows, want none", len(usage))
 	}
 }

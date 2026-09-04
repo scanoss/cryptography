@@ -22,6 +22,7 @@ import (
 
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
+	"scanoss.com/cryptography/pkg/db"
 )
 
 const (
@@ -51,7 +52,11 @@ type ServerConfig struct {
 	}
 
 	Database struct {
-		Driver  string `env:"DB_DRIVER"`
+		// Driver selects the serving backend: duckdb (production), sqlite or postgres.
+		Driver string `env:"DB_DRIVER"`
+		// Path is the serving database file, required by the file-based drivers
+		// (duckdb, sqlite) and ignored by postgres.
+		Path    string `env:"DB_PATH"`
 		Host    string `env:"DB_HOST"`
 		User    string `env:"DB_USER"`
 		Passwd  string `env:"DB_PASSWD"`
@@ -104,7 +109,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.App.Mode = "dev"
 	cfg.App.Debug = false
 	cfg.App.GRPCReflection = false
-	cfg.Database.Driver = "postgres"
+	cfg.Database.Driver = db.DriverDuckDB
 	cfg.Database.Host = "localhost"
 	cfg.Database.User = "scanoss"
 	cfg.Database.Schema = "scanoss"

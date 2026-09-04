@@ -18,68 +18,153 @@ package models
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
+	"sort"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/testutils"
 )
 
-func TestCryptoSearchUsageByList(t *testing.T) {
-	defer testutils.SetupTestRulesetsDir(t)()
+// The fixture's pkg:github/scanoss/engine, the component whose crypto rows the
+// serving fixtures carry.
+const (
+	engineID      = "b5ccd188-eb1c-5476-bfc4-b6a44d5bacc4"
+	engineVersion = "v5.4.7"
+)
 
-	err := zlog.NewSugaredDevLogger()
-	if err != nil {
+func setupCryptoModel(t *testing.T) (context.Context, *CryptoUsageModel, func()) {
+	t.Helper()
+	cleanupRulesets := testutils.SetupTestRulesetsDir(t)
+	if err := zlog.NewSugaredDevLogger(); err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
-	defer zlog.SyncZap()
 	ctx := ctxzap.ToContext(context.Background(), zlog.L)
-	s := ctxzap.Extract(ctx).Sugar()
-	db := sqliteSetup(t) // Setup SQL Lite DB
-	defer CloseDB(db)
-	err = LoadTestSQLData(db, ctx)
-	if err != nil {
+	db := sqliteSetup(t)
+	if err := LoadTestSQLData(db, ctx); err != nil {
 		t.Fatalf("failed to load SQL test data: %v", err)
 	}
-	myConfig, err := myconfig.NewServerConfig(nil)
-	if err != nil {
-		t.Fatalf("failed to load Config: %v", err)
+	return ctx, NewCryptoUsageModel(db), func() {
+		CloseDB(db)
+		zlog.SyncZap()
+		cleanupRulesets()
 	}
-	myConfig.Database.Trace = true
+}
 
-	cum := NewCryptoUsageModel(db)
-	usage, err := cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774ed78584b719f076bb92aa42fbc7f", "541bae26cbf8e2d2f33d20cd22d435dd"})
-	if err != nil {
-		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
-	}
-	if len(usage) == 0 {
-		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
-	}
-	fmt.Printf("All Urls Version: %#v\n", usage)
-	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
-	if err != nil {
-		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
-	}
-	if len(usage) != 0 {
-		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
-	}
+func TestGetCryptoUsageByPurlIDs(t *testing.T) {
+	ctx, model, cleanup := setupCryptoModel(t)
+	defer cleanup()
+	s := ctxzap.Extract(ctx).Sugar()
 
-	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"", ""})
-	if err != nil {
-		t.Errorf("GetCryptoUsageByURLHashes error = %v", err)
-	}
-	if len(usage) != 0 {
-		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
-	}
+	t.Run("known component version", func(t *testing.T) {
+		usage, err := model.GetCryptoUsageByPurlIDs(ctx, s, []string{engineID}, []string{engineVersion})
+		if err != nil {
+			t.Fatalf("GetCryptoUsageByPurlIDs error = %v", err)
+		}
+		if len(usage) == 0 {
+			t.Fatal("no crypto usage returned for a component the fixture carries")
+		}
+		got := make([]string, 0, len(usage))
+		for _, u := range usage {
+			// Every row must say which component version it belongs to, since that is
+			// how the caller attributes algorithms back without mixing components up.
+			if u.PurlID != engineID || u.Version != engineVersion {
+				t.Errorf("row = (%s, %s), want (%s, %s)", u.PurlID, u.Version, engineID, engineVersion)
+			}
+			got = append(got, u.Algorithm)
+		}
+		sort.Strings(got)
+		want := []string{"crc32", "des", "md5", "rsa"}
+		if len(got) != len(want) {
+			t.Fatalf("algorithms = %v, want %v", got, want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("algorithms = %v, want %v", got, want)
+				break
+			}
+		}
+	})
 
-	_ = RunTestSQL(db, ctx, "DROP TABLE component_crypto;")
-	usage, err = cum.GetCryptoUsageByURLHashes(ctx, s, []string{"7774e978584b719f076bb92aa42fbc7f", "541bae267bf8e2d2f33d20cd22d435dd"})
+	t.Run("strength comes from the SPDX key sizes", func(t *testing.T) {
+		usage, err := model.GetCryptoUsageByPurlIDs(ctx, s, []string{engineID}, []string{engineVersion})
+		if err != nil {
+			t.Fatalf("GetCryptoUsageByPurlIDs error = %v", err)
+		}
+		byAlgorithm := make(map[string]string, len(usage))
+		for _, u := range usage {
+			byAlgorithm[u.Algorithm] = u.Strength
+		}
+		for algorithm, want := range map[string]string{"crc32": "32", "md5": "128", "des": "168"} {
+			if got := byAlgorithm[algorithm]; got != want {
+				t.Errorf("strength(%s) = %q, want %q", algorithm, got, want)
+			}
+		}
+	})
+
+	t.Run("unknown component or version returns nothing", func(t *testing.T) {
+		for name, args := range map[string][2][]string{
+			"unknown purl_id": {{"00000000-0000-0000-0000-000000000000"}, {engineVersion}},
+			"unknown version": {{engineID}, {"99.99.99"}},
+			"empty inputs":    {{"", ""}, {"", ""}},
+			"no ids":          {nil, {engineVersion}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				usage, err := model.GetCryptoUsageByPurlIDs(ctx, s, args[0], args[1])
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if len(usage) != 0 {
+					t.Errorf("got %d rows, want none", len(usage))
+				}
+			})
+		}
+	})
+}
+
+// A missing table is a query failure, not an empty result: a broken database must
+// not be mistaken for a component with no cryptography.
+func TestGetCryptoUsageByPurlIDsReportsQueryFailure(t *testing.T) {
+	ctx, model, cleanup := setupCryptoModel(t)
+	defer cleanup()
+	s := ctxzap.Extract(ctx).Sugar()
+
+	if err := RunTestSQL(model.db, ctx, "DROP TABLE component_version_crypto;"); err != nil {
+		t.Fatalf("failed to drop the table: %v", err)
+	}
+	usage, err := model.GetCryptoUsageByPurlIDs(ctx, s, []string{engineID}, []string{engineVersion})
 	if err == nil {
-		t.Errorf("Expected to get an error on GetCryptoUsageByURLHashes ")
+		t.Error("want an error once the table is gone")
 	}
 	if len(usage) != 0 {
-		t.Errorf("GetCryptoUsageByURLHashes No URLs returned from query")
+		t.Errorf("got %d rows, want none", len(usage))
+	}
+}
+
+func TestStrengthFromKeySizes(t *testing.T) {
+	str := func(v string) sql.NullString { return sql.NullString{String: v, Valid: true} }
+	null := sql.NullString{}
+
+	tests := []struct {
+		name        string
+		common, max sql.NullString
+		want        string
+	}{
+		{"neither set", null, null, ""},
+		{"only common", str("128"), null, "128"},
+		{"only max", null, str("256"), "256"},
+		{"both equal", str("256"), str("256"), "256"},
+		{"a range", str("128"), str("256"), "128-256"},
+		// SPDX sometimes records a maximum below the common size. The current
+		// decoration service emits the pair as-is, and this matches it deliberately.
+		{"max below common", str("168"), str("56"), "168-56"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StrengthFromKeySizes(tt.common, tt.max); got != tt.want {
+				t.Errorf("StrengthFromKeySizes = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

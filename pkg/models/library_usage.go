@@ -18,9 +18,7 @@ package models
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -30,8 +28,11 @@ type ECUsageModel struct {
 	db *sqlx.DB
 }
 
+// ECUsage is one crypto-library hint detected in one version of one component.
+// Keyed by (purl_id, version) in serving, where mining keyed it by url_hash.
 type ECUsage struct {
-	URLHash     string `db:"url_hash"`
+	PurlID      string `db:"purl_id"`
+	Version     string `db:"version"`
 	ID          string `db:"id"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
@@ -46,6 +47,7 @@ type ECUsageOnVersion struct {
 	Algorithm string `db:"algorithm_name"`
 	Strength  string `db:"strength"`
 }
+
 type ECDetectionItem struct {
 	ID          string
 	Name        string
@@ -60,32 +62,42 @@ func NewECUsageModel(db *sqlx.DB) *ECUsageModel {
 	return &ECUsageModel{db: db}
 }
 
-func (m *ECUsageModel) GetLibraryUsageByURLHashes(ctx context.Context, s *zap.SugaredLogger, urlHashes []string) ([]ECUsage, error) {
-	if len(urlHashes) == 0 {
-		s.Errorf("Please specify a valid Purl list to query")
-		return []ECUsage{}, errors.New("please specify a valid Purl list to query")
-	}
-	var purlNames []string
-	for p := range urlHashes {
-		if urlHashes[p] != "" {
-			purlNames = append(purlNames, "'"+urlHashes[p]+"'")
-		}
-	}
-	inStmt := strings.Join(purlNames, ",")
-	inStmt = "(" + inStmt + ")"
+// libraryUsageQuery reads the crypto-library hints detected in the given
+// component versions. The mining query joined `crypto_libraries` to
+// `component_crypto_library` on a detection id and filtered by url_hash; serving
+// names the tables `crypto_library` / `component_version_crypto_library` and keys
+// them by (purl_id, version).
+const libraryUsageQuery = `SELECT CAST(cvcl.purl_id AS VARCHAR) AS purl_id,
+	cvcl.version                  AS version,
+	cl.id                         AS id,
+	COALESCE(cl.name, '')         AS name,
+	COALESCE(cl.description, '')  AS description,
+	COALESCE(cl.url, '')          AS url,
+	COALESCE(cl.purl, '')         AS purl,
+	COALESCE(cl.category, '')     AS category
+FROM component_version_crypto_library cvcl
+INNER JOIN crypto_library cl ON cl.id = cvcl.library_id
+WHERE cvcl.purl_id IN (?) AND cvcl.version IN (?)`
 
-	if inStmt == "()" {
-		s.Errorf("No hashes to query")
-		return []ECUsage{}, errors.New("no hashes to query")
+// GetLibraryUsageByPurlIDs returns the crypto-library hints detected in the given
+// versions of the given components, one query per batch.
+func (m *ECUsageModel) GetLibraryUsageByPurlIDs(ctx context.Context, s *zap.SugaredLogger,
+	purlIDs, versions []string,
+) ([]ECUsage, error) {
+	purlIDs, versions = nonEmpty(purlIDs), nonEmpty(versions)
+	if len(purlIDs) == 0 || len(versions) == 0 {
+		s.Debug("No component versions to query for library usage")
+		return []ECUsage{}, nil
 	}
-	stmt := "SELECT url_hash AS url_hash, det_id as id ,name,description, url, category, purl " +
-		"FROM crypto_libraries ec, component_crypto_library cc " +
-		"WHERE url_hash in " + inStmt + " and cc.det_id=ec.id;"
-	var usages []ECUsage
-	err := m.db.SelectContext(ctx, &usages, stmt)
+	query, args, err := sqlx.In(libraryUsageQuery, purlIDs, versions)
 	if err != nil {
-		s.Errorf("Failed to query cryptoUsage:  %v", err)
-		return []ECUsage{}, fmt.Errorf("failed to query the all urls table: %v", err)
+		s.Errorf("Failed to build the library usage query: %v", err)
+		return []ECUsage{}, fmt.Errorf("failed to build the library usage query: %w", err)
+	}
+	var usages []ECUsage
+	if err = m.db.SelectContext(ctx, &usages, m.db.Rebind(query), args...); err != nil {
+		s.Errorf("Failed to query library usage: %v", err)
+		return []ECUsage{}, fmt.Errorf("failed to query the component crypto library table: %w", err)
 	}
 	return usages, nil
 }

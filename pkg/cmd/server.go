@@ -27,13 +27,11 @@ import (
 
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
-	_ "github.com/lib/pq"
 	"github.com/scanoss/go-grpc-helper/pkg/files"
-	gd "github.com/scanoss/go-grpc-helper/pkg/grpc/database"
 	gs "github.com/scanoss/go-grpc-helper/pkg/grpc/server"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	_ "modernc.org/sqlite"
 	myconfig "scanoss.com/cryptography/pkg/config"
+	scanossdb "scanoss.com/cryptography/pkg/db"
 	"scanoss.com/cryptography/pkg/protocol/grpc"
 	"scanoss.com/cryptography/pkg/protocol/rest"
 	"scanoss.com/cryptography/pkg/service"
@@ -99,21 +97,26 @@ func RunServer() error {
 	}
 
 	zlog.S.Infof("Starting SCANOSS Cryptography Service: %v", strings.TrimSpace(version))
-	// Setup database connection pool
-	db, err := gd.OpenDBConnection(cfg.Database.Dsn, cfg.Database.Driver, cfg.Database.User, cfg.Database.Passwd,
-		cfg.Database.Host, cfg.Database.Schema, cfg.Database.SslMode)
+	// Open the serving knowledge base. The file-based drivers take a path; postgres
+	// takes an explicit DSN, or one assembled from the host settings.
+	servingDB, err := scanossdb.Open(scanossdb.Config{
+		Driver: cfg.Database.Driver,
+		Path:   cfg.Database.Path,
+		DSN:    postgresDSN(cfg),
+	})
 	if err != nil {
 		return err
 	}
-	if err = gd.SetDBOptionsAndPing(db); err != nil {
-		return err
-	}
-	defer gd.CloseDBConnection(db)
+	defer func() {
+		if closeErr := servingDB.Close(); closeErr != nil {
+			zlog.S.Warnf("Problem closing the database: %v", closeErr)
+		}
+	}()
 	// Setup dynamic logging (if necessary)
 	zlog.SetupAppDynamicLogging(cfg.Logging.DynamicPort, cfg.Logging.DynamicLogging)
 
 	// Register the cryptography service
-	v2API := service.NewCryptographyServer(db, cfg)
+	v2API := service.NewCryptographyServer(servingDB, cfg)
 	ctx := context.Background()
 	// Start the REST grpc-gateway if requested
 	var srv *http.Server
@@ -129,4 +132,20 @@ func RunServer() error {
 	}
 	// graceful shutdown
 	return gs.WaitServerComplete(srv, server)
+}
+
+// postgresDSN returns the connection string for the postgres driver, assembling one
+// from the individual host settings when no explicit DSN is configured. It keeps the
+// format go-grpc-helper's OpenDBConnection used to build, so existing postgres
+// deployments read the same configuration as before. Empty for the file-based
+// drivers, which use Path instead.
+func postgresDSN(cfg *myconfig.ServerConfig) string {
+	if cfg.Database.Driver != scanossdb.DriverPostgres {
+		return ""
+	}
+	if len(cfg.Database.Dsn) > 0 {
+		return cfg.Database.Dsn
+	}
+	return fmt.Sprintf("%s://%s:%s@%s/%s?sslmode=%s", scanossdb.DriverPostgres, cfg.Database.User,
+		cfg.Database.Passwd, cfg.Database.Host, cfg.Database.Schema, cfg.Database.SslMode)
 }

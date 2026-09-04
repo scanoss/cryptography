@@ -14,27 +14,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package usecase centralises requirement resolution through the shared
-// go-component-helper, so every endpoint resolves a `requirement` to concrete
-// version(s) the same way, against the same SCANOSS knowledge base.
+// Package usecase centralises requirement resolution, so every endpoint resolves
+// a `requirement` to concrete version(s) the same way, against the same serving
+// knowledge base.
 package usecase
 
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/jmoiron/sqlx"
-	"github.com/scanoss/go-component-helper/componenthelper"
+	compHelper "github.com/scanoss/go-component-helper/componenthelper"
 	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
 	"go.uber.org/zap"
 	"scanoss.com/cryptography/pkg/dtos"
-	"scanoss.com/cryptography/pkg/models"
+	"scanoss.com/cryptography/pkg/resolver"
 )
 
-// componentResolverMaxWorkers caps the concurrency the component helper uses when
-// resolving version requirements for a batch of components.
+// componentResolverMaxWorkers caps the concurrency used when resolving version
+// requirements for a batch of components.
 const componentResolverMaxWorkers = 5
 
 // sourceFallbackStatus flags a result that was obtained by re-querying the component's
@@ -49,10 +49,11 @@ func sourceFallbackMessage(sourcePurl string) string {
 	return fmt.Sprintf("Showing results from the source code purl (%s)", sourcePurl)
 }
 
-// sourcePurlForFallback returns the source-code purl name/type to retry a crypto lookup against,
-// when the component helper linked a usable source purl (populated only on a successful
-// resolution that has a source-mine entry in the projects table). ok is false otherwise.
-func sourcePurlForFallback(c componenthelper.Component) (name, purlType string, ok bool) {
+// sourcePurlForFallback returns the source-code purl name/type to retry a crypto lookup
+// against, when the component resolved to one. Mining derived this link from the `projects`
+// table's source-mine columns; serving links it through `component.source_purl_id`.
+// ok is false when there is no usable source.
+func sourcePurlForFallback(c resolver.Resolution) (name, purlType string, ok bool) {
 	if c.SourcePurl != nil && c.SourcePurl.Status.StatusCode == status.Success &&
 		c.SourcePurl.Name != "" && c.SourcePurl.PurlType != "" {
 		return c.SourcePurl.Name, c.SourcePurl.PurlType, true
@@ -61,54 +62,20 @@ func sourcePurlForFallback(c componenthelper.Component) (name, purlType string, 
 }
 
 // resolveComponentVersions resolves the version requirement of every input component
-// through the shared go-component-helper, which queries the same knowledge base
-// (all_urls/versions/mines) this service uses. It returns one resolved Component per
-// input, in the SAME order: the helper processes components concurrently and does not
-// preserve order, so results are matched back to their inputs by (purl, requirement).
-func resolveComponentVersions(ctx context.Context, s *zap.SugaredLogger, db *sqlx.DB, components []dtos.ComponentDTO) []componenthelper.Component {
-	input := make([]componenthelper.ComponentDTO, len(components))
-	keys := make([]string, len(components))
-	for i, c := range components {
+// against the serving schema. It returns one Resolution per input, in the SAME order.
+func resolveComponentVersions(ctx context.Context, s *zap.SugaredLogger, r *resolver.Resolver,
+	components []dtos.ComponentDTO,
+) []resolver.Resolution {
+	input := make([]compHelper.ComponentDTO, 0, len(components))
+	for _, c := range components {
 		req := c.Requirement
 		// Local ("file:") dependencies have no resolvable upstream version: treat as "latest".
 		if strings.HasPrefix(req, "file:") {
 			req = ""
 		}
-		input[i] = componenthelper.ComponentDTO{Purl: c.Purl, Requirement: req}
-		keys[i] = componentResolverKey(c.Purl, req)
+		input = append(input, compHelper.ComponentDTO{Purl: c.Purl, Requirement: req})
 	}
-
-	resolved := componenthelper.GetComponentsVersion(componenthelper.ComponentVersionCfg{
-		MaxWorkers: componentResolverMaxWorkers,
-		Ctx:        ctx,
-		S:          s,
-		DB:         db,
-		Input:      input,
-	})
-
-	byKey := make(map[string]componenthelper.Component, len(resolved))
-	for _, r := range resolved {
-		byKey[componentResolverKey(r.OriginalPurl, r.OriginalRequirement)] = r
-	}
-
-	ordered := make([]componenthelper.Component, len(components))
-	for i, k := range keys {
-		if r, ok := byKey[k]; ok {
-			ordered[i] = r
-		} else {
-			// Defensive: the helper returns one result per input, so this should not happen.
-			// Log it instead of silently emitting a zero-value component (treated as not found downstream).
-			s.Warnf("Component helper returned no result for purl %q (requirement %q); treating as not found", components[i].Purl, components[i].Requirement)
-		}
-	}
-	return ordered
-}
-
-// componentResolverKey builds the lookup key used to realign concurrent helper results
-// with their original inputs. The helper echoes the purl/requirement it was given back
-// as OriginalPurl/OriginalRequirement, so the same pair reproduces the key.
-func componentResolverKey(purl, requirement string) string {
-	return purl + "\x00" + requirement
+	return resolver.ResolveComponents(ctx, s, r, input, componentResolverMaxWorkers)
 }
 
 // isWildcardRequirement reports whether a range requirement is a wildcard such as "*", "v*"
@@ -124,11 +91,13 @@ func isWildcardRequirement(requirement string) bool {
 	return false
 }
 
-// filterUrlsInRange keeps the URLs whose semantic version satisfies the requirement
-// constraint (and whose purl type matches, when provided). It replaces the range filtering
-// previously embedded in AllUrlsModel.GetUrlsByPurlNameTypeInRange, operating on an
-// already-fetched URL set so version resolution stays in the component helper / model layer.
-func filterUrlsInRange(urls []models.AllURL, purlType, requirement string) ([]models.AllURL, error) {
+// filterVersionsInRange keeps the versions satisfying the requirement constraint, sorted
+// ascending by precedence.
+//
+// It replaces filterUrlsInRange, which filtered a set of mining `all_urls` rows. Serving
+// gives the version set directly on the resolved component, so there is nothing to join
+// through and no purl type to re-check: the resolution already pinned one component.
+func filterVersionsInRange(versions []string, requirement string) ([]string, error) {
 	// Reject empty and wildcard requirements: a range query needs an explicit constraint.
 	// (semver accepts "*", "v*" and even ">v*"/">=v*" as match-all, so they are all caught here.)
 	if requirement == "" || isWildcardRequirement(requirement) {
@@ -138,22 +107,44 @@ func filterUrlsInRange(urls []models.AllURL, purlType, requirement string) ([]mo
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze range '%s': %w", requirement, err)
 	}
-	var filtered []models.AllURL
-	for _, u := range urls {
-		// When a type is requested, only keep URLs of that exact type (drop empty/other types).
-		if purlType != "" && u.PurlType != purlType {
-			continue
-		}
-		if u.SemVer == "" {
-			continue
-		}
-		v, err := semver.NewVersion(u.SemVer)
+	type parsed struct {
+		raw string
+		sv  *semver.Version
+	}
+	var kept []parsed
+	for _, v := range versions {
+		sv, err := semver.NewVersion(v)
 		if err != nil {
 			continue
 		}
-		if constraint.Check(v) {
-			filtered = append(filtered, u)
+		if constraint.Check(sv) {
+			kept = append(kept, parsed{raw: v, sv: sv})
 		}
 	}
-	return filtered, nil
+	sort.Slice(kept, func(i, j int) bool { return kept[i].sv.LessThan(kept[j].sv) })
+	out := make([]string, 0, len(kept))
+	for _, k := range kept {
+		out = append(out, k.raw)
+	}
+	return out, nil
+}
+
+// sortVersionStrings orders version strings by semver precedence, leaving
+// unparseable ones at the end in lexical order. Used where a set of versions is
+// collected from a map and the response needs a stable order.
+func sortVersionStrings(versions []string) {
+	sort.Slice(versions, func(i, j int) bool {
+		a, errA := semver.NewVersion(versions[i])
+		b, errB := semver.NewVersion(versions[j])
+		switch {
+		case errA == nil && errB == nil:
+			return a.LessThan(b)
+		case errA == nil:
+			return true
+		case errB == nil:
+			return false
+		default:
+			return versions[i] < versions[j]
+		}
+	})
 }
