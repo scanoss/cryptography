@@ -8,7 +8,7 @@
 ### Changed
 - **The service now reads the serving knowledge base instead of the mining database.** The mining path is gone; there is no configuration that selects it. Endpoint routes and response shapes are unchanged
 - **Cryptography is keyed by `(purl_id, version)` rather than by `url_hash`.** The mining lookup went purl → `all_urls` → `package_hash` → `component_crypto`; the hash was the identity of a package archive, and resolving it needed a join through `all_urls`, `mines` and `versions`. The serving schema records crypto against the component version directly, so the hash round-trip is gone
-- Algorithms read `component_version_crypto ⋈ crypto_algorithm`; crypto-library hints read `component_version_crypto_library ⋈ crypto_library` (the renamed `crypto_libraries`)
+- Algorithms read `component_version_crypto ⋈ crypto_algorithm`, taking both the name and the strength from the catalogue; crypto-library hints read `component_version_crypto_library ⋈ crypto_library` (the renamed `crypto_libraries`)
 - The IN-lists are bound parameters now. The mining queries built them by interpolating the values into the SQL string
 - Component and version resolution no longer goes through `go-component-helper`, which resolves against `all_urls`, `mines` and `versions` - none of which exist in the serving schema. It is replaced by `pkg/resolver`, over `component` / `component_version`
 - **The source-purl fallback now follows `component.source_purl_id`** instead of the mining `projects` table's source-mine columns. Its behaviour is unchanged: a component with no cryptographic information is retried against the repository it was built from, and the result carries `info_code: WARNING` naming the source purl
@@ -24,17 +24,19 @@
 
 ### Removed
 - `pkg/models/all_urls.go`. Nothing resolves through package hashes any more
+- `StrengthFromKeySizes`, and the `SPDX_crypto_algorithm` join it fed. The catalogue stores the strength
 
 ### Deployment
 - **Breaking:** requires a serving knowledge base. Point `DB_PATH` at the `.duckdb` file and set `DB_DRIVER=duckdb`
-- **Blocker: the serving export carries a narrower algorithm set.** `crypto_algorithm` holds only the 127 SPDX algorithms; the mining `component_crypto` records 224 distinct names, 125 of which serving shares. The 99 it does not fall into two kinds, and the distinction matters:
-  - **No representation at all — 116,545,185 of 346,116,636 mining rows (33.7%).** `hmac` (13.1M rows), `gecc` (7.8M), `kdf2` (6.9M), `ecdsa` (6.5M), `kerberos` (6.4M), `pgp` (5.7M), `eddsa` (5.5M), `ecc` (5.0M), `ed25519` (4.6M), `mldsa` (3.0M), and the cipher modes `gcm` (6.0M), `cbc` (5.0M), `ctr`, `ecb`, `cfb`, `ofb`, `xts`. Serving has `ecdh` and `ecmqv` but no generic elliptic-curve entry, and `rc4-hmac` but no generic HMAC
-  - **Represented, but collapsed into a coarser label — 59,603,548 rows (17.2%).** `sha1`/`sha2`/`sha3` (56.3M) all map onto the single `shax` entry, "SHA-x (SHA-1, SHA-256, etc.)", and `chacha20` (3.3M) onto `chacha`. The detection survives; the granularity does not. This mapping is inferred from the labels, not confirmed against the ETL
-- Measured per component rather than per version string, `pkg:github/openssl/openssl` has 102 distinct algorithms in mining and 52 in serving, 48 shared: 50 with no serving representation and 4 collapsed into `shax`/`chacha`. **Do not merge until the export covers the missing algorithms**; this is an ETL gap, not a code one - the serving rows have no orphan algorithm ids
-- `component_version_crypto` holds 171.5M rows against mining's 346.1M, consistent with the above
-- **`strength` is derived, not stored.** The mining schema had a `strength` column; serving does not, so the value comes from the SPDX key sizes the way the current decoration service derives it. Of the algorithms present in both, 90 agree with mining and 35 do not, and a few read oddly because SPDX records a maximum below the common size (`des` becomes `168-56`, `cast` `320-128`, and `aes` `256` where mining said `128-256`). Matching the decoration service was the deliberate choice, so the two report the same thing
+- **The algorithm catalogue changed shape, and the service follows it.** `crypto_algorithm` was `(id, name)` with the short name in `name`; it is now `(id, name, category, strength, spdx_id)` with the short name in `id` and a long description in `name`. A query selecting `name` returns "Advanced Encryption Standard" where the API contract wants "aes", so the algorithm name is read from `id`
+- **`strength` is read, not derived.** An earlier revision of this branch derived it from the SPDX key sizes because the export carried no strength column. It carries one now, and its 219 `(algorithm, strength)` pairs are identical to mining's - serving normalises mining's `-` to empty for 11 algorithms, and that is the only difference. The SPDX derivation resolved for 118 of the 219 and disagreed where it did: it made `aes` "256" against mining's "128-256", and `des` "168-56". The SPDX join is gone, and with it `StrengthFromKeySizes`
+- **The earlier crypto blocker is resolved.** It was measured against mining's `component_crypto`, a table mining has since superseded with `component_has_crypto` + `crypto_algorithm`. The export now mirrors mining's current model exactly: both hold 219 algorithms, 18 tags and 659 tag assignments, and the 219 identifiers are identical. `sha1`/`sha2`/`sha3` and `chacha20` are separate entries, so the collapse into `shax`/`chacha` is gone
+  - Of the 224 names in mining's superseded table, 5 have no entry: `shax` and `tdes`, `rsa-oaep`, `X509` and `diffiehellman`. They are legacy spellings, and together they are 1,583,924 of 346,118,833 rows - **0.46%**
+  - Measured per component, `pkg:github/galoisinc/hacrypto` at `5c99d7a` reports 154 algorithms from serving against mining's 154
+  - The earlier figures in this file (33.7% unrepresented, 17.2% collapsed, openssl 102 against 52) were wrong twice over: they compared against the superseded table, and they reached it by joining `component_crypto.url_hash` to `all_urls.url_hash`, where the key is actually `all_urls.package_hash`
+- **Not exposed:** `crypto_algorithm.category`, `crypto_algorithm_tag` and `crypto_algorithm_has_tag` are in the export and have no field in the papi contract
 - Version strings can change for a given component: serving normalises them, so openssl's `OpenSSL_1_1_1a` is `1.0.1-s` there
-- Verified against the production serving file (55.7 GiB): every endpoint, single and batch, including the source-purl fallback and the per-version range breakdown
+- Verified against the production serving file (72.6 GiB): every endpoint, single and batch, including the source-purl fallback and the per-version range breakdown. The algorithm read was re-verified against the updated schema after the catalogue change
 - `make build_arm` now cross-compiles with cgo and needs an `aarch64` toolchain (set `CC`); the amd64 build is unaffected
 
 ## [0.12.0] - 2026-06-22

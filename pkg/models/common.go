@@ -52,7 +52,6 @@ var testDataFiles = []string{
 	"../models/tests/component.sql",
 	"../models/tests/component_version.sql",
 	"../models/tests/crypto_algorithm.sql",
-	"../models/tests/spdx_crypto_algorithm.sql",
 	"../models/tests/component_version_crypto.sql",
 	"../models/tests/crypto_library.sql",
 	"../models/tests/component_version_crypto_library.sql",

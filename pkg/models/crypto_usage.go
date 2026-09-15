@@ -18,7 +18,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -61,29 +60,23 @@ func NewCryptoUsageModel(db *sqlx.DB) *CryptoUsageModel {
 
 // cryptoUsageQuery reads the algorithms detected in the given component versions.
 //
-// Strength is not stored: the mining schema had a `strength` column on
-// component_crypto, and serving does not. It is derived instead from the SPDX key
-// sizes, the same way the current decoration service derives it. The join is LEFT
-// because not every algorithm has an SPDX entry with key sizes.
+// Both the name and the strength come from crypto_algorithm. `id` is the short name
+// ("aes") the mining `component_crypto.algorithm_name` column held and the API
+// contract emits; `name` is a long description ("Advanced Encryption Standard")
+// this service does not expose.
+//
+// `strength` is read, not derived. An earlier revision derived it from the SPDX key
+// sizes because the export carried no strength column; the export now carries one,
+// and its 219 (algorithm, strength) pairs are identical to mining's. The SPDX
+// derivation covered 118 of those 219 and disagreed where it did resolve - it makes
+// aes "256" where mining, and this service, say "128-256".
 const cryptoUsageQuery = `SELECT CAST(cvc.purl_id AS VARCHAR) AS purl_id,
-	cvc.version AS version,
-	ca.name     AS algorithm_name,
-	sca."commonkeySize"        AS common_key_size,
-	sca."specifiedkeySize_max" AS max_key_size
+	cvc.version              AS version,
+	ca.id                    AS algorithm_name,
+	COALESCE(ca.strength, '') AS strength
 FROM component_version_crypto cvc
 INNER JOIN crypto_algorithm ca ON ca.id = cvc.algorithm_id
-LEFT JOIN "SPDX_crypto_algorithm" sca ON sca.id = cvc.algorithm_id
 WHERE cvc.purl_id IN (?) AND cvc.version IN (?)`
-
-// cryptoUsageRow is cryptoUsageQuery's projection, before the key sizes are
-// folded into a strength string.
-type cryptoUsageRow struct {
-	PurlID        string         `db:"purl_id"`
-	Version       string         `db:"version"`
-	Algorithm     string         `db:"algorithm_name"`
-	CommonKeySize sql.NullString `db:"common_key_size"`
-	MaxKeySize    sql.NullString `db:"max_key_size"`
-}
 
 // GetCryptoUsageByPurlIDs returns the algorithms detected in the given versions
 // of the given components.
@@ -105,50 +98,15 @@ func (m *CryptoUsageModel) GetCryptoUsageByPurlIDs(ctx context.Context, s *zap.S
 		s.Errorf("Failed to build the crypto usage query: %v", err)
 		return []CryptoUsage{}, fmt.Errorf("failed to build the crypto usage query: %w", err)
 	}
-	var rows []cryptoUsageRow
-	if err = m.db.SelectContext(ctx, &rows, m.db.Rebind(query), args...); err != nil {
+	var usages []CryptoUsage
+	if err = m.db.SelectContext(ctx, &usages, m.db.Rebind(query), args...); err != nil {
 		s.Errorf("Failed to query cryptoUsage: %v", err)
 		return []CryptoUsage{}, fmt.Errorf("failed to query the component crypto table: %w", err)
 	}
-	usages := make([]CryptoUsage, 0, len(rows))
-	for _, r := range rows {
-		usages = append(usages, CryptoUsage{
-			PurlID:    r.PurlID,
-			Version:   r.Version,
-			Algorithm: r.Algorithm,
-			Strength:  StrengthFromKeySizes(r.CommonKeySize, r.MaxKeySize),
-		})
+	if usages == nil {
+		return []CryptoUsage{}, nil
 	}
 	return usages, nil
-}
-
-// StrengthFromKeySizes builds the strength string from the SPDX key sizes: empty
-// when neither is set, the single value when only one is or both agree, and
-// "common-max" otherwise.
-//
-// This reproduces what the current decoration service emits, which is not always
-// what the mining `strength` column held: of the algorithms present in both, 90
-// agree and 35 do not, and a handful read oddly because SPDX records a maximum
-// below the common size (des becomes "168-56"). Matching the decoration service
-// was the deliberate choice, so the two report the same thing.
-func StrengthFromKeySizes(common, max sql.NullString) string {
-	c, m := "", ""
-	if common.Valid {
-		c = common.String
-	}
-	if max.Valid {
-		m = max.String
-	}
-	switch {
-	case c == "" && m == "":
-		return ""
-	case c == "":
-		return m
-	case m == "" || m == c:
-		return c
-	default:
-		return c + "-" + m
-	}
 }
 
 // nonEmpty drops empty strings from an IN-clause argument list, which would

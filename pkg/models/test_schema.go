@@ -44,18 +44,19 @@ CREATE INDEX idx_component_version_purl_id ON component_version (purl_id);
 
 -- Cryptography, keyed by (purl_id, version). The mining schema keyed these by
 -- url_hash, the hash of a package archive, reached through all_urls.
-CREATE TABLE component_version_crypto (purl_id TEXT, version TEXT, algorithm_id INTEGER);
+CREATE TABLE component_version_crypto (purl_id TEXT, version TEXT, algorithm_id TEXT);
 CREATE INDEX idx_cvc_purl_id ON component_version_crypto (purl_id, version);
 
-CREATE TABLE crypto_algorithm (id INTEGER, name TEXT);
+-- The algorithm catalogue. id is the short name the API emits ("aes"), and is what
+-- component_version_crypto.algorithm_id holds; name is the long description, which
+-- the API does not emit. strength is stored here, so it is read rather than derived.
+--
+-- This table was (id INTEGER, name TEXT) with the short name in name. When the
+-- export moved to mining's current crypto model the short name moved to id and name
+-- became the description, so a query selecting name started returning "Advanced
+-- Encryption Standard" where the API contract wants "aes".
+CREATE TABLE crypto_algorithm (id TEXT, name TEXT, category TEXT, strength TEXT, spdx_id TEXT);
 CREATE INDEX idx_crypto_algorithm_id ON crypto_algorithm (id);
-
--- Strength is not stored: it is derived from these SPDX key sizes.
-CREATE TABLE SPDX_crypto_algorithm (
-    id INTEGER, name TEXT, commonkeySize TEXT, cryptoClass TEXT,
-    oid TEXT, "references" TEXT, specifiedkeySize_max TEXT
-);
-CREATE INDEX idx_spdx_crypto_algorithm_id ON SPDX_crypto_algorithm (id);
 
 CREATE TABLE component_version_crypto_library (library_id TEXT, purl_id TEXT, version TEXT);
 CREATE INDEX idx_cvcl_purl_id ON component_version_crypto_library (purl_id, version);

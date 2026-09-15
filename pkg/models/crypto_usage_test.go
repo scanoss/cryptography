@@ -18,7 +18,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"sort"
 	"testing"
 
@@ -87,7 +86,11 @@ func TestGetCryptoUsageByPurlIDs(t *testing.T) {
 		}
 	})
 
-	t.Run("strength comes from the SPDX key sizes", func(t *testing.T) {
+	// The algorithm name is crypto_algorithm.id, the short spelling the API
+	// contract emits, not the long description the table also carries. Selecting
+	// the wrong column is silent - both are non-empty strings - so it is asserted
+	// here rather than left to the field.
+	t.Run("strength is read from the catalogue", func(t *testing.T) {
 		usage, err := model.GetCryptoUsageByPurlIDs(ctx, s, []string{engineID}, []string{engineVersion})
 		if err != nil {
 			t.Fatalf("GetCryptoUsageByPurlIDs error = %v", err)
@@ -96,7 +99,7 @@ func TestGetCryptoUsageByPurlIDs(t *testing.T) {
 		for _, u := range usage {
 			byAlgorithm[u.Algorithm] = u.Strength
 		}
-		for algorithm, want := range map[string]string{"crc32": "32", "md5": "128", "des": "168"} {
+		for algorithm, want := range map[string]string{"crc32": "32", "md5": "128", "des": "168", "rsa": "128"} {
 			if got := byAlgorithm[algorithm]; got != want {
 				t.Errorf("strength(%s) = %q, want %q", algorithm, got, want)
 			}
@@ -139,32 +142,5 @@ func TestGetCryptoUsageByPurlIDsReportsQueryFailure(t *testing.T) {
 	}
 	if len(usage) != 0 {
 		t.Errorf("got %d rows, want none", len(usage))
-	}
-}
-
-func TestStrengthFromKeySizes(t *testing.T) {
-	str := func(v string) sql.NullString { return sql.NullString{String: v, Valid: true} }
-	null := sql.NullString{}
-
-	tests := []struct {
-		name        string
-		common, max sql.NullString
-		want        string
-	}{
-		{"neither set", null, null, ""},
-		{"only common", str("128"), null, "128"},
-		{"only max", null, str("256"), "256"},
-		{"both equal", str("256"), str("256"), "256"},
-		{"a range", str("128"), str("256"), "128-256"},
-		// SPDX sometimes records a maximum below the common size. The current
-		// decoration service emits the pair as-is, and this matches it deliberately.
-		{"max below common", str("168"), str("56"), "168-56"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := StrengthFromKeySizes(tt.common, tt.max); got != tt.want {
-				t.Errorf("StrengthFromKeySizes = %q, want %q", got, tt.want)
-			}
-		})
 	}
 }
