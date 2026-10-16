@@ -197,7 +197,7 @@ func (r *Resolver) Resolve(ctx context.Context, purl, requirement string) (Resol
 		PurlType:   id.PurlType,
 		Versions:   versions,
 		StatusCode: StatusSuccess,
-		SourcePurl: r.sourcePurl(ctx, comp.SourcePurlID),
+		SourcePurl: r.sourcePurl(ctx, comp.PurlID, comp.SourcePurlID),
 	}
 
 	r.pinVersion(&out, id, requirement)
@@ -261,8 +261,14 @@ func (r *Resolver) SourcePurlFor(ctx context.Context, purl string) *SourcePurl {
 
 // sourcePurl follows component.source_purl_id to the component it references.
 // Best-effort: a dangling reference simply means "no source".
-func (r *Resolver) sourcePurl(ctx context.Context, sourceID sql.NullString) *SourcePurl {
-	if !sourceID.Valid || len(sourceID.String) == 0 {
+//
+// A component that names itself as its source has none to fall back to. That is
+// most of them - 11.4 million of the 13.9 million links point back at their own
+// row - and following one cost a scan of `component` by purl_id, which the export
+// does not index: about 2.5 s of CPU, for an answer that could only repeat the
+// lookup that had just come back empty.
+func (r *Resolver) sourcePurl(ctx context.Context, purlID string, sourceID sql.NullString) *SourcePurl {
+	if !sourceID.Valid || len(sourceID.String) == 0 || sourceID.String == purlID {
 		return nil
 	}
 	var comp component
