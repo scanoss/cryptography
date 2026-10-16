@@ -42,6 +42,7 @@
 
 ### Fixed
 - **Scoped npm packages, and other purls the export stores encoded or with qualifiers, resolve again.** `component.purl` keeps scoped npm and jsr names percent-encoded (`pkg:npm/%40angular/core`), qualifiers on generic, conda and cran keys, and a raw `+` in some rpm and deb names. The resolver decoded the purl and rebuilt the key, so 1.96 million components (6%) - plus 1.6 million qualified ones - answered `COMPONENT_NOT_FOUND` however they were spelled. It now tries the caller's spelling, the canonical rendering and the decoded form in one indexed lookup
+- **A scoped purl is no longer split at its namespace `@`.** `buildComponentDTO` split on the first `@`, so `pkg:npm/@angular/core` became the purl `pkg:npm/` and was answered `INVALID_PURL`. Pre-existing on main
 
 ## [0.12.0] - 2026-06-22
 ### Added
