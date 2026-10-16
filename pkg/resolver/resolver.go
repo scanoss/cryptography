@@ -135,14 +135,15 @@ type component struct {
 	SourcePurlID sql.NullString `db:"source_purl_id"`
 }
 
-// identityQuery reads a component by its versionless purl.
+// identityQuery reads the components matching any of the candidate spellings of
+// a versionless purl (see candidateKeys).
 //
 // The CAST is not cosmetic: purl_id and source_purl_id are native DuckDB `uuid`
 // columns, and without it the driver hands back the raw 16 bytes instead of the
 // canonical string. It is a no-op on SQLite (TEXT) and PostgreSQL.
 const identityQuery = `SELECT CAST(purl_id AS VARCHAR) AS purl_id, purl,
 	CAST(source_purl_id AS VARCHAR) AS source_purl_id
-FROM component WHERE purl = ?`
+FROM component WHERE purl IN (?)`
 
 // sourceQuery reads the component a source_purl_id points at.
 const sourceQuery = `SELECT CAST(purl_id AS VARCHAR) AS purl_id, purl,
@@ -168,13 +169,19 @@ func (r *Resolver) Resolve(ctx context.Context, purl, requirement string) (Resol
 		return Resolved{}, ErrInvalidPurl
 	}
 
-	var comp component
-	switch err = r.db.GetContext(ctx, &comp, r.db.Rebind(identityQuery), servingPurlKey(id)); {
-	case errors.Is(err, sql.ErrNoRows):
-		return Resolved{}, ErrComponentNotFound
-	case err != nil:
+	keys := candidateKeys(purl, id)
+	query, args, err := sqlx.In(identityQuery, keys)
+	if err != nil {
+		return Resolved{}, fmt.Errorf("failed to build the component lookup: %w", err)
+	}
+	var found []component
+	if err = r.db.SelectContext(ctx, &found, r.db.Rebind(query), args...); err != nil {
 		r.s.Errorf("Failed to resolve component for %v: %v", purl, err)
 		return Resolved{}, fmt.Errorf("failed to resolve the component: %w", err)
+	}
+	comp, ok := pickKey(keys, found)
+	if !ok {
+		return Resolved{}, ErrComponentNotFound
 	}
 
 	var versions []string
