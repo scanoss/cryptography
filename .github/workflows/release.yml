@@ -19,10 +19,14 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install the arm64 cgo toolchain
+        # The DuckDB driver is a cgo binding, so the arm64 build cross-compiles C and C++.
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
       - name: Build
         run: |
           make build_amd
-          make build_arm
+          CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ make build_arm
 
       - name: Unit Test
         run: make unit_test
@@ -30,7 +34,7 @@ jobs:
       - name: Package
         run: |
           make package_amd
-          make package_arm
+          CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ make package_arm
 
       - name: Release
         uses: softprops/action-gh-release@v1
