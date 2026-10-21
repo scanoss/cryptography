@@ -49,16 +49,12 @@ func sourceFallbackMessage(sourcePurl string) string {
 	return fmt.Sprintf("Showing results from the source code purl (%s)", sourcePurl)
 }
 
-// sourcePurlForFallback returns the source-code purl name/type to retry a crypto lookup
-// against, when the component resolved to one. Mining derived this link from the `projects`
-// table's source-mine columns; serving links it through `component.source_purl_id`.
-// ok is false when there is no usable source.
-func sourcePurlForFallback(c resolver.Resolution) (name, purlType string, ok bool) {
-	if c.SourcePurl != nil && c.SourcePurl.Status.StatusCode == status.Success &&
-		c.SourcePurl.Name != "" && c.SourcePurl.PurlType != "" {
-		return c.SourcePurl.Name, c.SourcePurl.PurlType, true
-	}
-	return "", "", false
+// hasSourcePurl reports whether the component resolved to a source-code purl a crypto
+// lookup can be retried against. Mining derived this link from the `projects` table's
+// source-mine columns; serving links it through `component.source_purl_id`.
+func hasSourcePurl(c resolver.Resolution) bool {
+	return c.SourcePurl != nil && c.SourcePurl.Status.StatusCode == status.Success &&
+		c.SourcePurl.Name != "" && c.SourcePurl.PurlType != ""
 }
 
 // resolveComponentVersions resolves the version requirement of every input component

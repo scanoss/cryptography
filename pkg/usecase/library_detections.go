@@ -63,7 +63,7 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 			item = d.detectionsInRange(ctx, s, item, c.PurlID, c.Versions)
 			// Fallback: the package purl has no detections, retry against the source-code purl.
 			if item.Status.StatusCode == status.NoInfo {
-				if _, _, ok := sourcePurlForFallback(*c); ok {
+				if hasSourcePurl(*c) {
 					srcID, srcVersions := d.sourceVersions(ctx, s, c.SourcePurl.Purl)
 					srcItem := d.detectionsInRange(ctx, s, domain.ECOutputItem{
 						Purl: components[i].Purl, Requirement: components[i].Requirement,
@@ -97,13 +97,14 @@ func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLog
 			Requirement: components[i].Requirement,
 			Detections:  []domain.ECDetectedItem{},
 		}
-		switch c.Status.StatusCode {
-		case status.InvalidPurl:
+		// Only these two outcomes stop here; every other status goes on to the usage lookup.
+		if c.Status.StatusCode == status.InvalidPurl {
 			item.Version = ""
 			item.Status = status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", components[i].Purl)}
 			out.Hints = append(out.Hints, item)
 			continue
-		case status.ComponentNotFound, status.VersionNotFound:
+		}
+		if c.Status.StatusCode == status.ComponentNotFound || c.Status.StatusCode == status.VersionNotFound {
 			item.Status = c.Status
 			out.Hints = append(out.Hints, item)
 			continue

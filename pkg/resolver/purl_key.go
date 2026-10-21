@@ -58,8 +58,8 @@ func candidateKeys(purl string, id Identity) []string {
 // anything, and returns the qualifiers separately. The version is whatever follows
 // an '@' in the last path segment: a scoped npm namespace (@scope) is a segment of
 // its own, so its '@' is never mistaken for a version separator.
-func rawKey(purl string) (key, qualifiers string) {
-	key = strings.TrimSpace(purl)
+func rawKey(purl string) (string, string) {
+	key, qualifiers := strings.TrimSpace(purl), ""
 	if i := strings.IndexByte(key, '#'); i >= 0 {
 		key = key[:i]
 	}

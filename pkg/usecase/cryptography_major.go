@@ -69,7 +69,7 @@ func (d CryptoMajorUseCase) GetCryptoInRange(ctx context.Context, s *zap.Sugared
 			d.fillCryptoInRange(ctx, s, &cryptoItem, c.PurlID, c.Versions)
 			// Fallback: the package purl has no crypto info, retry against the source-code purl.
 			if cryptoItem.Status.StatusCode == status.NoInfo {
-				if _, _, ok := sourcePurlForFallback(*c); ok {
+				if hasSourcePurl(*c) {
 					srcItem := domain.CryptoInRangeOutputItem{
 						Purl: components[i].Purl, Requirement: components[i].Requirement,
 						Versions: []string{}, Algorithms: []domain.CryptoUsageItem{},

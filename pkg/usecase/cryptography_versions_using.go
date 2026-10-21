@@ -68,7 +68,7 @@ func (d VersionsUsingCrypto) GetVersionsInRangeUsingCrypto(ctx context.Context, 
 			d.fillVersionsInRange(ctx, s, &item, c.PurlID, c.Versions)
 			// Fallback: the package purl has no crypto info, retry against the source-code purl.
 			if item.Status.StatusCode == status.NoInfo {
-				if _, _, ok := sourcePurlForFallback(*c); ok {
+				if hasSourcePurl(*c) {
 					srcItem := domain.VersionsInRangeUsingCryptoItem{
 						Purl: components[i].Purl, Requirement: components[i].Requirement,
 						VersionsWith: []string{}, VersionsWithout: []string{},

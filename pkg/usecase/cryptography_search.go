@@ -159,7 +159,7 @@ func (d CryptoUseCase) buildMetadata(ctx context.Context, s *zap.SugaredLogger, 
 			mapPurls[c.Name] = false
 		}
 		var srcPurl string
-		if _, _, ok := sourcePurlForFallback(c); ok {
+		if hasSourcePurl(c) {
 			srcPurl = c.SourcePurl.Purl
 		}
 		metadata = append(metadata, ComponentCryptoMetadata{

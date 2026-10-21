@@ -28,8 +28,6 @@ func TestSourcePurlForFallback(t *testing.T) {
 	tests := []struct {
 		name      string
 		component resolver.Resolution
-		wantName  string
-		wantType  string
 		wantOK    bool
 	}{
 		{
@@ -45,9 +43,7 @@ func TestSourcePurlForFallback(t *testing.T) {
 					Status:   status.ComponentStatus{StatusCode: status.Success},
 				},
 			}},
-			wantName: "jonschlinkert/word-wrap",
-			wantType: "github",
-			wantOK:   true,
+			wantOK: true,
 		},
 		{
 			name: "source purl not found is not usable",
@@ -82,12 +78,8 @@ func TestSourcePurlForFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			name, purlType, ok := sourcePurlForFallback(tt.component)
-			if ok != tt.wantOK {
-				t.Fatalf("sourcePurlForFallback() ok = %v, want %v", ok, tt.wantOK)
-			}
-			if ok && (name != tt.wantName || purlType != tt.wantType) {
-				t.Errorf("sourcePurlForFallback() = (%q, %q), want (%q, %q)", name, purlType, tt.wantName, tt.wantType)
+			if ok := hasSourcePurl(tt.component); ok != tt.wantOK {
+				t.Fatalf("hasSourcePurl() = %v, want %v", ok, tt.wantOK)
 			}
 		})
 	}
