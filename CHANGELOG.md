@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Security
+- Upgraded `google.golang.org/grpc` to v1.83.1, `golang.org/x/net` to v0.57.0 and the OpenTelemetry modules (`otel`, `otel/sdk`, `otlptrace`, `otlptracegrpc`) to v1.45.0 to fix open Dependabot security advisories
 
 ## [0.12.0] - 2026-06-22
 ### Added
