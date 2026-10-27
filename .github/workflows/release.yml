@@ -19,6 +19,11 @@ jobs:
         with:
           fetch-depth: 0  # Get tags to allow build script to get build version
 
+      - name: Trust the checkout
+        # The job runs as root in the container over a checkout the runner owns, and git
+        # refuses such a repository - which breaks the version lookup the build runs.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
