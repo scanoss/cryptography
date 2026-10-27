@@ -54,6 +54,24 @@ func Test_buildComponentDTO(t *testing.T) {
 			},
 		},
 		{
+			name:        "scoped purl without version",
+			purl:        "pkg:npm/@angular/core",
+			requirement: "^17.0.0",
+			want:        dtos.ComponentDTO{Purl: "pkg:npm/@angular/core", Version: "^17.0.0", Requirement: "^17.0.0"},
+		},
+		{
+			name:        "scoped purl with version",
+			purl:        "pkg:npm/@angular/core@17.0.0",
+			requirement: "",
+			want:        dtos.ComponentDTO{Purl: "pkg:npm/@angular/core", Version: "17.0.0", Requirement: "17.0.0"},
+		},
+		{
+			name:        "version before qualifiers",
+			purl:        "pkg:generic/orange-fashion@1.0?repository_url=code.google.com",
+			requirement: "",
+			want:        dtos.ComponentDTO{Purl: "pkg:generic/orange-fashion?repository_url=code.google.com", Version: "1.0", Requirement: "1.0"},
+		},
+		{
 			name:        "purl with version overrides empty requirement",
 			purl:        "pkg:npm/react@17.0.2",
 			requirement: "",

@@ -33,7 +33,13 @@ import (
 // It handles requests for cryptographic algorithm information, version ranges,
 // and encryption hints for software components.
 type cryptographyServer struct {
-	pb.CryptographyServer
+	// Embedding the generated Unimplemented struct, not the CryptographyServer interface.
+	// The interface value is nil, so any method the service does not implement
+	// dereferences it and panics, taking the whole process down. Every method of
+	// the current papi interface is implemented, so nothing reaches it today - but
+	// the first method papi adds would, silently, as a remotely reachable crash.
+	// The struct answers those with an Unimplemented error instead.
+	pb.UnimplementedCryptographyServer
 	db                      *sqlx.DB
 	config                  *myconfig.ServerConfig
 	algorithmHandler        *handlers.CryptographyAlgorithmHandler

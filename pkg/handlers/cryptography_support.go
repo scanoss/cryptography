@@ -101,13 +101,23 @@ func ConvertPurlRequestToComponentDTO(s *zap.SugaredLogger, request *common.Purl
 //
 // Returns:
 //   - dtos.ComponentDTO: Internal component representation with purl, version, and requirement
+//
+// Only an '@' in the last path segment separates a version. A scoped npm
+// namespace is a segment of its own (pkg:npm/@angular/core), and splitting on the
+// first '@' turned it into the purl "pkg:npm/" with requirement "angular/core",
+// answered INVALID_PURL. Qualifiers and subpath stay on the purl.
 func buildComponentDTO(purl string, requirement string) dtos.ComponentDTO {
 	p := purl
 	req := requirement
-	purlParts := strings.Split(purl, "@")
-	if len(purlParts) > 1 {
-		p = purlParts[0]
-		req = purlParts[1]
+	path, rest := purl, ""
+	if i := strings.IndexAny(purl, "?#"); i >= 0 {
+		path, rest = purl[:i], purl[i:]
+	}
+	if slash := strings.LastIndexByte(path, '/'); slash >= 0 {
+		if at := strings.IndexByte(path[slash:], '@'); at >= 0 {
+			p = path[:slash+at] + rest
+			req = path[slash+at+1:]
+		}
 	}
 
 	return dtos.ComponentDTO{

@@ -33,7 +33,11 @@ func TestDbLoad(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer CloseDB(db)
-	err = loadSQLData(db, ctx, "./tests/mines.sql")
+	// The fixtures carry data only, so the schema has to exist first.
+	if err = LoadTestSchema(db, ctx); err != nil {
+		t.Fatalf("failed to load the test schema: %v", err)
+	}
+	err = loadSQLData(db, ctx, "./tests/component.sql")
 	if err != nil {
 		t.Errorf("failed to load SQL test data: %v", err)
 	}

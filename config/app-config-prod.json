@@ -2,12 +2,13 @@
   "App": {
     "Name": "Cryptography Service",
     "Debug": false,
-    "Mode":  "prod",
+    "Mode": "prod",
     "GRPCPort": "50054",
     "RESTPort": "40054"
   },
   "Database": {
-    "Driver": "sqlite",
+    "Driver": "duckdb",
+    "Path": "/var/lib/scanoss/serving.duckdb",
     "Dsn": "/var/lib/scanoss/db/sqlite/cryptography/db.sqlite?cache=shared&mode=memory"
   },
   "TLS": {

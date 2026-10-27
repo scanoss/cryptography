@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018-2024 SCANOSS.COM
+ * Copyright (C) 2025 SCANOSS.COM
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,30 +19,27 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"sort"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/jmoiron/sqlx"
 	status "github.com/scanoss/go-grpc-helper/pkg/grpc/domain"
-	purlhelper "github.com/scanoss/go-purl-helper/pkg"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/cryptography/pkg/config"
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
-	"scanoss.com/cryptography/pkg/utils"
+	"scanoss.com/cryptography/pkg/resolver"
 )
 
 type ECDetectionUseCase struct {
 	db         *sqlx.DB
-	allUrls    *models.AllUrlsModel
+	resolver   *resolver.Resolver
 	usageModel *models.ECUsageModel
 }
 
 func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseCase {
 	return &ECDetectionUseCase{
 		db:         db,
-		allUrls:    models.NewAllURLModel(db),
+		resolver:   resolver.New(nil, db),
 		usageModel: models.NewECUsageModel(db),
 	}
 }
@@ -50,7 +47,7 @@ func NewECDetection(db *sqlx.DB, config *myconfig.ServerConfig) *ECDetectionUseC
 // GetDetectionsInRange takes the Crypto Input request, searches for Cryptographic usages and returns a CryptoOutput struct.
 func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.ECOutput, error) {
 	out := domain.ECOutput{}
-	resolved := resolveComponentVersions(ctx, s, d.db, components)
+	resolved := resolveComponentVersions(ctx, s, d.resolver, components)
 	for i := range resolved {
 		c := &resolved[i]
 		item := domain.ECOutputItem{
@@ -60,17 +57,18 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 			Requirement: components[i].Requirement,
 			Versions:    []string{},
 		}
-		// VERSION_NOT_FOUND is acceptable: the helper resolves one version, but a range query
+		// VERSION_NOT_FOUND is acceptable: the resolver pins one version, but a range query
 		// inspects every known version against the requirement constraint.
 		if c.Status.StatusCode != status.InvalidPurl && c.Status.StatusCode != status.ComponentNotFound {
-			item = d.processSinglePurl(ctx, s, item, c.Name, c.PurlType)
+			item = d.detectionsInRange(ctx, s, item, c.PurlID, c.Versions)
 			// Fallback: the package purl has no detections, retry against the source-code purl.
 			if item.Status.StatusCode == status.NoInfo {
-				if srcName, srcType, ok := sourcePurlForFallback(*c); ok {
-					srcItem := d.processSinglePurl(ctx, s, domain.ECOutputItem{
+				if hasSourcePurl(*c) {
+					srcID, srcVersions := d.sourceVersions(ctx, s, c.SourcePurl.Purl)
+					srcItem := d.detectionsInRange(ctx, s, domain.ECOutputItem{
 						Purl: components[i].Purl, Requirement: components[i].Requirement,
 						Detections: []domain.ECDetectedItem{}, Versions: []string{},
-					}, srcName, srcType)
+					}, srcID, srcVersions)
 					if srcItem.Status.StatusCode == status.Success {
 						srcItem.Status = status.ComponentStatus{StatusCode: sourceFallbackStatus, Message: sourceFallbackMessage(c.SourcePurl.Purl)}
 						item = srcItem
@@ -84,160 +82,58 @@ func (d ECDetectionUseCase) GetDetectionsInRange(ctx context.Context, s *zap.Sug
 }
 
 // GetDetections takes the Crypto Input request, searches for Cryptographic Hints and returns a HintsOutput struct.
+//
+// This is the single-version endpoint: the resolver pins one version and the hints are read
+// for exactly that one. It used to resolve the component to a mining `all_urls` row and query
+// by its package hash.
 func (d ECDetectionUseCase) GetDetections(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) (domain.HintsOutput, error) {
 	out := domain.HintsOutput{}
-	// Prepare purls to query
-	for _, component := range components {
-		purl, err := purlhelper.PurlFromString(component.Purl)
+	resolved := resolveComponentVersions(ctx, s, d.resolver, components)
+	for i := range resolved {
+		c := &resolved[i]
+		item := domain.HintsOutputItem{
+			Purl:        components[i].Purl,
+			Version:     c.Version,
+			Requirement: components[i].Requirement,
+			Detections:  []domain.ECDetectedItem{},
+		}
+		// Only these two outcomes stop here; every other status goes on to the usage lookup.
+		if c.Status.StatusCode == status.InvalidPurl {
+			item.Version = ""
+			item.Status = status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", components[i].Purl)}
+			out.Hints = append(out.Hints, item)
+			continue
+		}
+		if c.Status.StatusCode == status.ComponentNotFound || c.Status.StatusCode == status.VersionNotFound {
+			item.Status = c.Status
+			out.Hints = append(out.Hints, item)
+			continue
+		}
+
+		uses, err := d.usageModel.GetLibraryUsageByPurlIDs(ctx, s, []string{c.PurlID}, []string{c.Version})
 		if err != nil {
-			out.Hints = append(out.Hints, domain.HintsOutputItem{
-				Purl: component.Purl, Version: "",
-				Requirement: component.Requirement,
-				Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
-				Detections:  []domain.ECDetectedItem{}})
+			s.Errorf("error getting library detections for purl '%s': %s", components[i].Purl, err)
+			item.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info: '%s'", components[i].Purl)}
+			out.Hints = append(out.Hints, item)
 			continue
 		}
-
-		purlName, err := purlhelper.PurlNameFromString(component.Purl) // Make sure we just have the bare minimum for a Purl Name
-		if err != nil {
-			s.Errorf("Failed to parse purl '%s': %s", component.Purl, err)
-			out.Hints = append(out.Hints,
-				domain.HintsOutputItem{
-					Purl:        component.Purl,
-					Version:     "",
-					Requirement: component.Requirement,
-					Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
-					Detections:  []domain.ECDetectedItem{}})
-			continue
-		}
-		res, errQ := d.allUrls.GetUrlsByPurlNameType(ctx, s, purlName, purl.Type, component.Requirement)
-		if errQ != nil {
-			out.Hints = append(out.Hints,
-				domain.HintsOutputItem{
-					Purl:        component.Purl,
-					Version:     "",
-					Requirement: component.Requirement,
-					Status:      status.ComponentStatus{StatusCode: status.InvalidPurl, Message: fmt.Sprintf("Invalid purl: '%s'", component.Purl)},
-					Detections:  []domain.ECDetectedItem{}})
-			continue
-		}
-
-		uses, err1 := d.usageModel.GetLibraryUsageByURLHashes(ctx, s, []string{res.URLHash})
-		if err1 != nil {
-			s.Errorf("error getting algorithms usage for purl '%s': %s", component.Purl, err)
-			out.Hints = append(out.Hints,
-				domain.HintsOutputItem{
-					Purl:        component.Purl,
-					Version:     "",
-					Requirement: component.Requirement,
-					Status:      status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without info: '%s'", component.Purl)},
-					Detections:  []domain.ECDetectedItem{}})
-			continue
-		}
-
 		if len(uses) == 0 {
-			out.Hints = append(out.Hints, domain.HintsOutputItem{
-				Purl:        component.Purl,
-				Version:     "",
-				Requirement: component.Requirement,
-				Status:      status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without  info: '%s'", component.Purl)},
-				Detections:  []domain.ECDetectedItem{},
-			})
+			item.Status = status.ComponentStatus{StatusCode: status.NoInfo, Message: fmt.Sprintf("Component without  info: '%s'", components[i].Purl)}
+			out.Hints = append(out.Hints, item)
 			continue
 		}
-
-		// avoid duplicate detections (if any)
-		// Duplicates should have been removed on mining, but some appended keyword may produce a duplicate entry for an existing url
-		nonDupAlgorithms := make(map[string]bool)
-		item := domain.HintsOutputItem{Purl: component.Purl, Version: res.Version, Requirement: component.Requirement, Status: status.ComponentStatus{StatusCode: status.Success}}
-		for _, alg := range uses {
-			//	nonDupVersions[mapVersionHash[alg.URLHash]] = true
-			if _, exist := nonDupAlgorithms[alg.ID]; !exist {
-				nonDupAlgorithms[alg.ID] = true
-				item.Detections = append(item.Detections,
-					domain.ECDetectedItem{ID: alg.ID,
-						Name:        alg.Name,
-						Description: alg.Description,
-						URL:         alg.URL,
-						Category:    alg.Category,
-						Purl:        alg.Purl})
-			}
-		}
+		item.Detections = dedupeDetections(uses)
+		item.Status = status.ComponentStatus{StatusCode: status.Success}
 		out.Hints = append(out.Hints, item)
 	}
 	return out, nil
 }
 
-// processURLResults handles the processing of URL results and creates an ECOutputItem.
-func (d ECDetectionUseCase) processURLResults(ctx context.Context, s *zap.SugaredLogger, res []models.AllURL, component domain.ECOutputItem) (domain.ECOutputItem, []string) {
-	item := domain.ECOutputItem{Purl: component.Purl, Versions: []string{}}
-	hashes := make([]string, 0)
-	mapVersionHash := make(map[string]string)
-
-	for _, url := range res {
-		if url.URLHash != "" {
-			hashes = append(hashes, url.URLHash)
-			mapVersionHash[url.URLHash] = url.SemVer
-		}
-	}
-
-	return item, d.processUsages(ctx, s, hashes, mapVersionHash, &item)
-}
-
-// processUsages handles library usage processing and returns hashes.
-func (d ECDetectionUseCase) processUsages(ctx context.Context, s *zap.SugaredLogger, hashes []string, mapVersionHash map[string]string, item *domain.ECOutputItem) []string {
-	uses, err := d.usageModel.GetLibraryUsageByURLHashes(ctx, s, hashes)
-	if err != nil {
-		s.Errorf("error getting algorithms usage for purl '%s': %s", item.Purl, err)
-		return hashes
-	}
-	// If a library has no usages, return empty hashes
-	if len(uses) == 0 {
-		return []string{}
-	}
-
-	nonDupVersions := make(map[string]bool)
-	nonDupAlgorithms := make(map[string]bool)
-
-	for _, alg := range uses {
-		nonDupVersions[mapVersionHash[alg.URLHash]] = true
-		if _, exist := nonDupAlgorithms[alg.ID]; !exist {
-			nonDupAlgorithms[alg.ID] = true
-			item.Detections = append(item.Detections, domain.ECDetectedItem{
-				ID:          alg.ID,
-				Name:        alg.Name,
-				Description: alg.Description,
-				URL:         alg.URL,
-				Category:    alg.Category,
-				Purl:        alg.Purl,
-			})
-		}
-	}
-
-	item.Versions = d.getSortedVersions(nonDupVersions)
-	return hashes
-}
-
-// getSortedVersions returns a sorted slice of versions.
-func (d ECDetectionUseCase) getSortedVersions(versions map[string]bool) []string {
-	result := make([]string, 0, len(versions))
-	for version := range versions {
-		result = append(result, version)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		versionA, _ := semver.NewVersion(result[i])
-		versionB, _ := semver.NewVersion(result[j])
-		return versionA.LessThan(versionB)
-	})
-
-	return result
-}
-
-// processSinglePurl resolves the versions in range for a component and their library detections.
-// Version enumeration is delegated to the model layer (GetUrlsByPurlList + filterUrlsInRange)
-// rather than a bespoke range query.
-func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.SugaredLogger, component domain.ECOutputItem, purlName, purlType string) domain.ECOutputItem {
+// detectionsInRange resolves the in-range versions of a component and the library detections
+// they carry. Versions lists only the in-range versions that actually declare a detection.
+func (d ECDetectionUseCase) detectionsInRange(ctx context.Context, s *zap.SugaredLogger,
+	component domain.ECOutputItem, purlID string, allVersions []string,
+) domain.ECOutputItem {
 	notFound := func(code status.StatusCode, msg string) domain.ECOutputItem {
 		return domain.ECOutputItem{
 			Purl:        component.Purl,
@@ -247,29 +143,75 @@ func (d ECDetectionUseCase) processSinglePurl(ctx context.Context, s *zap.Sugare
 			Status:      status.ComponentStatus{StatusCode: code, Message: msg},
 		}
 	}
-
-	urls, err := d.allUrls.GetUrlsByPurlList(ctx, s, []utils.PurlReq{{Purl: purlName}})
-	if err != nil {
-		s.Errorf("error getting urls for purl '%s': %s", component.Purl, err)
+	if purlID == "" || len(allVersions) == 0 {
 		return notFound(status.ComponentNotFound, fmt.Sprintf("Component not found '%s'", component.Purl))
 	}
-	// No URLs at all: the component is not in the knowledge base.
-	if len(urls) == 0 {
-		return notFound(status.ComponentNotFound, fmt.Sprintf("Component not found '%s'", component.Purl))
-	}
-	res, err := filterUrlsInRange(urls, purlType, component.Requirement)
+	inRange, err := filterVersionsInRange(allVersions, component.Requirement)
 	if err != nil {
 		return notFound(status.InvalidSemver, fmt.Sprintf("Invalid requirement '%s' for %s", component.Requirement, component.Purl))
 	}
 	// Component exists but no known version satisfies the requirement.
-	if len(res) == 0 {
+	if len(inRange) == 0 {
 		return notFound(status.VersionNotFound, fmt.Sprintf("No version of %s satisfies '%s'", component.Purl, component.Requirement))
 	}
-	item, hashes := d.processURLResults(ctx, s, res, component)
-	if len(hashes) == 0 {
+	uses, err := d.usageModel.GetLibraryUsageByPurlIDs(ctx, s, []string{purlID}, inRange)
+	if err != nil {
+		s.Errorf("error getting library detections for purl '%s': %s", component.Purl, err)
 		return notFound(status.NoInfo, fmt.Sprintf("Component without info '%s'", component.Purl))
 	}
-	item.Requirement = component.Requirement
-	item.Status = status.ComponentStatus{StatusCode: status.Success}
-	return item
+	if len(uses) == 0 {
+		return notFound(status.NoInfo, fmt.Sprintf("Component without info '%s'", component.Purl))
+	}
+
+	versions := make([]string, 0, len(inRange))
+	seenVersion := make(map[string]bool, len(inRange))
+	for _, u := range uses {
+		if !seenVersion[u.Version] {
+			seenVersion[u.Version] = true
+			versions = append(versions, u.Version)
+		}
+	}
+	sortVersionStrings(versions)
+
+	return domain.ECOutputItem{
+		Purl:        component.Purl,
+		Requirement: component.Requirement,
+		Versions:    versions,
+		Detections:  dedupeDetections(uses),
+		Status:      status.ComponentStatus{StatusCode: status.Success},
+	}
+}
+
+// dedupeDetections collapses the per-version rows into one entry per library.
+// Duplicates should have been removed on mining, but an appended keyword can still
+// produce a second row for the same library.
+func dedupeDetections(uses []models.ECUsage) []domain.ECDetectedItem {
+	seen := make(map[string]bool, len(uses))
+	out := make([]domain.ECDetectedItem, 0, len(uses))
+	for _, u := range uses {
+		if seen[u.ID] {
+			continue
+		}
+		seen[u.ID] = true
+		out = append(out, domain.ECDetectedItem{
+			ID:          u.ID,
+			Name:        u.Name,
+			Description: u.Description,
+			URL:         u.URL,
+			Category:    u.Category,
+			Purl:        u.Purl,
+		})
+	}
+	return out
+}
+
+// sourceVersions resolves the linked source purl to its own purl_id and version set, so the
+// fallback runs the same range query against the source component.
+func (d ECDetectionUseCase) sourceVersions(ctx context.Context, s *zap.SugaredLogger, sourcePurl string) (string, []string) {
+	resolved, err := d.resolver.Resolve(ctx, sourcePurl, "")
+	if err != nil {
+		s.Debugf("Failed to resolve source purl '%s': %v", sourcePurl, err)
+		return "", nil
+	}
+	return resolved.PurlID, resolved.Versions
 }

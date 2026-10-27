@@ -29,28 +29,30 @@ import (
 	"scanoss.com/cryptography/pkg/domain"
 	"scanoss.com/cryptography/pkg/dtos"
 	"scanoss.com/cryptography/pkg/models"
-	"scanoss.com/cryptography/pkg/utils"
+	"scanoss.com/cryptography/pkg/resolver"
 )
 
 type CryptoUseCase struct {
 	db          *sqlx.DB
-	allUrls     *models.AllUrlsModel
+	resolver    *resolver.Resolver
 	cryptoUsage *models.CryptoUsageModel
 }
-type CryptoWorkerStruct struct {
-	URLMd5  string
-	Purl    string
-	Version string
-}
+
+// ComponentCryptoMetadata is the per-component working state of a crypto lookup.
+//
+// It used to carry SelectedURLS, the mining `all_urls` rows whose package hashes
+// keyed the crypto tables. Serving keys crypto by (purl_id, version), so the
+// component's own identity is all that is needed.
 type ComponentCryptoMetadata struct {
 	Purl          string
 	ComponentName string
 	PurlType      string
 	Requirement   string
 	Version       string
-	Status        status.ComponentStatus
-	SelectedURLS  []models.AllURL
-	// SourcePurl is the source-code purl linked by the component helper, used as a
+	// PurlID is the serving component.purl_id the crypto rows hang off.
+	PurlID string
+	Status status.ComponentStatus
+	// SourcePurl is the source-code purl linked by the resolver, used as a
 	// fallback target when the original purl has no cryptographic information.
 	SourcePurl string
 }
@@ -58,7 +60,7 @@ type ComponentCryptoMetadata struct {
 func NewCrypto(db *sqlx.DB, config *myconfig.ServerConfig) *CryptoUseCase {
 	return &CryptoUseCase{
 		db:          db,
-		allUrls:     models.NewAllURLModel(db),
+		resolver:    resolver.New(nil, db),
 		cryptoUsage: models.NewCryptoUsageModel(db),
 	}
 }
@@ -75,43 +77,31 @@ func (d CryptoUseCase) getComponentsAlgorithms(ctx context.Context, s *zap.Sugar
 		s.Info("Empty List of Purls supplied")
 		return domain.CryptoOutput{}, errors.New("empty list of purls")
 	}
-	componentCryptoMetadata, mapPurls := d.buildMetadata(ctx, s, components)
-	s.Debugf("Component Cryptography Metadata: %v", componentCryptoMetadata)
-	// Only query with SUCCESS status components
-	var successPurlsToQuery []utils.PurlReq
-	for _, cm := range componentCryptoMetadata {
-		if cm.Status.StatusCode == status.Success {
-			successPurlsToQuery = append(successPurlsToQuery, utils.PurlReq{
-				Purl:    cm.ComponentName,
-				Version: cm.Version,
-			})
-		}
-	}
+	metadata, mapPurls := d.buildMetadata(ctx, s, components)
+	s.Debugf("Component Cryptography Metadata: %v", metadata)
 
-	// URLs by PurlList (only SUCCESS components)
-	var urls []models.AllURL
-	var err error
-	if len(successPurlsToQuery) > 0 {
-		urls, err = d.allUrls.GetUrlsByPurlList(ctx, s, successPurlsToQuery)
-		if err != nil {
-			s.Warnf("Failed to get list of urls from (%v): %s", successPurlsToQuery, err)
+	// One query for the whole batch: every resolved (purl_id, version) pair at once.
+	var purlIDs, versions []string
+	for _, cm := range metadata {
+		if cm.Status.StatusCode == status.Success && cm.PurlID != "" {
+			purlIDs = append(purlIDs, cm.PurlID)
+			versions = append(versions, cm.Version)
 		}
-		d.processUrls(urls, componentCryptoMetadata)
 	}
-	urlHashes := d.collectURLHashes(componentCryptoMetadata)
 	var usage []models.CryptoUsage
-	if len(urlHashes) > 0 {
-		usage, err = d.cryptoUsage.GetCryptoUsageByURLHashes(ctx, s, urlHashes)
+	if len(purlIDs) > 0 {
+		var err error
+		usage, err = d.cryptoUsage.GetCryptoUsageByPurlIDs(ctx, s, purlIDs, versions)
 		if err != nil {
-			return domain.CryptoOutput{}, errors.New("error retrieving url hashes")
+			return domain.CryptoOutput{}, errors.New("error retrieving cryptographic usage")
 		}
 	}
 
 	mapCrypto := d.buildCryptoMap(usage)
-	output := d.processCryptoOutput(componentCryptoMetadata, mapCrypto, mapPurls)
+	output := d.processCryptoOutput(metadata, mapCrypto, mapPurls)
 
 	if allowFallback {
-		d.applySourceFallback(ctx, s, &output, componentCryptoMetadata, components)
+		d.applySourceFallback(ctx, s, &output, metadata, components)
 	}
 	return output, nil
 }
@@ -154,34 +144,13 @@ func (d CryptoUseCase) applySourceFallback(
 	}
 }
 
-func (d CryptoUseCase) processUrls(urls []models.AllURL, componentCryptoMetadata []ComponentCryptoMetadata) {
-	// Build a map from PurlName to list of URLs for easy lookup
-	urlsByPurl := make(map[string][]models.AllURL)
-	for _, u := range urls {
-		urlsByPurl[u.PurlName] = append(urlsByPurl[u.PurlName], u)
-	}
-	// Update component metadata with matched URLs
-	for i := range componentCryptoMetadata {
-		if componentCryptoMetadata[i].Status.StatusCode == status.Success {
-			if matchedUrls, found := urlsByPurl[componentCryptoMetadata[i].ComponentName]; found {
-				componentCryptoMetadata[i].SelectedURLS = matchedUrls
-			} else {
-				componentCryptoMetadata[i].Status = status.ComponentStatus{
-					StatusCode: status.ComponentNotFound,
-					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-				}
-			}
-		}
-	}
-}
-
-// buildMetadata resolves the version requirement of each input component through the shared
-// component helper and turns the result into the internal ComponentCryptoMetadata. The helper
-// extracts any version embedded in the purl, picks the concrete version matching the requirement
-// and reports the component status, so no local purl parsing or version picking is needed here.
+// buildMetadata resolves the version requirement of each input component against the serving
+// schema and turns the result into the internal ComponentCryptoMetadata. The resolver extracts
+// any version embedded in the purl, picks the concrete version matching the requirement and
+// reports the component status, so no local purl parsing or version picking is needed here.
 func (d CryptoUseCase) buildMetadata(ctx context.Context, s *zap.SugaredLogger, components []dtos.ComponentDTO) ([]ComponentCryptoMetadata, map[string]bool) {
-	resolved := resolveComponentVersions(ctx, s, d.db, components)
-	componentCryptoMetadata := make([]ComponentCryptoMetadata, 0, len(resolved))
+	resolved := resolveComponentVersions(ctx, s, d.resolver, components)
+	metadata := make([]ComponentCryptoMetadata, 0, len(resolved))
 	mapPurls := make(map[string]bool)
 	for i := range resolved {
 		c := resolved[i]
@@ -190,71 +159,36 @@ func (d CryptoUseCase) buildMetadata(ctx context.Context, s *zap.SugaredLogger, 
 			mapPurls[c.Name] = false
 		}
 		var srcPurl string
-		if _, _, ok := sourcePurlForFallback(c); ok {
+		if hasSourcePurl(c) {
 			srcPurl = c.SourcePurl.Purl
 		}
-		componentCryptoMetadata = append(componentCryptoMetadata,
-			ComponentCryptoMetadata{
-				Purl:          components[i].Purl,
-				Version:       c.Version,
-				Status:        c.Status,
-				Requirement:   components[i].Requirement,
-				ComponentName: c.Name,
-				PurlType:      c.PurlType,
-				SourcePurl:    srcPurl,
-			})
+		metadata = append(metadata, ComponentCryptoMetadata{
+			Purl:          components[i].Purl,
+			Version:       c.Version,
+			Status:        c.Status,
+			Requirement:   components[i].Requirement,
+			ComponentName: c.Name,
+			PurlType:      c.PurlType,
+			PurlID:        c.PurlID,
+			SourcePurl:    srcPurl,
+		})
 	}
-	return componentCryptoMetadata, mapPurls
+	return metadata, mapPurls
 }
 
-/*func (d CryptoUseCase) buildPurlMap(urls []models.AllURL) map[string][]models.AllURL {
-	purlMap := make(map[string][]models.AllURL)
-	for _, url := range urls {
-		purlMap[url.PurlName] = append(purlMap[url.PurlName], url)
-	}
-	return purlMap
-}*/
-
-func (d CryptoUseCase) collectURLHashes(componentCryptoMetadata []ComponentCryptoMetadata) []string {
-	var urlHashes []string
-	for i := range componentCryptoMetadata {
-		// Skip malformed components
-		if componentCryptoMetadata[i].Status.StatusCode != status.Success {
-			continue
-		}
-
-		// Keep only the URLs matching the resolved purl type and version, so same-name packages
-		// from different ecosystems don't share crypto hits.
-		var selectedURLs []models.AllURL
-		for _, url := range componentCryptoMetadata[i].SelectedURLS {
-			if url.PurlType == componentCryptoMetadata[i].PurlType && url.Version == componentCryptoMetadata[i].Version {
-				selectedURLs = append(selectedURLs, url)
-			}
-		}
-		componentCryptoMetadata[i].SelectedURLS = selectedURLs
-		if len(selectedURLs) > 0 {
-			componentCryptoMetadata[i].Version = selectedURLs[0].Version
-			for _, url := range selectedURLs {
-				urlHashes = append(urlHashes, url.URLHash)
-			}
-		} else {
-			// No URLs found for this component
-			if componentCryptoMetadata[i].Status.StatusCode != status.ComponentNotFound {
-				componentCryptoMetadata[i].Status = status.ComponentStatus{
-					StatusCode: status.ComponentNotFound,
-					Message:    fmt.Sprintf("Component %s does not exists", componentCryptoMetadata[i].Purl),
-				}
-			}
-			componentCryptoMetadata[i].SelectedURLS = []models.AllURL{}
-		}
-	}
-	return urlHashes
+// cryptoKey addresses one component version in the crypto map. Keying on the
+// purl_id as well as the version is what stops two components that happen to
+// share a version string from picking up each other's algorithms.
+type cryptoKey struct {
+	purlID  string
+	version string
 }
 
-func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]models.CryptoItem {
-	mapCrypto := make(map[string][]models.CryptoItem)
+func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[cryptoKey][]models.CryptoItem {
+	mapCrypto := make(map[cryptoKey][]models.CryptoItem)
 	for _, v := range usage {
-		mapCrypto[v.URLHash] = append(mapCrypto[v.URLHash], models.CryptoItem{
+		key := cryptoKey{purlID: v.PurlID, version: v.Version}
+		mapCrypto[key] = append(mapCrypto[key], models.CryptoItem{
 			Algorithm: v.Algorithm,
 			Strength:  v.Strength,
 		})
@@ -262,13 +196,11 @@ func (d CryptoUseCase) buildCryptoMap(usage []models.CryptoUsage) map[string][]m
 	return mapCrypto
 }
 
-func (d CryptoUseCase) processCryptoOutput(componentCryptoMetadata []ComponentCryptoMetadata,
-	mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutput {
+func (d CryptoUseCase) processCryptoOutput(metadata []ComponentCryptoMetadata,
+	mapCrypto map[cryptoKey][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutput {
 	output := domain.CryptoOutput{}
-
-	for _, c := range componentCryptoMetadata {
-		item := d.buildCryptoOutputItem(c, mapCrypto, mapPurls)
-		output.Cryptography = append(output.Cryptography, item)
+	for _, c := range metadata {
+		output.Cryptography = append(output.Cryptography, d.buildCryptoOutputItem(c, mapCrypto, mapPurls))
 	}
 	return output
 }
@@ -286,7 +218,7 @@ func (d CryptoUseCase) processAlgorithms(items []models.CryptoItem, cryptoOutIte
 	}
 }
 
-func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypto map[string][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutputItem {
+func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypto map[cryptoKey][]models.CryptoItem, mapPurls map[string]bool) domain.CryptoOutputItem {
 	cryptoOutItem := domain.CryptoOutputItem{
 		Version:     q.Version,
 		Requirement: q.Requirement,
@@ -296,14 +228,9 @@ func (d CryptoUseCase) buildCryptoOutputItem(q ComponentCryptoMetadata, mapCrypt
 
 	if q.Status.StatusCode == status.Success {
 		algorithms := make(map[string]bool)
-		foundInfo := false
-
-		for _, url := range q.SelectedURLS {
-			if items := mapCrypto[url.URLHash]; len(items) > 0 {
-				d.processAlgorithms(items, &cryptoOutItem, algorithms)
-				foundInfo = true
-			}
-		}
+		items := mapCrypto[cryptoKey{purlID: q.PurlID, version: q.Version}]
+		foundInfo := len(items) > 0
+		d.processAlgorithms(items, &cryptoOutItem, algorithms)
 		// Update status based on whether we found crypto info
 		if !foundInfo {
 			cryptoOutItem.Status = status.ComponentStatus{
