@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-10-27
+
+### Fixed
+- **The release workflow fails to build.** Since 0.13.1 it runs in a `golang:1.25-bookworm` container as root, over a checkout the runner owns, and git refuses such a repository, so the build could not read the version from the tag and the build stopped. The workflow now marks the workspace as a safe directory. 0.13.1 was tagged but never released
+
 ## [0.13.1] - 2026-10-27
 
 ### Fixed
@@ -190,6 +195,7 @@
 - Remove from list those versions that do not contain detections
 - Detailed response status message.
 
+[0.13.2]: https://github.com/scanoss/cryptography/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/scanoss/cryptography/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/scanoss/cryptography/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/scanoss/cryptography/compare/v0.11.0...v0.12.0
